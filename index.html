@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f5f8fb" />
+  <title>业务协同驾驶舱</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230b6bcb'/%3E%3Cpath d='M29 14h6v15h15v6H35v15h-6V35H14v-6h15z' fill='white'/%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --bg: #f4f7fa;
+      --surface: rgba(255,255,255,.93);
+      --surface-strong: #fff;
+      --ink: #152433;
+      --muted: #667786;
+      --line: #dfe7ed;
+      --blue: #0b6bcb;
+      --blue-soft: #eaf4ff;
+      --teal: #07847d;
+      --teal-soft: #e7f7f4;
+      --amber: #b86a00;
+      --amber-soft: #fff3dd;
+      --red: #c63b42;
+      --red-soft: #fff0f1;
+      --shadow: 0 10px 30px rgba(31,57,78,.08);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      background:
+        radial-gradient(circle at 92% 0%, rgba(26,152,195,.12), transparent 28rem),
+        radial-gradient(circle at 6% 12%, rgba(11,107,203,.08), transparent 24rem),
+        var(--bg);
+    }
+    button { font: inherit; }
+    .app-shell { min-height: 100vh; }
+    .side-nav {
+      display: none;
+      position: fixed;
+      inset: 0 auto 0 0;
+      width: 236px;
+      padding: 28px 18px;
+      background: rgba(250,252,254,.88);
+      border-right: 1px solid var(--line);
+      backdrop-filter: blur(18px);
+      z-index: 10;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; padding: 0 10px 26px; }
+    .brand-mark { width: 38px; height: 38px; border-radius: 13px; display:grid; place-items:center; color:#fff; background:linear-gradient(140deg,#0874db,#09a39a); box-shadow:0 8px 20px rgba(11,107,203,.22); font-size:23px; font-weight:500; }
+    .brand strong { display:block; font-size:15px; }
+    .brand small { color:var(--muted); font-size:11px; }
+    .nav-group { margin: 14px 0 8px 12px; color:#8a98a4; font-size:11px; letter-spacing:.12em; }
+    .nav-btn { width:100%; border:0; background:transparent; color:#4c5e6c; display:flex; align-items:center; gap:11px; padding:11px 13px; border-radius:13px; cursor:pointer; text-align:left; margin:3px 0; }
+    .nav-btn:hover,.nav-btn.active { background:#e8f2fb; color:#075eaf; font-weight:650; }
+    .nav-dot { width:8px; height:8px; border:2px solid currentColor; border-radius:50%; }
+
+    main { max-width: 1440px; margin: 0 auto; padding: 18px 16px 98px; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
+    .topbar h1 { margin:0; font-size:21px; letter-spacing:-.02em; }
+    .topbar p { margin:5px 0 0; font-size:12px; color:var(--muted); }
+    .period { border:1px solid var(--line); background:rgba(255,255,255,.76); padding:9px 11px; border-radius:12px; color:#415361; font-size:12px; white-space:nowrap; }
+
+    .hero { position:relative; overflow:hidden; padding:22px; border-radius:28px; color:#fff; background:linear-gradient(125deg,#075eaf 0%,#087cad 55%,#07847d 100%); box-shadow:0 20px 42px rgba(8,91,139,.18); }
+    .hero::after { content:""; position:absolute; width:250px; height:250px; border:45px solid rgba(255,255,255,.07); border-radius:50%; right:-110px; top:-130px; }
+    .hero-label { font-size:11px; letter-spacing:.12em; opacity:.78; }
+    .hero h2 { position:relative; max-width:760px; margin:10px 0 9px; font-size:clamp(22px,4vw,36px); line-height:1.2; letter-spacing:-.03em; }
+    .hero p { position:relative; max-width:780px; margin:0; font-size:13px; line-height:1.7; color:rgba(255,255,255,.86); }
+    .hero-actions { position:relative; display:flex; gap:9px; flex-wrap:wrap; margin-top:18px; }
+    .primary,.ghost { border:0; border-radius:12px; padding:10px 14px; cursor:pointer; font-weight:650; font-size:13px; }
+    .primary { background:#fff; color:#0869a7; }
+    .ghost { background:rgba(255,255,255,.13); color:#fff; border:1px solid rgba(255,255,255,.24); }
+    .hero-stats { position:relative; display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:20px; }
+    .hero-stat { background:rgba(255,255,255,.11); border:1px solid rgba(255,255,255,.13); padding:11px; border-radius:14px; }
+    .hero-stat strong { display:block; font-size:20px; }
+    .hero-stat span { font-size:11px; opacity:.76; }
+
+    .section-head { display:flex; align-items:flex-end; justify-content:space-between; gap:14px; margin:28px 2px 13px; }
+    .section-head h2 { margin:0; font-size:18px; }
+    .section-head p { margin:4px 0 0; color:var(--muted); font-size:12px; }
+    .link-btn { border:0; color:var(--blue); background:transparent; cursor:pointer; font-size:12px; }
+    .filter-row { display:flex; gap:8px; overflow:auto; scrollbar-width:none; padding:2px 0 10px; }
+    .filter-row::-webkit-scrollbar { display:none; }
+    .chip { flex:0 0 auto; border:1px solid var(--line); border-radius:999px; padding:8px 13px; background:rgba(255,255,255,.75); color:#526472; cursor:pointer; font-size:12px; }
+    .chip.active { background:var(--ink); color:#fff; border-color:var(--ink); }
+
+    .signal-grid { display:grid; gap:12px; }
+    .signal-card { position:relative; display:grid; grid-template-columns:auto 1fr; gap:13px; padding:17px; background:var(--surface); border:1px solid rgba(216,227,234,.9); border-radius:var(--radius); box-shadow:var(--shadow); }
+    .severity { width:9px; height:100%; min-height:92px; border-radius:10px; background:var(--amber); }
+    .severity.red { background:var(--red); }
+    .severity.teal { background:var(--teal); }
+    .signal-top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+    .tag { display:inline-flex; align-items:center; border-radius:999px; padding:4px 8px; font-size:10px; font-weight:700; background:var(--amber-soft); color:var(--amber); }
+    .tag.red { background:var(--red-soft); color:var(--red); }
+    .tag.teal { background:var(--teal-soft); color:var(--teal); }
+    .signal-card h3 { margin:8px 0 6px; font-size:15px; line-height:1.45; }
+    .signal-card p { margin:0; color:var(--muted); font-size:12px; line-height:1.65; }
+    .owner { flex:0 0 auto; color:#5c6f7e; font-size:10px; text-align:right; line-height:1.5; }
+    .action-line { display:flex; gap:9px; align-items:flex-start; margin-top:12px; padding-top:11px; border-top:1px solid #edf1f4; font-size:12px; line-height:1.55; }
+    .action-icon { width:22px; height:22px; flex:0 0 22px; border-radius:7px; display:grid; place-items:center; background:var(--blue-soft); color:var(--blue); }
+
+    .metric-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+    .metric { padding:15px; border:1px solid var(--line); border-radius:18px; background:var(--surface-strong); min-width:0; }
+    .metric .label { color:var(--muted); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .metric .value-row { display:flex; align-items:flex-end; gap:6px; margin:9px 0 10px; }
+    .metric strong { font-size:24px; line-height:1; letter-spacing:-.03em; }
+    .delta { font-size:10px; padding:3px 6px; border-radius:999px; font-weight:700; }
+    .delta.up { color:var(--teal); background:var(--teal-soft); }
+    .delta.down { color:var(--red); background:var(--red-soft); }
+    .delta.flat { color:#6d7f8d; background:#edf1f4; }
+    .compare { display:flex; justify-content:space-between; color:#87949f; font-size:10px; }
+    .track { height:5px; border-radius:9px; background:#edf2f5; overflow:hidden; margin:7px 0; }
+    .track span { display:block; height:100%; border-radius:9px; background:linear-gradient(90deg,var(--blue),#20a9b2); }
+
+    .dept-layout { display:grid; gap:12px; }
+    .panel { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow); }
+    .panel-title { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:15px; }
+    .panel-title h3 { margin:0; font-size:15px; }
+    .panel-title span { color:var(--muted); font-size:10px; }
+    .mini-chart { display:grid; gap:12px; }
+    .chart-row { display:grid; grid-template-columns:86px 1fr 46px; gap:8px; align-items:center; font-size:11px; }
+    .chart-label { color:#526472; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .bar-pair { display:grid; gap:4px; }
+    .bar { height:7px; border-radius:7px; background:#d8e2e9; min-width:3px; }
+    .bar.current { background:linear-gradient(90deg,#0b6bcb,#12a19b); }
+    .chart-val { text-align:right; font-variant-numeric:tabular-nums; color:#526472; }
+    .legend { display:flex; gap:14px; margin-top:13px; color:var(--muted); font-size:10px; }
+    .legend i { display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:5px; background:#d8e2e9; }
+    .legend i.current { background:#0b79c2; }
+
+    .task-list { display:grid; gap:9px; }
+    .task { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:start; padding:12px 0; border-bottom:1px solid #e9eef2; }
+    .task:last-child { border-bottom:0; padding-bottom:0; }
+    .task-check { width:22px; height:22px; border-radius:7px; border:1px solid #bed0dc; background:#fff; color:#fff; cursor:pointer; }
+    .task.done .task-check { background:var(--teal); border-color:var(--teal); }
+    .task.done .task-check::after { content:"✓"; }
+    .task.done .task-body { opacity:.55; text-decoration:line-through; }
+    .task-body strong { display:block; font-size:12px; margin-bottom:4px; }
+    .task-body span { color:var(--muted); font-size:10px; line-height:1.5; }
+    .deadline { padding:4px 7px; border-radius:8px; background:var(--amber-soft); color:var(--amber); font-size:9px; white-space:nowrap; }
+
+    .quality-list { display:grid; gap:9px; }
+    .quality-item { display:grid; grid-template-columns:auto 1fr; gap:9px; padding:11px; background:#f7f9fb; border-radius:13px; }
+    .quality-item b { width:22px; height:22px; display:grid; place-items:center; border-radius:7px; background:var(--red-soft); color:var(--red); font-size:11px; }
+    .quality-item strong { display:block; font-size:11px; margin-bottom:3px; }
+    .quality-item p { margin:0; color:var(--muted); font-size:10px; line-height:1.5; }
+
+    .bottom-nav { position:fixed; inset:auto 10px 10px; z-index:20; display:grid; grid-template-columns:repeat(4,1fr); padding:7px; border:1px solid rgba(214,225,232,.9); border-radius:19px; background:rgba(255,255,255,.92); box-shadow:0 12px 35px rgba(30,54,71,.16); backdrop-filter:blur(18px); }
+    .bottom-nav button { border:0; background:transparent; color:#7a8994; padding:6px 2px; font-size:9px; cursor:pointer; }
+    .bottom-nav button span { display:block; font-size:17px; line-height:1.1; margin-bottom:2px; }
+    .bottom-nav button.active { color:var(--blue); font-weight:700; }
+
+    .toast { position:fixed; left:50%; bottom:90px; transform:translate(-50%,15px); opacity:0; pointer-events:none; z-index:40; padding:10px 14px; border-radius:12px; background:#142d3f; color:#fff; font-size:11px; transition:.25s ease; box-shadow:var(--shadow); }
+    .toast.show { opacity:1; transform:translate(-50%,0); }
+    .drawer-backdrop { position:fixed; inset:0; z-index:29; background:rgba(15,34,49,.35); opacity:0; pointer-events:none; transition:.2s; }
+    .drawer-backdrop.show { opacity:1; pointer-events:auto; }
+    .drawer { position:fixed; inset:auto 0 0; z-index:30; max-height:82vh; overflow:auto; padding:22px 18px calc(24px + env(safe-area-inset-bottom)); border-radius:25px 25px 0 0; background:#fff; transform:translateY(102%); transition:.28s ease; box-shadow:0 -20px 45px rgba(18,46,66,.18); }
+    .drawer.show { transform:translateY(0); }
+    .drawer-grip { width:42px; height:4px; border-radius:4px; margin:-10px auto 18px; background:#d5dee5; }
+    .drawer h3 { margin:0 0 6px; }
+    .drawer > p { color:var(--muted); font-size:12px; line-height:1.6; }
+    .source-note { margin-top:16px; padding:12px; background:#f4f7f9; border-radius:13px; color:var(--muted); font-size:10px; line-height:1.6; }
+
+    @media (min-width: 720px) {
+      main { padding:28px 28px 60px; }
+      .hero { padding:30px; }
+      .hero-stats { max-width:520px; }
+      .signal-grid { grid-template-columns:repeat(3,1fr); }
+      .metric-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+      .dept-layout { grid-template-columns:1.1fr .9fr; }
+      .bottom-nav { display:none; }
+      .drawer { inset:0 0 0 auto; width:min(440px,92vw); max-height:none; border-radius:25px 0 0 25px; transform:translateX(102%); padding:34px 28px; }
+      .drawer.show { transform:translateX(0); }
+      .drawer-grip { display:none; }
+    }
+    @media (min-width: 1080px) {
+      .side-nav { display:block; }
+      main { margin-left:236px; padding:34px 36px 60px; }
+      .hero { min-height:285px; display:flex; flex-direction:column; justify-content:center; }
+      .signal-grid { grid-template-columns:repeat(3,1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="side-nav">
+      <div class="brand"><div class="brand-mark">+</div><div><strong>运营总控台</strong><small>Operations Master</small></div></div>
+      <div class="nav-group">工作区</div>
+      <button class="nav-btn active" data-scroll="overview"><span class="nav-dot"></span>全院总览</button>
+      <button class="nav-btn" data-scroll="signals"><span class="nav-dot"></span>AI 洞察</button>
+      <button class="nav-btn" data-scroll="departments"><span class="nav-dot"></span>部门经营</button>
+      <button class="nav-btn" data-scroll="decisions"><span class="nav-dot"></span>协同任务</button>
+      <div class="nav-group">数据治理</div>
+      <button class="nav-btn" id="openQualitySide"><span class="nav-dot"></span>口径核验 <small style="margin-left:auto;color:#c63b42">2</small></button>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div><h1>业务协同驾驶舱</h1><p>从周报数据到可执行的跨部门决策</p></div>
+        <button class="period" id="periodBtn">9月1–6日⌄</button>
+      </header>
+
+      <section class="hero" id="overview">
+        <span class="hero-label">AI WEEKLY BRIEF · 本期经营摘要</span>
+        <h2>业务量并未整体收缩，但收入与服务结构出现明显分化</h2>
+        <p>护理治疗量继续增长，客服与心理服务量下行，医生侧收入降幅大于业务量变化。建议先核对统计周期与收费归属，再处理转化漏斗和服务组合，避免把口径问题误判为经营问题。</p>
+        <div class="hero-actions">
+          <button class="primary" data-scroll="decisions">查看本周决策单</button>
+          <button class="ghost" id="openQuality">核验 2 项数据口径</button>
+        </div>
+        <div class="hero-stats">
+          <div class="hero-stat"><strong>3</strong><span>项跨部门信号</span></div>
+          <div class="hero-stat"><strong>4</strong><span>项建议动作</span></div>
+          <div class="hero-stat"><strong>2</strong><span>项数据待核验</span></div>
+        </div>
+      </section>
+
+      <section id="signals">
+        <div class="section-head"><div><h2>AI 优先关注</h2><p>按经营影响与跨部门关联排序</p></div><button class="link-btn" id="explainBtn">查看判断依据</button></div>
+        <div class="signal-grid" id="signalGrid"></div>
+      </section>
+
+      <section id="departments">
+        <div class="section-head"><div><h2>部门经营对比</h2><p>上一期与本期的同类指标变化</p></div></div>
+        <div class="filter-row" id="deptFilters"></div>
+        <div class="metric-grid" id="metricGrid"></div>
+        <div class="dept-layout" style="margin-top:12px">
+          <article class="panel">
+            <div class="panel-title"><h3 id="chartTitle">医生组指标对比</h3><span>灰色：上一期　彩色：本期</span></div>
+            <div class="mini-chart" id="miniChart"></div>
+            <div class="legend"><span><i></i>上一期（8月末）</span><span><i class="current"></i>本期（9月1–6日）</span></div>
+          </article>
+          <article class="panel">
+            <div class="panel-title"><h3>部门 AI 建议</h3><span id="deptRisk">需关注</span></div>
+            <div id="deptAdvice"></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="decisions">
+        <div class="section-head"><div><h2>本周协同决策单</h2><p>每条建议都落到责任部门与时限</p></div><button class="link-btn" id="resetTasks">重置状态</button></div>
+        <article class="panel"><div class="task-list" id="taskList"></div></article>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="移动端导航">
+      <button class="active" data-scroll="overview"><span>⌂</span>总览</button>
+      <button data-scroll="signals"><span>✦</span>洞察</button>
+      <button data-scroll="departments"><span>▥</span>部门</button>
+      <button data-scroll="decisions"><span>✓</span>任务</button>
+    </nav>
+  </div>
+
+  <div class="drawer-backdrop" id="backdrop"></div>
+  <aside class="drawer" id="drawer" aria-modal="true" role="dialog">
+    <div class="drawer-grip"></div>
+    <h3 id="drawerTitle">数据口径核验</h3>
+    <p id="drawerIntro">AI 已识别出可能影响判断的字段冲突。建议先确认口径，再进入经营复盘。</p>
+    <div class="quality-list" id="drawerContent"></div>
+    <div class="source-note">对比来源：小组汇报表.ksheet（8.30-31）.xlsx、特别行动小组汇报表(1).xlsx。变化率按两个文件的表头数值计算；叙述字段仅用于发现补充信号与口径冲突。</div>
+  </aside>
+  <div class="toast" id="toast">已更新</div>
+
+  <script>
+    const departments = {
+      doctor: {
+        name: '医生组', risk: '高优先级',
+        metrics: [
+          {label:'本周入院人数', prev:14, curr:14, unit:'人'},
+          {label:'本周门诊人数', prev:274, curr:274, unit:'人'},
+          {label:'物理治疗费用', prev:30.8, curr:13.9, unit:'万'},
+          {label:'总收入', prev:67.9, curr:40, unit:'万'}
+        ],
+        advice: [
+          ['先核验周期','门诊表头为 274 人，但科主任叙述为 216 人。两者会导向不同的人均收入判断。'],
+          ['拆解收入缺口','入院及表头门诊量持平，总收入仍下降 41.1%。应按药品、检查、物理治疗、心理治疗拆解差额。'],
+          ['关注转化质量','住院总医师转化由 5 人降至 3 人，需结合客户来源与接诊时段复盘。']
+        ]
+      },
+      nursing: {
+        name:'护理组', risk:'结构性异常',
+        metrics:[
+          {label:'物理治疗人次',prev:530,curr:598,unit:'人次'},
+          {label:'工娱场次',prev:5,curr:5,unit:'场'},
+          {label:'工娱人数',prev:62,curr:62,unit:'人'}
+        ],
+        advice:[
+          ['联查收费闭环','治疗人次增加 12.8%，医生侧物理治疗费用却下降 54.9%。优先排查统计周期、项目结构、收费执行与退费。'],
+          ['保持治疗执行','业务量上升说明执行端承载能力提升，可进一步观察各项目完成率及拒绝治疗原因。'],
+          ['补充结果指标','当前仅有工作量，建议同步接入医嘱应做量、实做量、完成率和异常中断原因。']
+        ]
+      },
+      psychology: {
+        name:'心理咨询组', risk:'需关注',
+        metrics:[
+          {label:'个体咨询人数',prev:57,curr:48,unit:'人'},
+          {label:'团辅场次',prev:2,curr:2,unit:'场'},
+          {label:'服务总人数',prev:65,curr:58,unit:'人'},
+          {label:'总收入',prev:46155,curr:32159,unit:'元'}
+        ],
+        advice:[
+          ['核查服务组合','总人数下降 10.8%，收入下降 30.3%，人均收入由约 710 元降至 554 元。检查免费干预、团辅占比和收费项目变化。'],
+          ['追踪转介漏斗','客服协助预约心理咨询由 11 人增至 17 人，但实际个体咨询人数下降，需要核对预约、到诊与收费三个节点。'],
+          ['关注隐患闭环','上一期记录 1 项心理服务隐患，本期未填报。应确认已关闭还是漏报，并保留处置结局。']
+        ]
+      },
+      service: {
+        name:'客服服务部', risk:'需关注',
+        metrics:[
+          {label:'随访人数',prev:224,curr:186,unit:'人'},
+          {label:'接待/到院表头',prev:274,curr:230,unit:'人'},
+          {label:'义诊人数',prev:35,curr:15,unit:'人'},
+          {label:'最终到院人数',prev:58,curr:48,unit:'人'}
+        ],
+        advice:[
+          ['稳住随访基盘','随访量下降 17.0%，最终到院人数下降 17.2%，到院率仍约 25.8%。主要问题是漏斗入口缩小，而不是转化率恶化。'],
+          ['复制高质量预约','协助心理咨询预约由 11 人增至 17 人，可沉淀来源、话术与到诊结果。'],
+          ['统一“到院”定义','表头“到院人数”填 230，叙述“最终到院”填 48。建议拆成接待人次、随访后到院人数两个字段。']
+        ]
+      },
+      marketing: {
+        name:'营销中心', risk:'观察',
+        metrics:[
+          {label:'心理管家有效对接',prev:80,curr:80,unit:'人次'},
+          {label:'管家转住院',prev:14,curr:14,unit:'人'},
+          {label:'检查服务',prev:64,curr:45,unit:'人次'},
+          {label:'心理咨询服务',prev:15,curr:31,unit:'人次'}
+        ],
+        advice:[
+          ['优化服务结构','有效对接与住院转化持平，心理咨询服务翻倍，检查服务下降 29.7%。需判断是需求结构变化还是推荐/执行偏移。'],
+          ['保留渠道归因','转诊到院率从 64.86% 提升至 74.29%，建议按渠道、初复诊和接诊人拆分，确认提升来自哪里。'],
+          ['活动转向康复结果','患者活动由 6 场 50 人降至 5 场 45 人，家属人数由 20 增至 30。下一步加入重复参与率及活动后情绪/社交变化。']
+        ]
+      }
+    };
+
+    const signals = [
+      {level:'red',tag:'跨部门矛盾',title:'治疗量增加，但对应费用下降 54.9%',body:'护理记录物理治疗 598 人次，较前期增加 68 人次；医生侧费用由 30.8 万降至 13.9 万。',owner:'医生组 × 护理组 × 财务',action:'48 小时内按治疗项目核对“医嘱—执行—收费—退费”四段数据，定位差额来源。',depts:['all','doctor','nursing']},
+      {level:'red',tag:'经营异常',title:'业务量表面持平，总收入下降 41.1%',body:'表头入院 14 人、门诊 274 人均持平，但总收入由 67.9 万降至 40 万。源表门诊叙述另记 216 人，需先排除口径影响。',owner:'医生组 × 运营',action:'先锁定同周期口径，再按项目与患者类型拆解人均收入和收入缺口。',depts:['all','doctor']},
+      {level:'amber',tag:'漏斗收缩',title:'客服到院率稳定，但随访入口减少 17.0%',body:'随访 224→186，最终到院 58→48；到院率 25.9%→25.8%，说明主要压力位于触达量，而非转化效率。',owner:'客服 × 营销',action:'恢复高意向与逾期随访名单，按渠道分配每日触达任务，并跟踪 7 日到院。',depts:['all','service','marketing']},
+      {level:'amber',tag:'服务结构',title:'心理服务收入降幅大于人数降幅',body:'服务人数下降 10.8%，收入下降 30.3%，估算人均收入下降约 21.9%。',owner:'心理咨询组 × 医生组',action:'区分个体、团体、免费危机干预和已收费项目，核查转介后到诊及收费脱落。',depts:['all','psychology','doctor']},
+      {level:'teal',tag:'积极信号',title:'转诊到院率提升至 74.29%',body:'营销叙述数据显示转诊到院率由 64.86% 增至 74.29%，心理咨询服务也由 15 增至 31 人次。',owner:'营销 × 客服 × 心理',action:'复盘高转化渠道与接诊动作，形成可复制的患者分流规则。',depts:['all','marketing','service','psychology']}
+    ];
+
+    const tasks = [
+      {id:'billing',title:'核对物理治疗执行与收费差额',meta:'责任：护理组、医生组、财务｜输出：分项目差额清单',deadline:'48小时'},
+      {id:'definition',title:'统一门诊、接待、随访后到院的统计口径',meta:'责任：运营、客服、医生组｜输出：字段定义与填报规则',deadline:'本周三'},
+      {id:'psych',title:'复盘心理服务预约—到诊—收费漏斗',meta:'责任：心理咨询组、客服｜输出：未到诊与未收费原因',deadline:'本周五'},
+      {id:'followup',title:'恢复高意向患者随访基盘',meta:'责任：客服、营销｜输出：渠道任务量与 7 日到院结果',deadline:'今日启动'}
+    ];
+
+    const qualityItems = [
+      {title:'医生组门诊人数冲突',text:'本期表头为 274 人，科主任叙述字段为 216 人。需确认表头是沿用前期数值，还是叙述少统计了部分日期。'},
+      {title:'客服“到院人数”语义冲突',text:'本期表头为 230 人，导医叙述为接待 230 人、随访后最终到院 48 人。建议拆分为两个独立字段。'}
+    ];
+
+    let activeDept = 'doctor';
+    const fmt = (v) => Number(v).toLocaleString('zh-CN',{maximumFractionDigits:1});
+    const pct = (a,b) => b === 0 ? 0 : (a-b)/b*100;
+    const deltaInfo = (curr,prev) => {
+      const d=pct(curr,prev);
+      if(Math.abs(d)<.05) return {text:'持平',cls:'flat'};
+      return {text:`${d>0?'+':''}${d.toFixed(1)}%`,cls:d>0?'up':'down'};
+    };
+
+    function renderFilters(){
+      const el=document.getElementById('deptFilters');
+      el.innerHTML=Object.entries(departments).map(([k,d])=>`<button class="chip ${k===activeDept?'active':''}" data-dept="${k}">${d.name}</button>`).join('');
+      el.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{activeDept=btn.dataset.dept;renderDepartment();renderFilters();renderSignals(activeDept);});
+    }
+
+    function renderDepartment(){
+      const d=departments[activeDept];
+      document.getElementById('chartTitle').textContent=`${d.name}指标对比`;
+      document.getElementById('deptRisk').textContent=d.risk;
+      document.getElementById('metricGrid').innerHTML=d.metrics.map(m=>{
+        const x=deltaInfo(m.curr,m.prev); const width=Math.min(100,Math.max(5,m.curr/Math.max(m.curr,m.prev)*100));
+        return `<article class="metric"><div class="label">${m.label}</div><div class="value-row"><strong>${fmt(m.curr)}</strong><span style="font-size:11px;color:var(--muted)">${m.unit}</span><span class="delta ${x.cls}">${x.text}</span></div><div class="track"><span style="width:${width}%"></span></div><div class="compare"><span>前期 ${fmt(m.prev)}</span><span>本期 ${fmt(m.curr)}</span></div></article>`;
+      }).join('');
+      document.getElementById('miniChart').innerHTML=d.metrics.map(m=>{
+        const max=Math.max(m.prev,m.curr,1); return `<div class="chart-row"><span class="chart-label">${m.label}</span><div class="bar-pair"><div class="bar" style="width:${m.prev/max*100}%"></div><div class="bar current" style="width:${m.curr/max*100}%"></div></div><span class="chart-val">${fmt(m.curr)}</span></div>`;
+      }).join('');
+      document.getElementById('deptAdvice').innerHTML=d.advice.map((a,i)=>`<div class="action-line"><span class="action-icon">${i+1}</span><div><strong>${a[0]}</strong><div style="color:var(--muted);margin-top:3px">${a[1]}</div></div></div>`).join('');
+    }
+
+    function renderSignals(dept='all'){
+      const visible=signals.filter(s=>s.depts.includes(dept)||dept==='all').slice(0,3);
+      document.getElementById('signalGrid').innerHTML=visible.map(s=>`<article class="signal-card"><div class="severity ${s.level}"></div><div><div class="signal-top"><div><span class="tag ${s.level}">${s.tag}</span><h3>${s.title}</h3></div><span class="owner">${s.owner}</span></div><p>${s.body}</p><div class="action-line"><span class="action-icon">→</span><div>${s.action}</div></div></div></article>`).join('');
+    }
+
+    function renderTasks(){
+      const saved=JSON.parse(localStorage.getItem('opsTasks')||'{}');
+      document.getElementById('taskList').innerHTML=tasks.map(t=>`<div class="task ${saved[t.id]?'done':''}" data-task="${t.id}"><button class="task-check" aria-label="切换任务状态"></button><div class="task-body"><strong>${t.title}</strong><span>${t.meta}</span></div><span class="deadline">${t.deadline}</span></div>`).join('');
+      document.querySelectorAll('.task-check').forEach(btn=>btn.onclick=()=>{
+        const row=btn.closest('.task'); const id=row.dataset.task; const state=JSON.parse(localStorage.getItem('opsTasks')||'{}'); state[id]=!state[id]; localStorage.setItem('opsTasks',JSON.stringify(state)); row.classList.toggle('done',state[id]); showToast(state[id]?'已标记完成':'已恢复待办');
+      });
+    }
+
+    const drawer=document.getElementById('drawer'),backdrop=document.getElementById('backdrop');
+    function openDrawer(mode='quality'){
+      const content=document.getElementById('drawerContent');
+      if(mode==='method'){
+        document.getElementById('drawerTitle').textContent='AI 判断依据';
+        document.getElementById('drawerIntro').textContent='当前版本采用透明规则生成初步洞察，便于管理层核对，不替代财务或临床判断。';
+        content.innerHTML=[
+          ['变化','比较两个周期同名指标，突出绝对变化与变化率。'],
+          ['矛盾','寻找同一业务链条中方向相反的数据，例如执行量上升但收费下降。'],
+          ['漏斗','区分入口量、转化率与最终结果，避免只看结果倒推原因。'],
+          ['口径','对表头与叙述字段做一致性检查，冲突项不直接进入结论。']
+        ].map((x,i)=>`<div class="quality-item"><b>${i+1}</b><div><strong>${x[0]}</strong><p>${x[1]}</p></div></div>`).join('');
+      } else {
+        document.getElementById('drawerTitle').textContent='数据口径核验';
+        document.getElementById('drawerIntro').textContent='AI 已识别出可能影响判断的字段冲突。建议先确认口径，再进入经营复盘。';
+        content.innerHTML=qualityItems.map((q,i)=>`<div class="quality-item"><b>!</b><div><strong>${q.title}</strong><p>${q.text}</p></div></div>`).join('');
+      }
+      drawer.classList.add('show');backdrop.classList.add('show');
+    }
+    function closeDrawer(){drawer.classList.remove('show');backdrop.classList.remove('show');}
+    function showToast(text){const t=document.getElementById('toast');t.textContent=text;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1600);}
+
+    document.querySelectorAll('[data-scroll]').forEach(btn=>btn.onclick=()=>{
+      document.getElementById(btn.dataset.scroll).scrollIntoView({behavior:'smooth',block:'start'});
+      document.querySelectorAll('.bottom-nav button').forEach(x=>x.classList.toggle('active',x===btn));
+    });
+    document.getElementById('openQuality').onclick=()=>openDrawer('quality');
+    document.getElementById('openQualitySide').onclick=()=>openDrawer('quality');
+    document.getElementById('explainBtn').onclick=()=>openDrawer('method');
+    document.getElementById('periodBtn').onclick=()=>showToast('当前展示：9月1–6日 对比 8月末');
+    document.getElementById('resetTasks').onclick=()=>{localStorage.removeItem('opsTasks');renderTasks();showToast('任务状态已重置');};
+    backdrop.onclick=closeDrawer;
+    document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});
+
+    renderSignals(); renderFilters(); renderDepartment(); renderTasks();
+  </script>
+</body>
+</html>
