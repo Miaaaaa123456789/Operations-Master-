@@ -2,8 +2,8 @@
   "fingerprint": {
     "admit": 14,
     "outpatient": 274,
-    "revenueWan": 40,
-    "therapyFeeWan": 13.9,
+    "revenueWan": 56,
+    "therapyFeeWan": 22.3,
     "therapyVisits": 598,
     "followup": 186,
     "psychVisits": 48,
@@ -12,16 +12,16 @@
   "narrativeMain": {
     "admit": 14,
     "outpatient": 274,
-    "revenueWan": 40
+    "revenueWan": 56
   },
   "periodLabel": "数据更新至 2026年9月13日",
-  "snapshotAt": "2026-09-13T12:15:55.247Z",
+  "snapshotAt": "2026-09-13T13:13:08.343Z",
   "source": "kdocs/cbwp2cvTiFyK",
   "auth": {
-    "kdocs": false,
-    "wecom": false
+    "kdocs": true,
+    "wecom": true
   },
-  "summary": "入院 14 人，门诊 274 人，物理治疗 598 人次，环比见信号详情。总收入仅作核对指标（本期 40 万）。",
+  "summary": "入院 14 人，门诊 274 人，物理治疗 598 人次，环比见信号详情。总收入仅作核对指标（本期 56 万）。",
   "mainNumbers": [
     {
       "label": "入院（人）",
