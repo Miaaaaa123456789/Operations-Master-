@@ -177,7 +177,7 @@ function fingerprintEqual(a, b) {
 
 function periodLabelFromSnapshot(prevSnap) {
   const m = new Date();
-  return `数据更新至 ${m.getFullYear()}年${m.getMonth() + 1}月`;
+  return `数据更新至 ${m.getFullYear()}年${m.getMonth() + 1}月${m.getDate()}日`;
 }
 
 function buildSnapshotFromFingerprint(fp, prevSnap) {
