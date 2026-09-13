@@ -15,7 +15,7 @@
     "revenueWan": 40
   },
   "periodLabel": "数据更新至 2026年9月",
-  "snapshotAt": "2026-09-13T09:00:00+08:00",
+  "snapshotAt": "2026-09-13T04:25:56.332Z",
   "source": "kdocs/cbwp2cvTiFyK",
   "auth": {
     "kdocs": false,
@@ -23,9 +23,24 @@
   },
   "summary": "总收入 40 万元，较上期 67.9 万元下降 41.1%。入院 13 人，门诊 216 人，环比基本持平。",
   "mainNumbers": [
-    { "label": "总收入（万）", "value": "40", "delta": "−41.1%", "deltaColor": "#ffd6dd" },
-    { "label": "入院（人）", "value": "13", "delta": "环比持平", "deltaColor": "rgba(255,255,255,.85)" },
-    { "label": "门诊（人）", "value": "216", "delta": "环比持平", "deltaColor": "rgba(255,255,255,.85)" }
+    {
+      "label": "总收入（万）",
+      "value": "40",
+      "delta": "−41.1%",
+      "deltaColor": "#ffd6dd"
+    },
+    {
+      "label": "入院（人）",
+      "value": "13",
+      "delta": "环比持平",
+      "deltaColor": "rgba(255,255,255,.85)"
+    },
+    {
+      "label": "门诊（人）",
+      "value": "216",
+      "delta": "环比持平",
+      "deltaColor": "rgba(255,255,255,.85)"
+    }
   ],
   "wecomTemplate": "【经营看板已更新】数据更新至 {periodLabel}。总收入 {revenueWan} 万，入院 {admit}，门诊 {outpatient}。请打开系统查看。{link}",
   "wecomAuthMissing": "企业微信群未授权：未拿到 bot webhook / 群 chat_id，无法发提醒。",
