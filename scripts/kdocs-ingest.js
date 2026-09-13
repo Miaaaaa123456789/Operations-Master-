@@ -25,12 +25,27 @@
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+
+// ─── kdocs-cli 路径解析（绝对路径优先，避免依赖 PATH） ──────────────────
+
+function resolveKdocsCli() {
+  const candidates = [
+    process.env.KDOCS_CLI,
+    path.join(os.homedir(), '.local', 'bin', 'kdocs-cli'),
+    '/usr/local/bin/kdocs-cli',
+    '/opt/homebrew/bin/kdocs-cli',
+  ].filter(Boolean);
+  for (const p of candidates) { try { fs.accessSync(p, fs.constants.X_OK); return p; } catch (_) {} }
+  return 'kdocs-cli'; // 兜底：靠 PATH 解析（自动化 prompt 中会先 export PATH）
+}
 
 // ─── 配置 ─────────────────────────────────────────────────────────────────
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const SNAPSHOT_PATH = path.join(REPO_ROOT, 'data', 'ops-dashboard-snapshot.json');
 const RAW_DIR = path.join(REPO_ROOT, 'data', 'raw');
+const KDOCS_CLI = resolveKdocsCli();
 
 const KDOCS_URL = 'https://www.kdocs.cn/l/cbwp2cvTiFyK';
 
@@ -60,7 +75,7 @@ const FINGERPRINT_FIELDS = [
 
 function kdocs(...args) {
   // kdocs-cli <service> <action> k=v k=v ...
-  const out = execFileSync('kdocs-cli', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  const out = execFileSync(KDOCS_CLI, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
   return JSON.parse(out);
 }
 
@@ -201,7 +216,7 @@ function main() {
   const dryRun = argv.includes('--dry-run');
 
   console.log('🔐 检查认证 …');
-  const status = JSON.parse(execFileSync('kdocs-cli', ['auth', 'status'], { encoding: 'utf8' }));
+  const status = JSON.parse(execFileSync(KDOCS_CLI, ['auth', 'status'], { encoding: 'utf8' }));
   if (!status.authenticated) {
     console.error('❌ 未认证。先跑：`kdocs-cli auth login` 或 `kdocs-cli auth set-token <TOKEN>`');
     process.exit(2);

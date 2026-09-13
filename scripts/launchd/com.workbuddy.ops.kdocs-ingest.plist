@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  医院五部门经营协同看板 · 每日 09:00 数据抓取
+  安装：
+    cp scripts/launchd/com.workbuddy.ops.kdocs-ingest.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.workbuddy.ops.kdocs-ingest.plist
+
+  停止：
+    launchctl unload ~/Library/LaunchAgents/com.workbuddy.ops.kdocs-ingest.plist
+
+  查看最近一次运行：
+    cat /Users/opp/WorkBuddy/2026-09-13-10-26-58/logs/kdocs-ingest.log
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.workbuddy.ops.kdocs-ingest</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/opp/.workbuddy/binaries/node/versions/22.22.2-2/bin/node</string>
+        <string>/Users/opp/WorkBuddy/2026-09-13-10-26-58/repo/scripts/kdocs-ingest.js</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/opp/WorkBuddy/2026-09-13-10-26-58/repo</string>
+
+    <!-- 每天 09:00:00 触发一次 -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <!-- 让 launchd 持续记住"跑了/没跑"，避免睡眠后漏触发 -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/opp/WorkBuddy/2026-09-13-10-26-58/logs/kdocs-ingest.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/opp/WorkBuddy/2026-09-13-10-26-58/logs/kdocs-ingest.err</string>
+
+    <!-- 注入 PATH 让 kdocs-cli 能被 execFileSync('kdocs-cli') 找到 -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/opp/.local/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>
