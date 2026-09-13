@@ -48,6 +48,12 @@ const RAW_DIR = path.join(REPO_ROOT, 'data', 'raw');
 const KDOCS_CLI = resolveKdocsCli();
 
 const KDOCS_URL = 'https://www.kdocs.cn/l/cbwp2cvTiFyK';
+// 第二数据源：护士工作量统计总表（用于护理部排名与工作量核对）
+const NURSING_URL = 'https://www.kdocs.cn/l/ctFnABhP4gW1';
+const NURSING_SHEET_ID = 2;   // sheet「护士工作量统计总表」
+const NURSING_DATA_ROWS = { from: 3, to: 20 };  // r3..r20 = 18 名护士（r21 起为合计/统计行）
+// 姓名脱敏（与看板一致；顺序即行序）
+const NURSING_NAME_MAP = ['李X','彭X1','杨X1','杨X2','邱X','陈X1','刘X','沈X','袁X','何X','彭X2','杜X','杨X3','丁X','赵X2','曾X','吴X','任X'];
 
 // 5 个部门 sheet 的标题（必须与金山表 sheet 名精确匹配）
 const SHEET_NAMES = {
@@ -153,6 +159,44 @@ function computeFingerprint(sheetDataByDept) {
     fp[f.key] = (hit && hit.value !== null && hit.value !== undefined) ? hit.value : null;
   }
   return fp;
+}
+
+// ─── 步骤 3.5: 抓护士工作量表 → 排名数据 + 工作量指纹 ─────────────────────
+
+function fetchNursingWorkload() {
+  // 列：0姓名 1分管患者 2入院 3出院 4应完成 5完成 6完成率 7心理咨询 8约束 9得分 10排名
+  const r = call('sheet.get_range_data', {
+    url: NURSING_URL, worksheet_id: NURSING_SHEET_ID,
+    range: { rowFrom: NURSING_DATA_ROWS.from - 1, rowTo: NURSING_DATA_ROWS.to + 1, colFrom: 0, colTo: 11 },
+  });
+  const cells = (r.data && r.data.detail && r.data.detail.rangeData) || [];
+  const grid = {};
+  cells.forEach(x => {
+    const raw = x.originalCellValue !== undefined ? x.originalCellValue : x.cellText;
+    const num = typeof raw === 'number' ? raw : parseFloat(raw);
+    grid[x.originRow + '_' + x.originCol] = { text: String(x.cellText || ''), num: isNaN(num) ? null : num };
+  });
+  const nurses = [];
+  for (let r0 = NURSING_DATA_ROWS.from; r0 <= NURSING_DATA_ROWS.to; r0++) {
+    const name = grid[r0 + '_0'] && grid[r0 + '_0'].text;
+    if (!name || name === '合计') continue;
+    nurses.push({
+      name: NURSING_NAME_MAP[nurses.length] || name.replace(/./g, 'X'),
+      patients:   grid[r0 + '_1']  ? grid[r0 + '_1'].num  : null,
+      admissions: grid[r0 + '_2']  ? grid[r0 + '_2'].num  : null,
+      discharges: grid[r0 + '_3']  ? grid[r0 + '_3'].num  : null,
+      plannedTx: grid[r0 + '_4']  ? grid[r0 + '_4'].num  : null,
+      doneTx:    grid[r0 + '_5']  ? grid[r0 + '_5'].num  : null,
+      txRate:    grid[r0 + '_6']  ? grid[r0 + '_6'].num  : null,
+      psychAid:  grid[r0 + '_7']  ? grid[r0 + '_7'].num  : null,
+      restraint: grid[r0 + '_8']  ? grid[r0 + '_8'].num  : null,
+      score:     grid[r0 + '_9']  ? grid[r0 + '_9'].num  : null,
+      sheetRank: grid[r0 + '_10'] ? grid[r0 + '_10'].num : null,
+    });
+  }
+  // 工作量指纹：每人得分 + 治疗执行合计（用于变化检测）
+  const fp = nurses.map(n => [n.patients, n.doneTx, n.psychAid, n.score]);
+  return { nurses, fingerprint: JSON.stringify(fp) };
 }
 
 // ─── 步骤 4: 比对 + 写快照 ─────────────────────────────────────────────────
@@ -271,6 +315,19 @@ function main() {
   const prev = loadSnapshot();
   const same = prev && fingerprintEqual(prev.fingerprint, fp);
 
+  // ── 护士工作量统计总表（第二数据源）──
+  console.log('👩‍⚕️ 抓取护士工作量统计总表 …');
+  let nursing = null;
+  try {
+    nursing = fetchNursingWorkload();
+    const ranked = [...nursing.nurses].sort((a, b) => (b.score || 0) - (a.score || 0));
+    console.log(`  ✓ ${nursing.nurses.length} 名护士，综合得分前 3：` +
+      ranked.slice(0, 3).map((n, i) => `${i + 1}.${n.name} ${n.score}`).join(' · '));
+  } catch (e) {
+    console.warn(`  ⚠ 护士工作量表读取失败，跳过（不编造）：${e.message}`);
+  }
+  const nursingChanged = nursing && (!prev || prev.nursingWorkloadFingerprint !== nursing.fingerprint);
+
   if (same) {
     console.log('\n✅ 指纹未变 → 只更新表头年月，不改洞察，不推企微。');
     if (!dryRun) {
@@ -279,6 +336,10 @@ function main() {
         periodLabel: periodLabelFromSnapshot(prev),
         snapshotAt: new Date().toISOString(),
       };
+      if (nursing) {
+        next.nursingWorkload = nursing.nurses;
+        next.nursingWorkloadFingerprint = nursing.fingerprint;
+      }
       saveSnapshot(next);
       console.log(`  → periodLabel = ${next.periodLabel}`);
     }
@@ -286,11 +347,21 @@ function main() {
     console.log('\n⚠️  指纹变化 → 重写 summary / mainNumbers / periodLabel，更新快照。');
     const next = buildSnapshotFromFingerprint(fp, prev);
     console.log(`  summary: ${next.summary}`);
+    if (nursing) {
+      next.nursingWorkload = nursing.nurses;
+      next.nursingWorkloadFingerprint = nursing.fingerprint;
+    }
     if (!dryRun) {
       saveSnapshot(next);
       console.log(`  → 已写 ${SNAPSHOT_PATH}`);
       // 此处后续接入企业微信：if (next.auth.wecom) { /* 推群 */ }
     }
+  }
+
+  if (nursingChanged) {
+    console.log('  → 护士工作量表有变化：护理排名与绩效核对数据需同步更新。');
+  } else if (nursing) {
+    console.log('  → 护士工作量表无变化。');
   }
 }
 
