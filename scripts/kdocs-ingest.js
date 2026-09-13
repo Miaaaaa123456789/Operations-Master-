@@ -185,8 +185,8 @@ function buildSnapshotFromFingerprint(fp, prevSnap) {
   // 这里写最简化的陈述句；真实场景里"先修复...再..."这种业务判断
   // 必须由人工 / 后续 AI 步骤注入——本脚本只负责"数字+环比"层
   const summary =
-    `总收入 ${fp.revenueWan || '—'} 万元，入院 ${fp.admit ?? '—'} 人，` +
-    `门诊 ${fp.outpatient ?? '—'} 人，环比见信号详情。`;
+    `入院 ${fp.admit ?? '—'} 人，门诊 ${fp.outpatient ?? '—'} 人，` +
+    `物理治疗 ${fp.therapyVisits ?? '—'} 人次，环比见信号详情。总收入仅作核对指标（本期 ${fp.revenueWan ?? '—'} 万）。`;
   return {
     fingerprint: fp,
     narrativeMain: {
@@ -200,9 +200,9 @@ function buildSnapshotFromFingerprint(fp, prevSnap) {
     auth: prevSnap && prevSnap.auth ? prevSnap.auth : { kdocs: false, wecom: false },
     summary,
     mainNumbers: [
-      { label: '总收入（万）', value: String(fp.revenueWan ?? '—'), delta: '—', deltaColor: 'rgba(255,255,255,.85)' },
-      { label: '入院（人）',   value: String(fp.admit ?? '—'),         delta: '—', deltaColor: 'rgba(255,255,255,.85)' },
-      { label: '门诊（人）',   value: String(fp.outpatient ?? '—'),    delta: '—', deltaColor: 'rgba(255,255,255,.85)' },
+      { label: '入院（人）',        value: String(fp.admit ?? '—'),          delta: '—', deltaColor: 'rgba(255,255,255,.85)' },
+      { label: '门诊（人）',        value: String(fp.outpatient ?? '—'),     delta: '—', deltaColor: 'rgba(255,255,255,.85)' },
+      { label: '物理治疗（人次）',  value: String(fp.therapyVisits ?? '—'),  delta: '—', deltaColor: 'rgba(255,255,255,.85)' },
     ],
     wecomTemplate: prevSnap && prevSnap.wecomTemplate || '',
   };

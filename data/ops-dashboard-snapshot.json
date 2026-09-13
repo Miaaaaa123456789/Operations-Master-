@@ -21,14 +21,8 @@
     "kdocs": false,
     "wecom": false
   },
-  "summary": "总收入 40 万元，较上期 67.9 万元下降 41.1%。入院 13 人，门诊 216 人，环比基本持平。",
+  "summary": "入院 13 人、门诊 216 人，环比基本持平；物理治疗 598 人次，环比 +12.8%；随访 186 人，环比 −17.0%。",
   "mainNumbers": [
-    {
-      "label": "总收入（万）",
-      "value": "40",
-      "delta": "−41.1%",
-      "deltaColor": "#ffd6dd"
-    },
     {
       "label": "入院（人）",
       "value": "13",
@@ -40,6 +34,12 @@
       "value": "216",
       "delta": "环比持平",
       "deltaColor": "rgba(255,255,255,.85)"
+    },
+    {
+      "label": "物理治疗（人次）",
+      "value": "598",
+      "delta": "+12.8%",
+      "deltaColor": "#ffc2cd"
     }
   ],
   "wecomTemplate": "【经营看板已更新】数据更新至 {periodLabel}。总收入 {revenueWan} 万，入院 {admit}，门诊 {outpatient}。请打开系统查看。{link}",
