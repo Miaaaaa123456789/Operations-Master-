@@ -64,10 +64,110 @@
     .kpi-foot i{display:block;width:7px;height:7px;border-radius:50%;background:var(--cyan);flex:none}
     .hero-foot{position:relative;margin-top:13px;padding-top:11px;border-top:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.62);font-size:11px;line-height:1.55}
   </style>
+  <style>
+    /* ===== 护理绩效分析 ===== */
+    .nursing-perf .np-banner{padding:11px 14px;border-radius:14px;background:#fff7e6;border:1px solid #f3e3c0;color:#7c6338;font-size:12px;line-height:1.6;margin-bottom:12px}
+    .nursing-perf .np-banner b{color:#5a4416}
+    .nursing-perf .np-orig-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .nursing-perf table.np-orig{width:100%;border-collapse:collapse;font-size:12px;min-width:560px}
+    .nursing-perf .np-orig th{padding:9px 8px;background:#f4f6fb;color:#5a6072;text-align:left;font-weight:700;font-size:11px;border-bottom:1px solid var(--line);white-space:nowrap}
+    .nursing-perf .np-orig td{padding:9px 8px;border-bottom:1px solid #f0f1f5;vertical-align:middle}
+    .nursing-perf .np-orig tr.top1 td{background:#fff4f1}
+    .nursing-perf .np-orig tr.top2 td{background:#fff7eb}
+    .nursing-perf .np-orig tr.top3 td{background:#fffaef}
+    .nursing-perf .np-orig .np-rankno{display:inline-block;min-width:24px;height:22px;line-height:22px;border-radius:7px;background:#5a6072;color:#fff;text-align:center;font-weight:800;font-size:11px;padding:0 6px}
+    .nursing-perf .np-orig tr.top1 .np-rankno{background:#E0576F}
+    .nursing-perf .np-orig tr.top2 .np-rankno{background:#d96f2e}
+    .nursing-perf .np-orig tr.top3 .np-rankno{background:#a55fd1}
+    .nursing-perf .np-mismatch{color:#a82b46;font-size:10px;background:#fff0f3;border-radius:5px;padding:1px 5px;margin-left:3px;white-space:nowrap}
+    .nursing-perf .np-problem{display:grid;gap:8px;margin-top:8px}
+    .nursing-perf .np-problem-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+    .nursing-perf .np-problem-cell{padding:11px 12px;border-radius:12px;background:#fff;border:1px solid var(--line);font-size:12px;line-height:1.55}
+    .nursing-perf .np-problem-cell.risk{border-color:#f2ccd4;background:#fff8fa}
+    .nursing-perf .np-problem-cell.action{border-color:#cdeae5;background:#f3fbf9}
+    .nursing-perf .np-problem-cell label{display:block;font-size:11px;font-weight:800;color:#0058b0;margin-bottom:5px;letter-spacing:.04em;text-transform:uppercase}
+    .nursing-perf .np-problem-cell.risk label{color:#a82b46}
+    .nursing-perf .np-problem-cell.action label{color:#168c83}
+    .nursing-perf .np-problem-cell p{margin:0;color:#5b6377}
+    .nursing-perf .np-tabs,.nursing-perf .np-mode-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:3px;background:#f2f3f8;border-radius:11px;margin-bottom:12px}
+    .nursing-perf .np-mode-tabs{grid-template-columns:repeat(2,1fr)}
+    .nursing-perf .np-tab,.nursing-perf .np-mode-tab{border:0;background:transparent;border-radius:9px;padding:8px 6px;color:#777c8d;font-size:12px;font-weight:700;cursor:pointer}
+    .nursing-perf .np-tab.active,.nursing-perf .np-mode-tab.active{background:#fff;color:var(--blue);box-shadow:0 3px 10px rgba(59,61,91,.08)}
+    .nursing-perf .np-pane{display:none}
+    .nursing-perf .np-pane.active{display:block}
+    .nursing-perf .np-cover{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 12px;font-size:11px;color:#5b6377}
+    .nursing-perf .np-cover span{padding:4px 9px;border-radius:7px;background:#f4f6fb}
+    .nursing-perf .np-cover span.full{background:#eaf9f7;color:#168c83}
+    .nursing-perf .np-cover span.partial{background:#fff7e6;color:#7c6338}
+    .nursing-perf .np-cover span.miss{background:#fff0f3;color:#a82b46}
+    .nursing-perf .np-rank-list{display:grid;gap:4px}
+    .nursing-perf .np-rank-row{display:grid;grid-template-columns:88px 1fr 70px;gap:8px;align-items:center;padding:6px 8px;font-size:12px;border-radius:10px;border:1px solid transparent}
+    .nursing-perf .np-rank-row:hover{background:#f6f7fb}
+    .nursing-perf .np-rank-row.highlight{background:#fff7e6;border-color:#f3e3c0}
+    .nursing-perf .np-rank-row .name{font-weight:700}
+    .nursing-perf .np-rank-row .bars{display:grid;grid-template-columns:1fr 1fr;gap:5px;align-items:center}
+    .nursing-perf .np-bar{position:relative;height:14px;background:#eef0f5;border-radius:5px;overflow:hidden}
+    .nursing-perf .np-bar i{display:block;height:100%;border-radius:5px;width:var(--w);transform-origin:left;background:#82a8d8;animation:growBar .9s ease both}
+    .nursing-perf .np-bar.curr i{background:#0066CC}
+    .nursing-perf .np-rank-row .delta{font-size:11px;text-align:right;font-weight:800}
+    .nursing-perf .np-rank-row .delta.up{color:#21A6A0}
+    .nursing-perf .np-rank-row .delta.down{color:#E0576F}
+    .nursing-perf .np-shift-grid{display:grid;gap:6px}
+    .nursing-perf .np-shift-row{display:grid;grid-template-columns:90px 1fr;gap:8px;align-items:center;padding:5px 4px;border-bottom:1px solid #f0f1f5}
+    .nursing-perf .np-shift-row.highlight{background:#fff7e6;margin:0 -6px;padding:5px 10px;border-radius:8px;border-bottom:none}
+    .nursing-perf .np-shift-cells{display:grid;grid-template-columns:repeat(12,1fr);gap:2px}
+    .nursing-perf .np-shift-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;border-radius:4px;line-height:1}
+    .nursing-perf .np-shift-cell.ce{background:#5cba7f}
+    .nursing-perf .np-shift-cell.wu{background:#d96f2e}
+    .nursing-perf .np-shift-cell.ban{background:#a55fd1}
+    .nursing-perf .np-shift-cell.ji{background:#1d4ed8}
+    .nursing-perf .np-shift-cell.ye{background:#0a3d99}
+    .nursing-perf .np-shift-cell.men{background:#0aa1b2}
+    .nursing-perf .np-shift-cell.xiu{background:#d9dbe3;color:#888}
+    .nursing-perf .np-shift-cell.qk{background:#f4f5f9;color:#a0a4b0;border:1px dashed #d0d3da}
+    .nursing-perf .np-shift-cell.tb{background:#fff;color:#a82b46;border:1px dashed #f2ccd4}
+    .nursing-perf .np-shift-legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:10px;font-size:11px;color:#5b6377}
+    .nursing-perf .np-shift-legend span{display:inline-flex;align-items:center;gap:4px}
+    .nursing-perf .np-shift-legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+    .nursing-perf .np-contrib{display:grid;gap:11px}
+    .nursing-perf .np-contrib-row{padding:11px;border:1px solid var(--line);border-radius:13px;background:#fff}
+    .nursing-perf .np-contrib-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:9px;flex-wrap:wrap}
+    .nursing-perf .np-contrib-head strong{font-size:13px}
+    .nursing-perf .np-contrib-head span{font-size:11px;color:var(--muted)}
+    .nursing-perf .np-contrib-bars{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+    .nursing-perf .np-contrib-bar{padding:9px 10px;border-radius:9px;background:#f4f6fb;font-size:11px;color:#5b6377}
+    .nursing-perf .np-contrib-bar b{display:block;font-size:15px;color:var(--ink);margin-top:2px}
+    .nursing-perf .np-contrib-bar.up b{color:#21A6A0}
+    .nursing-perf .np-contrib-bar.down b{color:#E0576F}
+    .nursing-perf .np-contrib-bar.flat b{color:#858a98}
+    .nursing-perf .np-contrib-row .np-note{margin:9px 0 0;font-size:11px;color:#5b6377;line-height:1.55}
+    .nursing-perf .np-suggest-table{width:100%;border-collapse:collapse;font-size:12px}
+    .nursing-perf .np-suggest-table th{padding:9px 8px;background:#f4f6fb;color:#5a6072;text-align:left;font-weight:700;font-size:11px;border-bottom:1px solid var(--line);white-space:nowrap}
+    .nursing-perf .np-suggest-table td{padding:9px 8px;border-bottom:1px solid #f0f1f5;vertical-align:middle}
+    .nursing-perf .np-suggest-table tr.top1 td{background:#fff4f1}
+    .nursing-perf .np-suggest-table tr.top2 td{background:#fff7eb}
+    .nursing-perf .np-suggest-table tr.top3 td{background:#fffaef}
+    .nursing-perf .np-suggest-table .np-rankno{display:inline-block;min-width:24px;height:22px;line-height:22px;border-radius:7px;background:#5a6072;color:#fff;text-align:center;font-weight:800;font-size:11px;padding:0 6px}
+    .nursing-perf .np-suggest-table tr.top1 .np-rankno{background:#E0576F}
+    .nursing-perf .np-suggest-table tr.top2 .np-rankno{background:#d96f2e}
+    .nursing-perf .np-suggest-table tr.top3 .np-rankno{background:#a55fd1}
+    .nursing-perf .np-suggest-table .np-rankno.tbd{background:#fff0f3;color:#a82b46}
+    .nursing-perf .np-tbd{display:inline-block;font-size:10px;background:#fff0f3;color:#a82b46;border-radius:5px;padding:1px 5px;margin-left:3px}
+    .nursing-perf .np-api{display:grid;gap:8px;margin-top:8px}
+    .nursing-perf .np-api-item{padding:10px 12px;border:1px solid var(--line);border-radius:13px;background:#fff;font-size:12px;line-height:1.55}
+    .nursing-perf .np-api-item code{font-family:Menlo,Consolas,monospace;font-size:11px;background:#f4f6fb;border-radius:5px;padding:1px 6px;color:#0058b0}
+    .nursing-perf .np-api-item p{margin:4px 0 0;color:#5b6377}
+    @media(max-width:719px){
+      .nursing-perf .np-problem-row{grid-template-columns:1fr}
+      .nursing-perf .np-rank-row{grid-template-columns:78px 1fr 50px}
+      .nursing-perf .np-shift-row{grid-template-columns:1fr}
+      .nursing-perf .np-contrib-bars{grid-template-columns:1fr}
+    }
+  </style>
 </head>
 <body><div style="position:relative;z-index:80;padding:7px 12px;text-align:center;background:#fff4d6;border-bottom:1px solid #ecd28e;color:#795b13;font-size:12px;font-weight:700">演示版 · 员工姓名已脱敏 · 经营数值均为虚构</div>
   <div class="app">
-    <aside class="sidebar"><div class="side-brand"><div class="logo">✦</div><div><strong>业务协同驾驶舱</strong><small>AI 医院运营工作台</small></div></div><div class="hospital"><strong>精神专科医院</strong><span>运营与部门协同</span></div><div class="nav-label">业务工作台</div><button class="side-link active" data-go="overview">今日决策</button><button class="side-link" data-go="comparison">经营对比</button><button class="side-link" data-go="departments">部门经营</button><button class="side-link" data-go="insights">AI 洞察</button><button class="side-link" data-go="tasks">协同任务</button><button class="side-link" id="sideQuality">数据核验　<span style="color:#e0576f">5</span></button><div class="side-bottom"><div class="system"><b>● 系统运行正常</b>四次填报已接入</div><button class="native">✦ AI Native 视界　›</button></div></aside>
+    <aside class="sidebar"><div class="side-brand"><div class="logo">✦</div><div><strong>业务协同驾驶舱</strong><small>AI 医院运营工作台</small></div></div><div class="hospital"><strong>精神专科医院</strong><span>运营与部门协同</span></div><div class="nav-label">业务工作台</div><button class="side-link active" data-go="overview">今日决策</button><button class="side-link" data-go="comparison">经营对比</button><button class="side-link" data-go="departments">部门经营</button><button class="side-link" data-go="nursingPerf">护理绩效</button><button class="side-link" data-go="insights">AI 洞察</button><button class="side-link" data-go="tasks">协同任务</button><button class="side-link" id="sideQuality">数据核验　<span style="color:#e0576f">5</span></button><div class="side-bottom"><div class="system"><b>● 系统运行正常</b>四次填报已接入</div><button class="native">✦ AI Native 视界　›</button></div></aside>
     <header class="desktop-top"><div>AI医院工作台　›　<strong>业务协同</strong></div><div class="top-actions"><div class="top-search">搜索部门、指标、任务</div><button class="purple">✦ AI 洞察</button><button>运营端　›</button></div></header>
     <main><header class="mobile-head"><div class="mobile-brand"><div class="logo">✦</div>业务协同</div><button class="head-action" id="mobileQuality">6 项待核验</button></header><div class="workspace"><div class="breadcrumb">AI医院工作台　›　业务协同</div><div class="title-row"><div><div class="eyebrow">OPERATIONS MASTER</div><h1>经营协同</h1><p class="subtitle">本期 vs 上期 · 跨部门信号 · 可勾选任务</p></div><button class="period" id="periodBtn">数据更新至 2026年9月13日</button></div>
       <section class="decision-hero section" id="overview"><div class="hero-top"><span class="hero-label">本期</span><span class="live"><i></i>实时抓取 · 8 项指纹一致</span></div><h2 id="heroTitle">本期经营数字</h2><p class="hero-summary" id="heroSummary">入院 13 人、门诊 216 人，环比基本持平；物理治疗 598 人次，环比 +12.8%；随访 186 人，环比 −17.0%。</p><div class="hero-kpis" id="heroKpis"><div class="hero-kpi"><strong>13</strong><span>入院（人）</span><b class="hero-kpi-delta" style="color:rgba(255,255,255,.78)">环比持平</b></div><div class="hero-kpi"><strong>216</strong><span>门诊（人）</span><b class="hero-kpi-delta" style="color:rgba(255,255,255,.78)">环比持平</b></div><div class="hero-kpi"><strong>598</strong><span>物理治疗（人次）</span><b class="hero-kpi-delta" style="color:#ffc2cd">+12.8%</b></div></div><div class="hero-foot">主数字来自 2026年9月13日金山表抓取 · 环比口径为 8月31日 与 9月7日 两期 · 总收入仅作业务核对指标，见待核验清单</div></section>
@@ -75,6 +175,37 @@
       <section class="section" id="departments"><div class="section-head"><div><h2>部门经营</h2><p>点击部门查看全部指标与 AI 建议</p></div></div><div class="dept-grid" id="deptGrid"></div><div class="kpi-foot"><i></i><span>部门数据来自 2026年9月13日金山表抓取 · 环比口径为 8月31日 与 9月7日 两期</span></div></section>
       <section class="section" id="coreMetrics"><div class="section-head" style="margin-top:2px"><div><h2>核心指标</h2><p>本期绝对数与环比 · 点击跳转部门详情</p></div></div><div class="kpi-grid" id="kpiGrid"><div class="kpi-tile" onclick="openDept('nursing')"><label>物理治疗人次</label><strong>598<em>人次</em></strong><span class="kpi-delta up">+12.8%</span></div><div class="kpi-tile" onclick="openDept('doctor')"><label>物理治疗费用</label><strong>13.9<em>万元</em></strong><span class="kpi-delta down">−54.9%</span></div><div class="kpi-tile" onclick="openDept('service')"><label>随访人数</label><strong>186<em>人</em></strong><span class="kpi-delta down">−17.0%</span></div><div class="kpi-tile" onclick="openDept('service')"><label>最终到院</label><strong>48<em>人</em></strong><span class="kpi-delta down">−17.2%</span></div><div class="kpi-tile" onclick="openDept('psychology')"><label>个体咨询</label><strong>48<em>人</em></strong><span class="kpi-delta down">−15.8%</span></div><div class="kpi-tile" onclick="openDept('psychology')"><label>心理总收入</label><strong>3.22<em>万元</em></strong><span class="kpi-delta down">−30.3%</span></div><div class="kpi-tile" onclick="openDept('marketing')"><label>心理咨询服务</label><strong>31<em>人次</em></strong><span class="kpi-delta up">+106.7%</span></div><div class="kpi-tile" onclick="openDept('marketing')"><label>转诊到院率</label><strong>74.29<em>%</em></strong><span class="kpi-delta up">+9.4pt</span></div><div class="kpi-tile" onclick="openDept('nursing')"><label>护士人均治疗执行</label><strong>63.4<em>次</em></strong><span class="kpi-delta flat">新接入</span></div><div class="kpi-tile" onclick="openDept('nursing')"><label>物理治疗完成率</label><strong>89.4<em>%</em></strong><span class="kpi-delta flat">新接入</span></div></div><div class="kpi-foot"><i></i><span>指标数据来自 2026年9月13日金山表抓取 · 环比口径为 8月31日 与 9月7日 两期 · 护士人均治疗执行与完成率来自「护士每周工作量统计总表」（15 人完成合计 1014 次 ÷ 应完成 1134 次） · 医生组表头 14/274 与叙述 13/216 的口径冲突见「本周协同任务」待核验清单</span></div></section>
       <section class="section" id="comparison"><div class="section-head"><div><h2>经营对比</h2><p>横向看部门位置，纵向看四次填报趋势</p></div></div><div class="compare-card"><div class="compare-tabs"><button class="compare-tab active" data-compare="horizontal">横向部门对比</button><button class="compare-tab" data-compare="vertical">纵向四期趋势</button></div><div class="compare-pane active" id="horizontalPane"><div class="benchmark-list" id="benchmarkList"></div><p class="compare-note">动能指数＝本期核心结果 ÷ 四次填报均值 ×100。100 代表该部门自身四期平均水平，只比较变化方向，不比较绝对规模。</p></div><div class="compare-pane" id="verticalPane"><div class="trend-overview" id="trendOverview"></div><p class="compare-note">以最早一次填报为 100。四个节点为 8月初、8月中、8月末、9月首周，并非连续完整周序列。数据来自 2026年9月13日抓取。</p></div></div></section>
+      <section class="section nursing-perf" id="nursingPerf"><div class="section-head"><div><h2>护理绩效分析</h2><p>原报 vs 复算 · 前几周环比 · 截至 9月13日建议</p></div><button class="section-link" id="npExpandAll">全部展开</button></div>
+        <details class="business-panel" open id="npOrigPanel"><summary><strong>① 原报综合排名（来自 9.6–9.12 原表）</strong><span>点击收起 ⌃</span></summary><div class="business-body">
+          <div class="np-banner">原报结果，实际区间 <b>9.6—9.12</b>，待核验。原方案按业务和质控名次均权计算，不混入班次分。原报与复算分别保存，下方表格仅展示原报快照。</div>
+          <div class="np-orig-wrap"><table class="np-orig"><thead><tr><th>综合排名</th><th>姓名</th><th>业务分</th><th>业务名次</th><th>质控均分</th><th>质控名次</th><th>综合积分</th><th>备注</th></tr></thead><tbody id="npOrigBody"></tbody></table></div>
+          <div class="rank-source" style="margin-top:10px">数据来自「9.6-9.13.pdf」综合截图。原方案总积分 = 共同样本数 + 1 − (业务名次 + 质控名次)/2；17 人排名中，杨思菡、刘佳佳、陈福建 三人质控截图与综合表的「质控名次」错配（已标红），原综合排名不可直接采用。</div>
+        </div></details>
+        <details class="business-panel" id="npProblemPanel"><summary><strong>② 现有问题与解决方案</strong><span>点击展开 ⌄</span></summary><div class="business-body">
+          <div class="np-problem" id="npProblemList"></div>
+          <div class="rank-source" style="margin-top:10px">依据来自「护士工作量时间戳总表」中的「计分公式与口径」「绩效排名核验」两张 sheet 与总表首页覆盖天数核对结果。</div>
+        </div></details>
+        <details class="business-panel" id="npComparePanel"><summary><strong>③ 前几周环比（周排名波动 × 班次构成 × 业务分差贡献）</strong><span>点击展开 ⌄</span></summary><div class="business-body">
+          <div class="np-cover"><span class="miss">8.24–8.30：仅 8.29、8.30 两天（覆盖 2 天），不排名</span><span class="partial">8.31–9.6：覆盖 6 天（缺 8.31 排班），按可获数据复算</span><span class="partial">9.7–9.12：覆盖 6 天（9.13 仅计划）</span><span class="partial">9.7–9.13：含 9.13 计划排班</span></div>
+          <div class="np-tabs"><button class="np-tab active" data-nptab="rank">排名变化</button><button class="np-tab" data-nptab="shift">班次构成</button><button class="np-tab" data-nptab="contrib">业务分差贡献</button></div>
+          <div class="np-pane active" id="npRankPane"><div class="np-rank-list" id="npRankList"></div><p class="compare-note" style="margin-top:10px">业务名次按 8.31–9.6（前周）与 9.7–9.12（本周）口径分别排名。⭐ 为重点关注：<b>杨新金 14→1、杜萧 1→15、陈福建 13→7</b>。排班与业务变化并存，不直接认定个人能力变化。</p></div>
+          <div class="np-pane" id="npShiftPane"><div class="np-shift-grid" id="npShiftGrid"></div><div class="np-shift-legend" id="npShiftLegend"></div><p class="compare-note" style="margin-top:10px">每行 12 格：左 6 格为 9.1–9.6（前周），右 6 格为 9.7–9.12（本周）。每个单元格颜色对应班次类型。⭐ 杨新金、杜萧、陈福建。缺排班以「缺」标识，无可获数据显示「—」。</p></div>
+          <div class="np-pane" id="npContribPane"><div class="np-contrib" id="npContribList"></div><p class="compare-note" style="margin-top:10px">分差 = 治疗贡献 + 管理贡献 + 咨询约束贡献；只解释「相对前周的业务分增减来源」，不直接对应工作量或能力。⭐ 三人变化伴随排班结构改变，作为线索使用，不直接归因个人能力。</p></div>
+        </div></details>
+        <details class="business-panel" id="npSuggestPanel"><summary><strong>④ 截至 9月13日 建议排名（暂算）</strong><span>点击展开 ⌄</span></summary><div class="business-body">
+          <div class="np-mode-tabs"><button class="np-mode-tab active" data-npmode="week">9.7–9.13 本周</button><button class="np-mode-tab" data-npmode="cum">9.1–9.13 累计</button></div>
+          <div class="np-banner">建议绩效分 = (实际班次分 + 核实加分 − 核实扣分) × 适用能力系数。<br>班次分口径：责/物 5、办 5.5、机 6、夜 7（含夜1、夜2）、门 4.5。<br><b>当前能力系数 / 加减分 / 实际出勤 全部待核，未默认 0 分或系数 1。</b> 9.13 仅含计划排班，业务/质控数据缺失；本期「有效建议」仅展示计划班次分排名，最终前三待 9.13 数据、系数与加减分补齐后确定。</div>
+          <div class="np-pane active" id="npSuggestWeekPane"><table class="np-suggest-table"><thead><tr><th>建议排名</th><th>姓名</th><th>9.7–9.13 计划班次分</th><th>能力系数</th><th>加减分</th><th>说明</th></tr></thead><tbody id="npSuggestWeekBody"></tbody></table></div>
+          <div class="np-pane" id="npSuggestCumPane"><table class="np-suggest-table"><thead><tr><th>建议排名</th><th>姓名</th><th>9.1–9.13 累计计划班次分</th><th>能力系数</th><th>加减分</th><th>说明</th></tr></thead><tbody id="npSuggestCumBody"></tbody></table></div>
+          <div class="rank-source" style="margin-top:10px">不叠加业务/质控作为正式分；原报结果保留快照，切换方案不会覆盖原排名。累计 = 本周 + 9.1–9.6 前周（含 8.31 缺排班日，按 0 计），分别计算，不直接相加名次。</div>
+        </div></details>
+        <details class="quality" id="npApiPanel"><summary><span>⚙ 实时更新接口（待接入后端）</span><span>展开 ⌄</span></summary><div class="quality-body"><div class="np-api">
+          <div class="np-api-item"><code>GET /api/nursing-performance?start=&amp;end=&amp;scheme=</code><p>返回各项分值、排名、覆盖天数、核验状态、缺失项、数据截止时间及规则版本。</p></div>
+          <div class="np-api-item"><code>PUT /api/nursing-performance/records</code><p>按员工 ID + 业务日期 + 记录类型更新排班、业务、质控、系数及加减分；保留修订历史，禁止重复累计。</p></div>
+          <div class="np-api-item"><strong>更新后处理</strong><p>后端重新核验、计分、排名；前端通过事件推送刷新，失败时定时拉取。历史原报保留快照；切换方案不得覆盖原排名。</p></div>
+        </div></div></details>
+        <div class="kpi-foot"><i></i><span>数据源：护士工作量时间戳总表 8.29–9.12（截至 2026年9月13日 16:00）。待补/待核实字段未默认 0 分或系数 1；原报前三、综合名次错配、覆盖天数限制均已在表内标注。</span></div>
+      </section>
       <section class="section" style="margin-top:22px"><div class="flow-card"><div class="flow-head"><div class="flow-icon">⌘</div><div><strong>AI 协同闭环</strong><span>异常只记录一次，处理结果回到下周对比</span></div></div><div class="flow-steps"><div class="flow-step"><i></i><span>识别变化</span></div><div class="flow-step"><i></i><span>自动分派</span></div><div class="flow-step"><i></i><span>部门确认</span></div><div class="flow-step"><i></i><span>验证结果</span></div></div></div></section>
       <section class="section" id="tasks"><div class="section-head"><div><h2>本周协同任务</h2><p>点击任务查看责任与交付要求</p></div><button class="section-link" id="resetTasks">重置</button></div><div class="task-list" id="taskList"></div><details class="quality" id="quality"><summary><span>⚠ 有 6 项数据口径需要确认</span><span>展开　⌄</span></summary><div class="quality-body"><div class="quality-item"><strong>总收入仅作业务核对指标</strong><p>总收入不再作为首页主指标展示，只在此作核对：本期表头 40 万元，上期 67.9 万元，环比 −41.1%。医生组表头口径与科主任叙述的 40 万一致。</p></div><div class="quality-item"><strong>医生组本期人数冲突</strong><p>表头为入院 14 人、门诊 274 人；科主任叙述为入院 13 人、门诊 216 人。必须确定唯一数据源。</p></div><div class="quality-item"><strong>客服“到院人数”语义冲突</strong><p>表头 230 实际更接近接待人次；随访后最终到院为 48 人，应拆为两个字段。</p></div><div class="quality-item"><strong>营销转诊数据疑似沿用</strong><p>8月初与8月中的转诊叙述完全相同，8月末与9月首周也完全相同，暂不能把 74.29% 当作可靠连续趋势。</p></div><div class="quality-item"><strong>护士工作量表口径异常</strong><p>数据来自 2026年9月13日抓取「护士每周工作量统计总表」：个人治疗完成合计 1014 人次 vs 部门表头 598 人次；杜萧 完成率表内 17.00% 与计算 90.8% 不符；刘佳佳 完成 74 次大于应完成 62 次；表内排名列与综合得分顺序不一致；吴雨霏、任健康 无填报数据。</p></div><div class="quality-item"><strong>客服与营销缺少姓名</strong><p>源表仅记录岗位，无法判断“每个员工”的实际业绩。页面保留待补名单，不以岗位数据冒充个人排名。</p></div></div></details></section>
     </div></main><nav class="bottom-nav"><button class="active" data-go="overview"><b>⌂</b>决策</button><button data-go="insights"><b>✦</b>洞察</button><button data-go="departments"><b>▦</b>部门</button><button data-go="tasks"><b>✓</b>任务</button></nav>
@@ -197,5 +328,191 @@
          // 指纹变化时：若 s.auth.wecom === true 才推送企业微信（缺授权如实跳过）
        });
     */
+  </script>
+  <script>
+    /* ===== 护理绩效分析 · 数据与渲染 ===== */
+    const npOrigRanking=[
+      {rank:1,name:'丁思意',bizScore:18.17,bizRank:6,qcScore:68.83,qcRank:1,total:14.5,note:'质控均分 68.83 / 名次 1'},
+      {rank:2,name:'杨思菡',bizScore:35.96,bizRank:2,qcScore:66.00,qcRank:6,total:14.0,note:'质控截图 66.80/名次 3 ≠ 综合表 66.00/名次 6',mismatch:true},
+      {rank:3,name:'陈福建',bizScore:17.81,bizRank:7,qcScore:66.20,qcRank:4,total:12.5,note:'质控截图 名次 6 ≠ 综合表 名次 4',mismatch:true},
+      {rank:4,name:'杨新金',bizScore:37.20,bizRank:1,qcScore:64.00,qcRank:11,total:12.0,note:'业务第一'},
+      {rank:5,name:'何培培',bizScore:26.89,bizRank:5,qcScore:64.25,qcRank:8,total:11.5,note:''},
+      {rank:6,name:'赵雯倩',bizScore:13.75,bizRank:12,qcScore:68.00,qcRank:2,total:11.0,note:'质控第二'},
+      {rank:7,name:'彭榆凯',bizScore:27.78,bizRank:4,qcScore:63.00,qcRank:12,total:10.0,note:''},
+      {rank:8,name:'吴雨霏',bizScore:28.18,bizRank:3,qcScore:62.20,qcRank:13,total:10.0,note:''},
+      {rank:9,name:'刘佳佳',bizScore:6.11,bizRank:16,qcScore:66.33,qcRank:3,total:8.5,note:'质控截图 名次 4 ≠ 综合表 名次 3',mismatch:true},
+      {rank:10,name:'沈琳',bizScore:11.28,bizRank:14,qcScore:66.25,qcRank:5,total:8.5,note:''},
+      {rank:11,name:'杨欢',bizScore:15.33,bizRank:10,qcScore:64.20,qcRank:9,total:8.5,note:''},
+      {rank:12,name:'任健康',bizScore:11.26,bizRank:15,qcScore:64.50,qcRank:7,total:7.0,note:''},
+      {rank:13,name:'杜萧',bizScore:13.45,bizRank:13,qcScore:64.17,qcRank:10,total:6.5,note:''},
+      {rank:14,name:'袁怡',bizScore:16.51,bizRank:9,qcScore:60.75,qcRank:15,total:6.0,note:''},
+      {rank:15,name:'李永鑫',bizScore:16.69,bizRank:8,qcScore:59.88,qcRank:16,total:6.0,note:''},
+      {rank:16,name:'彭龙华',bizScore:15.09,bizRank:11,qcScore:61.67,qcRank:14,total:5.5,note:'原表别名「彭华龙」'},
+      {rank:17,name:'曾宇浩',bizScore:3.83,bizRank:17,qcScore:57.00,qcRank:17,total:1.0,note:'业务与质控双双末位'}
+    ];
+    const npProblems=[
+      {problem:'综合表与质控表名次错配',evidence:'杨思菡、刘佳佳、陈福建 三人在「综合截图」与「质控截图」的「质控名次」互不一致：66.8/3 vs 66.0/6、66.33/4 vs 66.33/3、66.20/6 vs 66.20/4。原综合排序不可直接采用。',action:'统一来源：质控截图作为唯一质控输入，按 word 明细自动复算均分；综合排名由后端重新生成，原报仅保留快照。'},
+      {problem:'不同班次计分机会不同',evidence:'同一时间段内 责任/物理班 5 分、办公 5.5 分、机动 6 分、夜班（含夜1、夜2）7 分、门诊 4.5 分。夜班密集的护士纯班次分先高，不能与门诊班护士直接横比。',action:'实际班次分用于体现工作负荷；质控分用于评价执行质量。两轨并行展示，不并入一个总分。'},
+      {problem:'重复、缺失及考核天数不一致',evidence:'9.12 质控 10 条与 9.8 截图 image1.png 完全重复（已标候选无效）；9.7 杨思菡同日 67/68 重名两条。质控有效天数最少 1 天、最多 5 天，原报陈福建 5 天、曾宇浩 2 天。',action:'唯一记录校验：员工 ID + 日期 + 类型；重复条目给出覆盖提示；异常条目标「待确认」并排除出均分。'},
+      {problem:'月排班与周考核区间混用',evidence:'原报综合表区间 9.6–9.12，目标周 9.7–9.13（错期且缺 9.13）；前周 8.31–9.6 缺 8.31 排班记录。月排班与周考核并存，月度汇总不能直接换算为周区间。',action:'每日排班自动归入固定绩效周（8.24–8.30 / 8.31–9.6 / 9.7–9.13），月排班与周考核并行展示，不混算。'}
+    ];
+    const npRankChange=[
+      {name:'杜萧',prevRank:1,prevScore:30.0106,currRank:15,currScore:10.2660,highlight:true},
+      {name:'彭龙华',prevRank:2,prevScore:27.9787,currRank:12,currScore:11.9043,highlight:false},
+      {name:'沈琳',prevRank:3,prevScore:27.2234,currRank:13,currScore:11.2766,highlight:false},
+      {name:'杨欢',prevRank:4,prevScore:25.2553,currRank:11,currScore:12.3617,highlight:false},
+      {name:'丁思意',prevRank:5,prevScore:21.8085,currRank:10,currScore:12.7021,highlight:false},
+      {name:'彭榆凯',prevRank:6,prevScore:20.8617,currRank:3,currScore:24.1915,highlight:false},
+      {name:'何培培',prevRank:7,prevScore:20.5532,currRank:5,currScore:23.4043,highlight:false},
+      {name:'杨思菡',prevRank:8,prevScore:20.3723,currRank:4,currScore:23.9787,highlight:false},
+      {name:'李永鑫',prevRank:9,prevScore:15.0957,currRank:8,currScore:13.9149,highlight:false},
+      {name:'赵雯倩',prevRank:10,prevScore:15.0426,currRank:9,currScore:13.7447,highlight:false},
+      {name:'吴雨霏',prevRank:11,prevScore:13.7447,currRank:2,currScore:24.7021,highlight:false},
+      {name:'刘佳佳',prevRank:12,prevScore:13.4574,currRank:16,currScore:6.1170,highlight:false},
+      {name:'陈福建',prevRank:13,prevScore:13.4255,currRank:7,currScore:13.9574,highlight:true},
+      {name:'杨新金',prevRank:14,prevScore:10.6064,currRank:1,currScore:35.3936,highlight:true},
+      {name:'袁怡',prevRank:15,prevScore:8.9255,currRank:6,currScore:14.3085,highlight:false},
+      {name:'曾宇浩',prevRank:16,prevScore:7.0106,currRank:17,currScore:3.8298,highlight:false},
+      {name:'任健康',prevRank:17,prevScore:0,currRank:14,currScore:11.2660,highlight:false}
+    ];
+    const npShifts=[
+      {name:'李永鑫',highlight:false,prev:['休','休','办','办','责','责'],curr:['办','办','办','休','休','责']},
+      {name:'彭龙华',highlight:false,prev:['责','物','责','休','夜','休'],curr:['夜','休','责','责','责','责']},
+      {name:'杨新金',highlight:true,prev:['夜','夜','休','夜','休','责'],curr:['责','物','责','责','物','责']},
+      {name:'杨欢',highlight:false,prev:['物','机','夜','夜','休','责'],curr:['休','责','责','休','责','责']},
+      {name:'邱国微',highlight:false,prev:['休','责','责','空','缺','缺'],curr:['缺','缺','缺','缺','缺','缺']},
+      {name:'陈福建',highlight:true,prev:['办','办','休','休','办','办'],curr:['办','休','休','办','办','办']},
+      {name:'刘佳佳',highlight:false,prev:['休','责','夜','休','夜','休'],curr:['责','休','夜','休','夜','休']},
+      {name:'沈琳',highlight:false,prev:['责','责','休','物','休','夜'],curr:['休','夜','休','责','责','责']},
+      {name:'袁怡',highlight:false,prev:['休','休','责','夜','休','夜'],curr:['夜','休','夜','休','机','机']},
+      {name:'何培培',highlight:false,prev:['责','休','机','责','夜','夜'],curr:['休','夜','休','机','责','物']},
+      {name:'彭榆凯',highlight:false,prev:['休','夜','休','休','物','责'],curr:['夜','休','责','物','机','休']},
+      {name:'杜萧',highlight:true,prev:['休','责','物','责','责','机'],curr:['休','责','夜','夜','休','夜']},
+      {name:'杨思菡',highlight:false,prev:['夜','休','夜','休','物','责'],curr:['物','责','机','物','责','休']},
+      {name:'丁思意',highlight:false,prev:['夜','休','责','责','责','责'],curr:['责','休','责','责','夜','夜']},
+      {name:'赵雯倩',highlight:false,prev:['责','夜','休','机','责','休'],curr:['机','责','责','休','休','门']},
+      {name:'曾宇浩',highlight:false,prev:['责','休','责','责','机','休'],curr:['夜','夜','休','休','休','休']},
+      {name:'吴雨霏',highlight:false,prev:['责','责','休','责','责','夜'],curr:['夜','休','责','物','责','机']},
+      {name:'任健康',highlight:false,prev:['休','休','办','办','门','门'],curr:['责','休','夜','夜','休','夜']}
+    ];
+    const npContrib=[
+      {name:'杨新金',prev:10.6064,curr:35.3936,delta:+24.7872,tx:+30.6383,mg:-5.8511,cc:0,note:'治疗实做 +192 次；班次由 夜3 转为 物2 夜0，管理贡献相应减少。排班结构变化是直接线索，不直接认定个人能力。'},
+      {name:'杜萧',prev:30.0106,curr:10.2660,delta:-19.7446,tx:-17.8723,mg:-1.6596,cc:-0.2128,note:'治疗实做 −112 次；班次由 责3 物1 机1 转为 夜3，治疗岗位减少。排班结构变化是直接线索。'},
+      {name:'陈福建',prev:13.4255,curr:13.9574,delta:+0.5319,tx:0,mg:+0.5319,cc:0,note:'治疗实做 0 变化；管理贡献小幅增加；班次稳定为 办 4 天。'}
+    ];
+    const npSuggestWeek=[
+      {rank:1,name:'杨新金',score:37,cov:'9.7–9.13 计划'},
+      {rank:2,name:'吴雨霏',score:35,cov:'9.7–9.13 计划'},
+      {rank:3,name:'杨思菡',score:33,cov:'9.7–9.13 计划'},
+      {rank:4,name:'袁怡',score:31,cov:'9.7–9.13 计划'},
+      {rank:5,name:'彭榆凯',score:30,cov:'9.7–9.13 计划'},
+      {rank:6,name:'丁思意',score:29,cov:'9.7–9.13 计划'},
+      {rank:7,name:'何培培',score:28,cov:'9.7–9.13 计划'},
+      {rank:8,name:'陈福建',score:27.5,cov:'9.7–9.13 计划'},
+      {rank:9,name:'彭龙华',score:27,cov:'9.7–9.13 计划'},
+      {rank:10,name:'沈琳',score:27,cov:'9.7–9.13 计划'},
+      {rank:11,name:'李永鑫',score:26.5,cov:'9.7–9.13 计划'},
+      {rank:12,name:'杜萧',score:26,cov:'9.7–9.13 计划'},
+      {rank:13,name:'任健康',score:26,cov:'9.7–9.13 计划'},
+      {rank:14,name:'赵雯倩',score:25.5,cov:'9.7–9.13 计划'},
+      {rank:15,name:'杨欢',score:24.5,cov:'9.7–9.13 计划'},
+      {rank:16,name:'刘佳佳',score:24,cov:'9.7–9.13 计划'},
+      {rank:17,name:'曾宇浩',score:14,cov:'9.7–9.13 计划'},
+      {rank:18,name:'明英',score:22.5,cov:'仅排班；无业务/质控记录，不参与正式排名'},
+      {rank:19,name:'邱国微',score:null,cov:'缺排班（9.4 起）、无业务/质控记录'},
+      {rank:20,name:'杨金凤',score:null,cov:'缺排班、无业务/质控记录'}
+    ];
+    const npSuggestCum=[
+      {rank:1,name:'杨新金',score:65,cov:'9.1–9.13 计划'},
+      {rank:2,name:'吴雨霏',score:62,cov:'9.1–9.13 计划'},
+      {rank:3,name:'何培培',score:58,cov:'9.1–9.13 计划'},
+      {rank:4,name:'杨思菡',score:57,cov:'9.1–9.13 计划'},
+      {rank:5,name:'杨欢',score:56.5,cov:'9.1–9.13 计划'},
+      {rank:6,name:'丁思意',score:54,cov:'9.1–9.13 计划'},
+      {rank:7,name:'杜萧',score:52,cov:'9.1–9.13 计划'},
+      {rank:8,name:'沈琳',score:51,cov:'9.1–9.13 计划'},
+      {rank:9,name:'彭龙华',score:51,cov:'9.1–9.13 计划'},
+      {rank:10,name:'袁怡',score:50,cov:'9.1–9.13 计划'},
+      {rank:11,name:'陈福建',score:49.5,cov:'9.1–9.13 计划'},
+      {rank:12,name:'赵雯倩',score:48.5,cov:'9.1–9.13 计划'},
+      {rank:13,name:'彭榆凯',score:47,cov:'9.1–9.13 计划'},
+      {rank:14,name:'任健康',score:46,cov:'9.1–9.13 计划'},
+      {rank:15,name:'刘佳佳',score:43,cov:'9.1–9.13 计划'},
+      {rank:16,name:'明英',score:40.5,cov:'仅排班；无业务/质控记录，不参与正式排名'},
+      {rank:17,name:'曾宇浩',score:35,cov:'9.1–9.13 计划'},
+      {rank:18,name:'邱国微',score:10,cov:'9.1–9.3 排班；9.4 起缺排班'},
+      {rank:19,name:'杨金凤',score:null,cov:'缺排班、无业务/质控记录'}
+    ];
+    const npShiftCodeMap={'责':'ce','物':'wu','办':'ban','机':'ji','夜':'ye','门':'men','休':'xiu','空':'qk','缺':'tb'};
+    const npShiftColorMap={ce:'#5cba7f',wu:'#d96f2e',ban:'#a55fd1',ji:'#1d4ed8',ye:'#0a3d99',men:'#0aa1b2',xiu:'#d9dbe3'};
+    function npRenderOrig(){
+      const tb=document.getElementById('npOrigBody');if(!tb)return;
+      tb.innerHTML=npOrigRanking.map(r=>{
+        const cls=r.rank<=3?`top${r.rank}`:'';
+        const tag=r.mismatch?'<span class="np-mismatch">名次错配</span>':'';
+        return `<tr class="${cls}"><td><span class="np-rankno">${r.rank}</span></td><td>${r.name}</td><td>${r.bizScore.toFixed(2)}</td><td>第${r.bizRank}名</td><td>${r.qcScore.toFixed(2)}</td><td>第${r.qcRank}名 ${tag}</td><td><b>${r.total.toFixed(1)}</b></td><td style="color:#5b6377;font-size:11px">${r.note||'—'}</td></tr>`;
+      }).join('')+`<tr><td colspan="8" style="color:#5b6377;font-size:11px;background:#f8f9fc">邱国微 未进入原报综合排名（前周 8.31–9.6 业务 11.88 分 / 本周缺排班无业务记录）。</td></tr>`;
+    }
+    function npRenderProblems(){
+      const host=document.getElementById('npProblemList');if(!host)return;
+      host.innerHTML=npProblems.map(p=>`<div class="np-problem-row"><div class="np-problem-cell risk"><label>问题</label><p>${p.problem}</p></div><div class="np-problem-cell"><label>依据</label><p>${p.evidence}</p></div><div class="np-problem-cell action"><label>处理</label><p>${p.action}</p></div></div>`).join('');
+    }
+    function npRenderRankChange(){
+      const host=document.getElementById('npRankList');if(!host)return;
+      const max=Math.max(...npRankChange.map(r=>Math.max(r.prevScore,r.currScore)))||1;
+      host.innerHTML=npRankChange.map(r=>{
+        const delta=r.currRank-r.prevRank;
+        const dCls=delta>0?'up':delta<0?'down':'flat';
+        const dText=delta===0?'持平':(delta>0?`+${delta}`:`${delta}`)+' 名';
+        return `<div class="np-rank-row ${r.highlight?'highlight':''}"><span class="name">${r.name}${r.highlight?' ⭐':''}</span><span class="bars"><span class="np-bar" title="前周 8.31–9.6 业务 ${r.prevScore.toFixed(2)}"><i style="--w:${(r.prevScore/max*100).toFixed(1)}%"></i></span><span class="np-bar curr" title="本周 9.7–9.12 业务 ${r.currScore.toFixed(2)}"><i style="--w:${(r.currScore/max*100).toFixed(1)}%"></i></span></span><span class="delta ${dCls}">${dText}</span></div>`;
+      }).join('');
+    }
+    function npRenderShifts(){
+      const host=document.getElementById('npShiftGrid');if(!host)return;
+      host.innerHTML=npShifts.map(s=>`<div class="np-shift-row ${s.highlight?'highlight':''}"><span class="name">${s.name}${s.highlight?' ⭐':''}</span><span class="np-shift-cells">${s.prev.concat(s.curr).map(c=>{const cls=npShiftCodeMap[c]||'qk';return `<span class="np-shift-cell ${cls}" title="${c}">${c}</span>`}).join('')}</span></div>`).join('');
+      const lg=document.getElementById('npShiftLegend');if(!lg)return;
+      const palette=[['ce','责 5'],['wu','物 5'],['ban','办 5.5'],['ji','机 6'],['ye','夜 7（含夜1、夜2）'],['men','门 4.5'],['xiu','休 0']];
+      lg.innerHTML=palette.map(([c,l])=>`<span><i style="background:${npShiftColorMap[c]}"></i>${l}</span>`).join('')+'<span><i style="background:#fff;border:1px dashed #d0d3da"></i>缺 / 空</span>';
+    }
+    function npRenderContrib(){
+      const host=document.getElementById('npContribList');if(!host)return;
+      host.innerHTML=npContrib.map(c=>{
+        const dt=c.delta>0?`+${c.delta.toFixed(2)}`:c.delta.toFixed(2);
+        const fmt=v=>`${v>0?'+':''}${v.toFixed(2)}`;
+        const cls=v=>v>0?'up':v<0?'down':'flat';
+        return `<div class="np-contrib-row"><div class="np-contrib-head"><strong>${c.name} ⭐</strong><span>前周 ${c.prev.toFixed(2)} → 本周 ${c.curr.toFixed(2)} · Δ ${dt}</span></div><div class="np-contrib-bars"><div class="np-contrib-bar ${cls(c.tx)}"><span>治疗贡献</span><b>${fmt(c.tx)}</b></div><div class="np-contrib-bar ${cls(c.mg)}"><span>管理贡献</span><b>${fmt(c.mg)}</b></div><div class="np-contrib-bar ${cls(c.cc)}"><span>咨询约束</span><b>${fmt(c.cc)}</b></div></div><p class="np-note">${c.note}</p></div>`;
+      }).join('');
+    }
+    function npRenderSuggest(list,bodyId){
+      const tb=document.getElementById(bodyId);if(!tb)return;
+      tb.innerHTML=list.map(r=>{
+        const cls=typeof r.rank==='number'?`top${r.rank}`:'';
+        const rankCell=typeof r.rank==='number'?`<span class="np-rankno">${r.rank}</span>`:`<span class="np-rankno tbd">—</span>`;
+        const scoreCell=r.score===null?`<span class="np-tbd">待补</span>`:`<b style="font-size:14px">${r.score}</b>`;
+        return `<tr class="${cls}"><td>${rankCell}</td><td>${r.name}</td><td>${scoreCell}</td><td><span class="np-tbd">待评定</span></td><td><span class="np-tbd">待核</span></td><td style="color:#5b6377;font-size:11px">${r.cov}</td></tr>`;
+      }).join('');
+    }
+    function npBindTabs(){
+      document.querySelectorAll('#nursingPerf .np-tab').forEach(b=>b.onclick=()=>{
+        document.querySelectorAll('#nursingPerf .np-tab').forEach(x=>x.classList.toggle('active',x===b));
+        document.querySelectorAll('#nursingPerf .np-pane').forEach(p=>p.classList.toggle('active',p.id===b.dataset.nptab+'Pane'));
+      });
+      document.querySelectorAll('#nursingPerf .np-mode-tab').forEach(b=>b.onclick=()=>{
+        document.querySelectorAll('#nursingPerf .np-mode-tab').forEach(x=>x.classList.toggle('active',x===b));
+        const target=b.dataset.npmode==='week'?'npSuggestWeekPane':'npSuggestCumPane';
+        document.querySelectorAll('#nursingPerf .np-pane').forEach(p=>p.classList.toggle('active',p.id===target));
+      });
+      const panels=document.querySelectorAll('#nursingPerf .business-panel');
+      panels.forEach(p=>p.addEventListener('toggle',()=>{const s=p.querySelector(':scope>summary span');if(s)s.textContent=p.open?'点击收起 ⌃':'点击展开 ⌄'}));
+      const btn=document.getElementById('npExpandAll');if(btn)btn.onclick=()=>{const any=Array.from(panels).some(p=>!p.open);panels.forEach(p=>p.open=any);btn.textContent=any?'全部收起':'全部展开'};
+    }
+    npRenderOrig();
+    npRenderProblems();
+    npRenderRankChange();
+    npRenderShifts();
+    npRenderContrib();
+    npRenderSuggest(npSuggestWeek,'npSuggestWeekBody');
+    npRenderSuggest(npSuggestCum,'npSuggestCumBody');
+    npBindTabs();
   </script>
 </body></html>
