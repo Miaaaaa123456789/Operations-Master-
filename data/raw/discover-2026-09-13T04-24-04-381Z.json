@@ -1,0 +1,36 @@
+{
+  "fetchedAt": "2026-09-13T04:24:04.395Z",
+  "url": "https://www.kdocs.cn/l/cbwp2cvTiFyK",
+  "sheets": {
+    "doctor": {
+      "sheetId": 3,
+      "sheetName": "医生组",
+      "cells": [],
+      "rows": []
+    },
+    "nursing": {
+      "sheetId": 4,
+      "sheetName": "护理组",
+      "cells": [],
+      "rows": []
+    },
+    "psychology": {
+      "sheetId": 5,
+      "sheetName": "心理咨询组",
+      "cells": [],
+      "rows": []
+    },
+    "service": {
+      "sheetId": 6,
+      "sheetName": "客服服务部",
+      "cells": [],
+      "rows": []
+    },
+    "marketing": {
+      "sheetId": 8,
+      "sheetName": "营销中心",
+      "cells": [],
+      "rows": []
+    }
+  }
+}
