@@ -56,8 +56,8 @@ const WECOM_WEBHOOK = 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=062d
 const BOARD_URL = 'https://hospital-ops-collab-77609.app.workbuddy.host/';
 const NURSING_SHEET_ID = 2;   // sheet「护士工作量统计总表」
 const NURSING_DATA_ROWS = { from: 3, to: 20 };  // r3..r20 = 18 名护士（r21 起为合计/统计行）
-// 姓名脱敏（与看板一致；顺序即行序）
-const NURSING_NAME_MAP = ['李X','彭X1','杨X1','杨X2','邱X','陈X1','刘X','沈X','袁X','何X','彭X2','杜X','杨X3','丁X','赵X2','曾X','吴X','任X'];
+// 护士姓名（与源表行序一致；应业主要求显示真实姓名，不再脱敏）
+const NURSING_NAME_MAP = ['李永鑫','彭龙华','杨新金','杨欢','邱国微','陈福建','刘佳佳','沈琳','袁怡','何培培','彭榆凯','杜萧','杨思菡','丁思意','赵雯倩','曾宇浩','吴雨霏','任健康'];
 
 // 5 个部门 sheet 的标题（必须与金山表 sheet 名精确匹配）
 const SHEET_NAMES = {
@@ -185,7 +185,7 @@ function fetchNursingWorkload() {
     const name = grid[r0 + '_0'] && grid[r0 + '_0'].text;
     if (!name || name === '合计') continue;
     nurses.push({
-      name: NURSING_NAME_MAP[nurses.length] || name.replace(/./g, 'X'),
+      name: NURSING_NAME_MAP[nurses.length] || name.trim(),
       patients:   grid[r0 + '_1']  ? grid[r0 + '_1'].num  : null,
       admissions: grid[r0 + '_2']  ? grid[r0 + '_2'].num  : null,
       discharges: grid[r0 + '_3']  ? grid[r0 + '_3'].num  : null,

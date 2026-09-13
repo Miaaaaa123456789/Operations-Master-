@@ -15,7 +15,7 @@
     "revenueWan": 40
   },
   "periodLabel": "数据更新至 2026年9月13日",
-  "snapshotAt": "2026-09-13T06:00:54.421Z",
+  "snapshotAt": "2026-09-13T06:15:07.194Z",
   "source": "kdocs/cbwp2cvTiFyK",
   "auth": {
     "kdocs": false,
@@ -45,7 +45,7 @@
   "wecomTemplate": "【经营看板已更新】数据更新至 {periodLabel}。总收入 {revenueWan} 万，入院 {admit}，门诊 {outpatient}。请打开系统查看。{link}",
   "nursingWorkload": [
     {
-      "name": "李X",
+      "name": "李永鑫",
       "patients": 74,
       "admissions": 2,
       "discharges": 6,
@@ -58,7 +58,7 @@
       "sheetRank": 11
     },
     {
-      "name": "彭X1",
+      "name": "彭龙华",
       "patients": 51,
       "admissions": 0,
       "discharges": 3,
@@ -71,7 +71,7 @@
       "sheetRank": 15
     },
     {
-      "name": "杨X1",
+      "name": "杨新金",
       "patients": 28,
       "admissions": 0,
       "discharges": 2,
@@ -84,7 +84,7 @@
       "sheetRank": 14
     },
     {
-      "name": "杨X2",
+      "name": "杨欢",
       "patients": 72,
       "admissions": 1,
       "discharges": 1,
@@ -97,7 +97,7 @@
       "sheetRank": 7
     },
     {
-      "name": "邱X",
+      "name": "邱国微",
       "patients": 40,
       "admissions": 4,
       "discharges": 4,
@@ -110,7 +110,7 @@
       "sheetRank": 4
     },
     {
-      "name": "陈X1",
+      "name": "陈福建",
       "patients": 198,
       "admissions": 11,
       "discharges": 23,
@@ -123,7 +123,7 @@
       "sheetRank": 1
     },
     {
-      "name": "刘X",
+      "name": "刘佳佳",
       "patients": 24,
       "admissions": 0,
       "discharges": 1,
@@ -136,7 +136,7 @@
       "sheetRank": 12
     },
     {
-      "name": "沈X",
+      "name": "沈琳",
       "patients": 10,
       "admissions": 1,
       "discharges": 1,
@@ -149,7 +149,7 @@
       "sheetRank": 13
     },
     {
-      "name": "袁X",
+      "name": "袁怡",
       "patients": 40,
       "admissions": 1,
       "discharges": 2,
@@ -162,7 +162,7 @@
       "sheetRank": 6
     },
     {
-      "name": "何X",
+      "name": "何培培",
       "patients": 128,
       "admissions": 1,
       "discharges": 2,
@@ -175,7 +175,7 @@
       "sheetRank": 9
     },
     {
-      "name": "彭X2",
+      "name": "彭榆凯",
       "patients": 81,
       "admissions": 1,
       "discharges": 2,
@@ -188,7 +188,7 @@
       "sheetRank": 8
     },
     {
-      "name": "杜X",
+      "name": "杜萧",
       "patients": 63,
       "admissions": 0,
       "discharges": 0,
@@ -201,7 +201,7 @@
       "sheetRank": 5
     },
     {
-      "name": "杨X3",
+      "name": "杨思菡",
       "patients": 88,
       "admissions": 5,
       "discharges": 4,
@@ -214,7 +214,7 @@
       "sheetRank": 2
     },
     {
-      "name": "丁X",
+      "name": "丁思意",
       "patients": 78,
       "admissions": 3,
       "discharges": 0,
@@ -227,7 +227,7 @@
       "sheetRank": 5
     },
     {
-      "name": "赵X2",
+      "name": "赵雯倩",
       "patients": 81,
       "admissions": 0,
       "discharges": 0,
@@ -240,7 +240,7 @@
       "sheetRank": 16
     },
     {
-      "name": "曾X",
+      "name": "曾宇浩",
       "patients": 48,
       "admissions": 1,
       "discharges": 0,
@@ -253,7 +253,7 @@
       "sheetRank": 10
     },
     {
-      "name": "吴X",
+      "name": "吴雨霏",
       "patients": null,
       "admissions": null,
       "discharges": null,
@@ -266,7 +266,7 @@
       "sheetRank": 17
     },
     {
-      "name": "任X",
+      "name": "任健康",
       "patients": null,
       "admissions": null,
       "discharges": null,
