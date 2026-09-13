@@ -8,8 +8,8 @@
  *                  therapyVisits / followup / psychVisits / psychRevenue）
  *   3. 比对 data/ops-dashboard-snapshot.json
  *      - 指纹不变 → 只改 periodLabel（表头年月）；不刷洞察；不推企微
- *      - 指纹变化 → 重写 summary / mainNumbers / periodLabel；写快照；
- *                   （后续）按授权发企业微信
+ *      - 指纹变化（主表 8 项 或 护士工作量指纹）→ 重写 summary / mainNumbers /
+ *        periodLabel；写快照；推送企业微信群 webhook（有更新才发，失败如实报告）
  *
  * 运行：
  *   node scripts/kdocs-ingest.js                 # 标准执行
@@ -50,6 +50,10 @@ const KDOCS_CLI = resolveKdocsCli();
 const KDOCS_URL = 'https://www.kdocs.cn/l/cbwp2cvTiFyK';
 // 第二数据源：护士工作量统计总表（用于护理部排名与工作量核对）
 const NURSING_URL = 'https://www.kdocs.cn/l/ctFnABhP4gW1';
+// 企业微信群机器人 webhook（数据有更新时推送）
+const WECOM_WEBHOOK = 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=062dcee5-06e1-40e5-854c-2575a76cd8c0';
+// 看板线上地址（推送消息里带的链接）
+const BOARD_URL = 'https://hospital-ops-collab-77609.app.workbuddy.host/';
 const NURSING_SHEET_ID = 2;   // sheet「护士工作量统计总表」
 const NURSING_DATA_ROWS = { from: 3, to: 20 };  // r3..r20 = 18 名护士（r21 起为合计/统计行）
 // 姓名脱敏（与看板一致；顺序即行序）
@@ -201,6 +205,33 @@ function fetchNursingWorkload() {
 
 // ─── 步骤 4: 比对 + 写快照 ─────────────────────────────────────────────────
 
+// 企业微信 webhook 推送（文本消息）。失败时如实报错，不假装成功。
+function pushWecom(content) {
+  return new Promise((resolve) => {
+    const data = JSON.stringify({ msgtype: 'text', text: { content } });
+    const req = require('https').request(WECOM_WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+      timeout: 10000,
+    }, (res) => {
+      let body = '';
+      res.on('data', (c) => { body += c; });
+      res.on('end', () => {
+        try {
+          const r = JSON.parse(body);
+          resolve({ ok: r.errcode === 0, errcode: r.errcode, errmsg: r.errmsg });
+        } catch (e) {
+          resolve({ ok: false, errmsg: '响应解析失败: ' + body.slice(0, 120) });
+        }
+      });
+    });
+    req.on('error', (e) => resolve({ ok: false, errmsg: e.message }));
+    req.on('timeout', () => { req.destroy(); resolve({ ok: false, errmsg: '请求超时' }); });
+    req.write(data);
+    req.end();
+  });
+}
+
 function loadSnapshot() {
   try { return JSON.parse(fs.readFileSync(SNAPSHOT_PATH, 'utf8')); }
   catch (e) { return null; }
@@ -254,7 +285,7 @@ function buildSnapshotFromFingerprint(fp, prevSnap) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────
 
-function main() {
+async function main() {
   const argv = process.argv.slice(2);
   const discover = argv.includes('--discover');
   const dryRun = argv.includes('--dry-run');
@@ -328,7 +359,7 @@ function main() {
   }
   const nursingChanged = nursing && (!prev || prev.nursingWorkloadFingerprint !== nursing.fingerprint);
 
-  if (same) {
+  if (same && !nursingChanged) {
     console.log('\n✅ 指纹未变 → 只更新表头年月，不改洞察，不推企微。');
     if (!dryRun) {
       const next = {
@@ -344,30 +375,33 @@ function main() {
       console.log(`  → periodLabel = ${next.periodLabel}`);
     }
   } else {
-    console.log('\n⚠️  指纹变化 → 重写 summary / mainNumbers / periodLabel，更新快照。');
-    const next = buildSnapshotFromFingerprint(fp, prev);
-    console.log(`  summary: ${next.summary}`);
+    const whatChanged = !same ? '主表 8 项指纹' : '护士工作量统计总表';
+    console.log(`\n⚠️  数据有更新（${whatChanged}）→ 重写快照 + 推送企业微信。`);
+    const next = same
+      ? { ...prev, periodLabel: periodLabelFromSnapshot(prev), snapshotAt: new Date().toISOString() }
+      : buildSnapshotFromFingerprint(fp, prev);
+    if (!same) console.log(`  summary: ${next.summary}`);
     if (nursing) {
       next.nursingWorkload = nursing.nurses;
       next.nursingWorkloadFingerprint = nursing.fingerprint;
     }
+    next.auth = { ...(next.auth || {}), kdocs: true, wecom: true };
     if (!dryRun) {
       saveSnapshot(next);
       console.log(`  → 已写 ${SNAPSHOT_PATH}`);
-      // 此处后续接入企业微信：if (next.auth.wecom) { /* 推群 */ }
+      // 企业微信群推送（有更新才发；失败如实报告，不假装成功）
+      const msg = `🔺业务看板有更新：${BOARD_URL}`;
+      const r = await pushWecom(msg);
+      if (r.ok) console.log(`  → 已推送企业微信：${msg}`);
+      else console.error(`  ⚠ 企业微信推送失败（${r.errmsg}）：${msg}`);
     }
   }
 
-  if (nursingChanged) {
+  if (nursingChanged && same) {
     console.log('  → 护士工作量表有变化：护理排名与绩效核对数据需同步更新。');
-  } else if (nursing) {
+  } else if (nursing && same && !nursingChanged) {
     console.log('  → 护士工作量表无变化。');
   }
 }
 
-try { main(); }
-catch (e) {
-  console.error('💥 运行失败：', e.message);
-  if (process.env.DEBUG) console.error(e.stack);
-  process.exit(1);
-}
+main().catch(e => { console.error('💥 运行失败：', e.message); if (process.env.DEBUG) console.error(e.stack); process.exit(1); });
