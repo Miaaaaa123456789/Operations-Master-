@@ -9,10 +9,16 @@
  *   3. 比对 data/ops-dashboard-snapshot.json
  *      - 指纹不变 → 只改 periodLabel（表头年月）；不刷洞察；不推企微
  *      - 指纹变化（主表 8 项 或 护士工作量指纹）→ 重写 summary / mainNumbers /
- *        periodLabel；写快照；推送企业微信群 webhook（有更新才发，失败如实报告）
+ *        periodLabel；写快照；登记待推送消息（不立即发）
+ *
+ * ⚠ 推送时序（重要）：
+ *   消息必须在「看板已按新数据改完并重新发布」之后才发，否则群里点开还是旧版。
+ *   因此抓取阶段只把消息写进 data/.pending-push.json，
+ *   等发布完成后再单独执行：node scripts/kdocs-ingest.js --push
  *
  * 运行：
- *   node scripts/kdocs-ingest.js                 # 标准执行
+ *   node scripts/kdocs-ingest.js                 # 标准执行（抓取 + 写快照 + 登记待推送）
+ *   node scripts/kdocs-ingest.js --push           # 发布完成后单独推送企微（成功后清除 pending）
  *   node scripts/kdocs-ingest.js --discover      # 仅打印 5 个 sheet 的结构，不写快照
  *   node scripts/kdocs-ingest.js --dry-run       # 抓 + 算指纹 + 比对，不写文件
  *
@@ -52,6 +58,8 @@ const KDOCS_URL = 'https://www.kdocs.cn/l/cbwp2cvTiFyK';
 const NURSING_URL = 'https://www.kdocs.cn/l/ctFnABhP4gW1';
 // 企业微信群机器人 webhook（数据有更新时推送）
 const WECOM_WEBHOOK = 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=062dcee5-06e1-40e5-854c-2575a76cd8c0';
+// 待推送消息暂存（发布完成后由 --push 发出）
+const PENDING_PUSH_PATH = path.join(__dirname, '..', 'data', '.pending-push.json');
 // 看板线上地址（推送消息里带的链接）
 const BOARD_URL = 'https://hospital-ops-collab-77609.app.workbuddy.host/';
 const NURSING_SHEET_ID = 2;   // sheet「护士工作量统计总表」
@@ -232,6 +240,22 @@ function pushWecom(content) {
   });
 }
 
+// 登记待推送消息（发布前调用；真正发送在 --push）
+function savePendingPush(msg, meta) {
+  fs.mkdirSync(path.dirname(PENDING_PUSH_PATH), { recursive: true });
+  fs.writeFileSync(PENDING_PUSH_PATH, JSON.stringify(
+    { msg, meta: meta || {}, createdAt: new Date().toISOString() }, null, 2) + '\n');
+}
+
+function loadPendingPush() {
+  try { return JSON.parse(fs.readFileSync(PENDING_PUSH_PATH, 'utf8')); }
+  catch (e) { return null; }
+}
+
+function clearPendingPush() {
+  try { fs.unlinkSync(PENDING_PUSH_PATH); } catch (e) { /* 已删除则忽略 */ }
+}
+
 function loadSnapshot() {
   try { return JSON.parse(fs.readFileSync(SNAPSHOT_PATH, 'utf8')); }
   catch (e) { return null; }
@@ -289,6 +313,29 @@ async function main() {
   const argv = process.argv.slice(2);
   const discover = argv.includes('--discover');
   const dryRun = argv.includes('--dry-run');
+  const pushOnly = argv.includes('--push');
+
+  // ── 仅推送模式：必须在看板已按新数据改完并重新发布之后执行 ──
+  if (pushOnly) {
+    const p = loadPendingPush();
+    if (!p) {
+      console.log('ℹ  没有待推送消息（data/.pending-push.json 不存在或已发送）。');
+      process.exit(0);
+    }
+    const r = await pushWecom(p.msg);
+    if (r.ok) {
+      clearPendingPush();
+      try {
+        const sn = loadSnapshot();
+        if (sn) { sn.auth = { ...(sn.auth || {}), kdocs: true, wecom: true }; sn.pushedAt = new Date().toISOString(); saveSnapshot(sn); }
+      } catch (e) { /* 快照更新失败不影响推送结果 */ }
+      console.log(`✅ 已推送企业微信：${p.msg}`);
+      process.exit(0);
+    }
+    console.error(`⚠ 企业微信推送失败（${r.errmsg}）：${p.msg}`);
+    console.error('  待推送消息已保留，修复后重跑 `node scripts/kdocs-ingest.js --push` 即可。');
+    process.exit(1);
+  }
 
   console.log('🔐 检查认证 …');
   const status = JSON.parse(execFileSync(KDOCS_CLI, ['auth', 'status'], { encoding: 'utf8' }));
@@ -360,7 +407,7 @@ async function main() {
   const nursingChanged = nursing && (!prev || prev.nursingWorkloadFingerprint !== nursing.fingerprint);
 
   if (same && !nursingChanged) {
-    console.log('\n✅ 指纹未变 → 只更新表头年月，不改洞察，不推企微。');
+    console.log('\n✅ 指纹未变 → 只更新表头年月，不改洞察，不推送企微。');
     if (!dryRun) {
       const next = {
         ...prev,
@@ -376,7 +423,7 @@ async function main() {
     }
   } else {
     const whatChanged = !same ? '主表 8 项指纹' : '护士工作量统计总表';
-    console.log(`\n⚠️  数据有更新（${whatChanged}）→ 重写快照 + 推送企业微信。`);
+    console.log(`\n⚠️  数据有更新（${whatChanged}）→ 重写快照 + 登记待推送消息（发布后再 --push）。`);
     const next = same
       ? { ...prev, periodLabel: periodLabelFromSnapshot(prev), snapshotAt: new Date().toISOString() }
       : buildSnapshotFromFingerprint(fp, prev);
@@ -389,11 +436,12 @@ async function main() {
     if (!dryRun) {
       saveSnapshot(next);
       console.log(`  → 已写 ${SNAPSHOT_PATH}`);
-      // 企业微信群推送（有更新才发；失败如实报告，不假装成功）
+      // ⚠ 不在这里推送：此刻线上看板还是旧版，群里点开会看到旧内容。
+      //    只登记消息，等 index.html 改完 + 发布成功后再执行 --push。
       const msg = `🔺业务看板有更新：${BOARD_URL}`;
-      const r = await pushWecom(msg);
-      if (r.ok) console.log(`  → 已推送企业微信：${msg}`);
-      else console.error(`  ⚠ 企业微信推送失败（${r.errmsg}）：${msg}`);
+      savePendingPush(msg, { whatChanged, fingerprint: fp, snapshotAt: next.snapshotAt });
+      console.log('  → 已登记待推送消息 data/.pending-push.json');
+      console.log(`  → ⚠ 请先把看板改完并发布，再执行：node scripts/kdocs-ingest.js --push`);
     }
   }
 
