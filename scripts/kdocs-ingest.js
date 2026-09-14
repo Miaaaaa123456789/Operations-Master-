@@ -7,18 +7,12 @@
  *   2. 算 8 项指纹（admit / outpatient / revenueWan / therapyFeeWan /
  *                  therapyVisits / followup / psychVisits / psychRevenue）
  *   3. 比对 data/ops-dashboard-snapshot.json
- *      - 指纹不变 → 只改 periodLabel（表头年月）；不刷洞察；不推企微
+ *      - 指纹不变 → 只改 periodLabel（表头年月）；不刷洞察
  *      - 指纹变化（主表 8 项 或 护士工作量指纹）→ 重写 summary / mainNumbers /
- *        periodLabel；写快照；登记待推送消息（不立即发）
- *
- * ⚠ 推送时序（重要）：
- *   消息必须在「看板已按新数据改完并重新发布」之后才发，否则群里点开还是旧版。
- *   因此抓取阶段只把消息写进 data/.pending-push.json，
- *   等发布完成后再单独执行：node scripts/kdocs-ingest.js --push
+ *        periodLabel；写快照。不做企业微信推送（2026-09-13 按业主要求移除）。
  *
  * 运行：
- *   node scripts/kdocs-ingest.js                 # 标准执行（抓取 + 写快照 + 登记待推送）
- *   node scripts/kdocs-ingest.js --push           # 发布完成后单独推送企微（成功后清除 pending）
+ *   node scripts/kdocs-ingest.js                 # 标准执行（抓取 + 写快照）
  *   node scripts/kdocs-ingest.js --discover      # 仅打印 5 个 sheet 的结构，不写快照
  *   node scripts/kdocs-ingest.js --dry-run       # 抓 + 算指纹 + 比对，不写文件
  *
@@ -56,12 +50,6 @@ const KDOCS_CLI = resolveKdocsCli();
 const KDOCS_URL = 'https://www.kdocs.cn/l/cbwp2cvTiFyK';
 // 第二数据源：护士工作量统计总表（用于护理部排名与工作量核对）
 const NURSING_URL = 'https://www.kdocs.cn/l/ctFnABhP4gW1';
-// 企业微信群机器人 webhook（数据有更新时推送）
-const WECOM_WEBHOOK = 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=062dcee5-06e1-40e5-854c-2575a76cd8c0';
-// 待推送消息暂存（发布完成后由 --push 发出）
-const PENDING_PUSH_PATH = path.join(__dirname, '..', 'data', '.pending-push.json');
-// 看板线上地址（推送消息里带的链接）
-const BOARD_URL = 'https://hospital-ops-collab-77609.app.workbuddy.host/';
 const NURSING_SHEET_ID = 2;   // sheet「护士工作量统计总表」
 const NURSING_DATA_ROWS = { from: 3, to: 20 };  // r3..r20 = 18 名护士（r21 起为合计/统计行）
 // 护士姓名（与源表行序一致；应业主要求显示真实姓名，不再脱敏）
@@ -213,49 +201,6 @@ function fetchNursingWorkload() {
 
 // ─── 步骤 4: 比对 + 写快照 ─────────────────────────────────────────────────
 
-// 企业微信 webhook 推送（文本消息）。失败时如实报错，不假装成功。
-function pushWecom(content) {
-  return new Promise((resolve) => {
-    const data = JSON.stringify({ msgtype: 'text', text: { content } });
-    const req = require('https').request(WECOM_WEBHOOK, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
-      timeout: 10000,
-    }, (res) => {
-      let body = '';
-      res.on('data', (c) => { body += c; });
-      res.on('end', () => {
-        try {
-          const r = JSON.parse(body);
-          resolve({ ok: r.errcode === 0, errcode: r.errcode, errmsg: r.errmsg });
-        } catch (e) {
-          resolve({ ok: false, errmsg: '响应解析失败: ' + body.slice(0, 120) });
-        }
-      });
-    });
-    req.on('error', (e) => resolve({ ok: false, errmsg: e.message }));
-    req.on('timeout', () => { req.destroy(); resolve({ ok: false, errmsg: '请求超时' }); });
-    req.write(data);
-    req.end();
-  });
-}
-
-// 登记待推送消息（发布前调用；真正发送在 --push）
-function savePendingPush(msg, meta) {
-  fs.mkdirSync(path.dirname(PENDING_PUSH_PATH), { recursive: true });
-  fs.writeFileSync(PENDING_PUSH_PATH, JSON.stringify(
-    { msg, meta: meta || {}, createdAt: new Date().toISOString() }, null, 2) + '\n');
-}
-
-function loadPendingPush() {
-  try { return JSON.parse(fs.readFileSync(PENDING_PUSH_PATH, 'utf8')); }
-  catch (e) { return null; }
-}
-
-function clearPendingPush() {
-  try { fs.unlinkSync(PENDING_PUSH_PATH); } catch (e) { /* 已删除则忽略 */ }
-}
-
 function loadSnapshot() {
   try { return JSON.parse(fs.readFileSync(SNAPSHOT_PATH, 'utf8')); }
   catch (e) { return null; }
@@ -296,14 +241,13 @@ function buildSnapshotFromFingerprint(fp, prevSnap) {
     periodLabel,
     snapshotAt: new Date().toISOString(),
     source: 'kdocs/cbwp2cvTiFyK',
-    auth: prevSnap && prevSnap.auth ? prevSnap.auth : { kdocs: false, wecom: false },
+    auth: prevSnap && prevSnap.auth ? prevSnap.auth : { kdocs: false },
     summary,
     mainNumbers: [
       { label: '入院（人）',        value: String(fp.admit ?? '—'),          delta: '—', deltaColor: 'rgba(255,255,255,.85)' },
       { label: '门诊（人）',        value: String(fp.outpatient ?? '—'),     delta: '—', deltaColor: 'rgba(255,255,255,.85)' },
       { label: '物理治疗（人次）',  value: String(fp.therapyVisits ?? '—'),  delta: '—', deltaColor: 'rgba(255,255,255,.85)' },
     ],
-    wecomTemplate: prevSnap && prevSnap.wecomTemplate || '',
   };
 }
 
@@ -313,30 +257,6 @@ async function main() {
   const argv = process.argv.slice(2);
   const discover = argv.includes('--discover');
   const dryRun = argv.includes('--dry-run');
-  const pushOnly = argv.includes('--push');
-
-  // ── 仅推送模式：必须在看板已按新数据改完并重新发布之后执行 ──
-  if (pushOnly) {
-    const p = loadPendingPush();
-    if (!p) {
-      console.log('ℹ  没有待推送消息（data/.pending-push.json 不存在或已发送）。');
-      process.exit(0);
-    }
-    const r = await pushWecom(p.msg);
-    if (r.ok) {
-      clearPendingPush();
-      try {
-        const sn = loadSnapshot();
-        if (sn) { sn.auth = { ...(sn.auth || {}), kdocs: true, wecom: true }; sn.pushedAt = new Date().toISOString(); saveSnapshot(sn); }
-      } catch (e) { /* 快照更新失败不影响推送结果 */ }
-      console.log(`✅ 已推送企业微信：${p.msg}`);
-      process.exit(0);
-    }
-    console.error(`⚠ 企业微信推送失败（${r.errmsg}）：${p.msg}`);
-    console.error('  待推送消息已保留，修复后重跑 `node scripts/kdocs-ingest.js --push` 即可。');
-    process.exit(1);
-  }
-
   console.log('🔐 检查认证 …');
   const status = JSON.parse(execFileSync(KDOCS_CLI, ['auth', 'status'], { encoding: 'utf8' }));
   if (!status.authenticated) {
@@ -407,7 +327,7 @@ async function main() {
   const nursingChanged = nursing && (!prev || prev.nursingWorkloadFingerprint !== nursing.fingerprint);
 
   if (same && !nursingChanged) {
-    console.log('\n✅ 指纹未变 → 只更新表头年月，不改洞察，不推送企微。');
+    console.log('\n✅ 指纹未变 → 只更新表头年月，不改洞察。');
     if (!dryRun) {
       const next = {
         ...prev,
@@ -423,7 +343,7 @@ async function main() {
     }
   } else {
     const whatChanged = !same ? '主表 8 项指纹' : '护士工作量统计总表';
-    console.log(`\n⚠️  数据有更新（${whatChanged}）→ 重写快照 + 登记待推送消息（发布后再 --push）。`);
+    console.log(`\n⚠️  数据有更新（${whatChanged}）→ 重写快照。请按新数字更新看板各模块后重新部署。`);
     const next = same
       ? { ...prev, periodLabel: periodLabelFromSnapshot(prev), snapshotAt: new Date().toISOString() }
       : buildSnapshotFromFingerprint(fp, prev);
@@ -432,16 +352,11 @@ async function main() {
       next.nursingWorkload = nursing.nurses;
       next.nursingWorkloadFingerprint = nursing.fingerprint;
     }
-    next.auth = { ...(next.auth || {}), kdocs: true, wecom: true };
+    next.auth = { ...(next.auth || {}), kdocs: true };
     if (!dryRun) {
       saveSnapshot(next);
       console.log(`  → 已写 ${SNAPSHOT_PATH}`);
-      // ⚠ 不在这里推送：此刻线上看板还是旧版，群里点开会看到旧内容。
-      //    只登记消息，等 index.html 改完 + 发布成功后再执行 --push。
-      const msg = `🔺业务看板有更新：${BOARD_URL}`;
-      savePendingPush(msg, { whatChanged, fingerprint: fp, snapshotAt: next.snapshotAt });
-      console.log('  → 已登记待推送消息 data/.pending-push.json');
-      console.log(`  → ⚠ 请先把看板改完并发布，再执行：node scripts/kdocs-ingest.js --push`);
+      console.log('  → 已按业主要求停用企微推送，不做任何消息发送。');
     }
   }
 
