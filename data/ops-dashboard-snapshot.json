@@ -5,41 +5,41 @@
     "revenueWan": 56,
     "therapyFeeWan": 22.3,
     "therapyVisits": 608,
-    "followup": 186,
-    "psychVisits": 48,
-    "psychRevenue": 32159
+    "followup": null,
+    "psychVisits": 32,
+    "psychRevenue": 25752
   },
   "narrativeMain": {
     "admit": 11,
     "outpatient": 227,
     "revenueWan": 56
   },
-  "periodLabel": "数据更新至 2026年9月14日",
-  "snapshotAt": "2026-09-14T01:13:13.629Z",
+  "periodLabel": "数据更新至 2026年9月17日",
+  "snapshotAt": "2026-09-17T01:27:48.686Z",
   "source": "kdocs/cbwp2cvTiFyK",
   "auth": {
     "kdocs": true,
     "wecom": true
   },
-  "summary": "入院 11 人，门诊 227 人，物理治疗 608 人次（表头与护士长叙述六项合计一致），环比见信号详情。总收入仅作核对指标（本期 56 万）。",
+  "summary": "入院 11 人，门诊 227 人，物理治疗 608 人次，环比见信号详情。总收入仅作核对指标（本期 56 万）。",
   "mainNumbers": [
     {
       "label": "入院（人）",
       "value": "11",
-      "delta": "−15.4%",
-      "deltaColor": "#21A6A0"
+      "delta": "—",
+      "deltaColor": "rgba(255,255,255,.85)"
     },
     {
       "label": "门诊（人）",
       "value": "227",
-      "delta": "+5.1%",
-      "deltaColor": "#ffc2cd"
+      "delta": "—",
+      "deltaColor": "rgba(255,255,255,.85)"
     },
     {
       "label": "物理治疗（人次）",
       "value": "608",
-      "delta": "+0.3%",
-      "deltaColor": "#ffc2cd"
+      "delta": "—",
+      "deltaColor": "rgba(255,255,255,.85)"
     }
   ],
   "nursingWorkload": [
