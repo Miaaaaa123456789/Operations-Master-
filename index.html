@@ -242,13 +242,13 @@
           <div class="np-orig-wrap"><table class="np-orig"><thead><tr><th>综合排名</th><th>姓名</th><th>业务分</th><th>业务名次</th><th>质控均分</th><th>质控名次</th><th>综合积分</th><th>备注</th></tr></thead><tbody id="npOrigBody"></tbody></table></div>
           <div class="rank-source" style="margin-top:10px">来源：《护士工作量与质量分析排名》（业主 2026-09-20 提供）汇总排名 sheet，覆盖 9.13—9.19 共 7 个工作日。综合得分公式：0.5×周总工作量 ÷ 周最大值 ＋ 0.5×平均质控分 ÷ 质控最大值（归一化基数：25.68 / 67.33）。本表 17 行与业主截图逐行核对一致；原「9.6-9.13.pdf」原报口径已停用。</div>
         </div></details>
-        <details class="business-panel" id="npProblemPanel"><summary><strong>② 现有问题与解决方案</strong><span>点击展开 ⌄</span></summary><div class="business-body">
+        <details class="business-panel" id="npProblemPanel"><summary><strong>② 现有问题与解决方案 · 9.13—9.19（源表整改措施）</strong><span>点击展开 ⌄</span></summary><div class="business-body">
           <div class="np-problem" id="npProblemList"></div>
           <div class="rank-source" style="margin-top:10px">依据：《护士工作量与质量分析排名》「不足与整改措施」sheet（业主 2026-09-20 提供，覆盖 9.13—9.19），共 7 条；上列 6 条为主项，另有「安全与约束管理」作为关注项（本周约束执行 16 次，患者请假与病情波动需持续排查）。</div>
         </div></details>
-        <details class="business-panel" id="npComparePanel"><summary><strong>③ 前几周环比（周排名波动 × 班次构成 × 业务分差贡献）</strong><span>点击展开 ⌄</span></summary><div class="business-body">
+        <details class="business-panel" id="npComparePanel"><summary><strong>③ 前几周环比 · 9.7—9.13 排班口径（周排名波动 × 班次构成 × 业务分差贡献）</strong><span>点击展开 ⌄</span></summary><div class="business-body">
           <div class="np-cover"><span class="miss">8.24–8.30：仅 8.29、8.30 两天（覆盖 2 天），不排名</span><span class="partial">8.31–9.6：覆盖 6 天（缺 8.31 排班），按可获数据复算</span><span class="partial">9.7–9.12：覆盖 6 天（9.13 仅计划）</span><span class="partial">9.7–9.13：含 9.13 计划排班</span></div>
-          <div class="np-tabs"><button class="np-tab active" data-nptab="rank">排名变化</button><button class="np-tab" data-nptab="shift">班次构成</button><button class="np-tab" data-nptab="contrib">业务分差贡献</button></div>
+          <div class="np-tabs"><button class="np-tab active" data-nptab="npRank">排名变化</button><button class="np-tab" data-nptab="npShift">班次构成</button><button class="np-tab" data-nptab="npContrib">业务分差贡献</button></div>
           <div class="np-pane active" id="npRankPane"><div class="np-rank-list" id="npRankList"></div><p class="compare-note" style="margin-top:10px">业务名次按 8.31–9.6（前周）与 9.7–9.12（本周）口径分别排名。⭐ 为重点关注：<b>杨新金 14→1、杜萧 1→15、陈福建 13→7</b>。排班与业务变化并存，不直接认定个人能力变化。</p></div>
           <div class="np-pane" id="npShiftPane"><div class="np-shift-grid" id="npShiftGrid"></div><div class="np-shift-legend" id="npShiftLegend"></div><p class="compare-note" style="margin-top:10px">每行 12 格：左 6 格为 9.1–9.6（前周），右 6 格为 9.7–9.12（本周）。每个单元格颜色对应班次类型。⭐ 杨新金、杜萧、陈福建。缺排班以「缺」标识，无可获数据显示「—」。</p></div>
           <div class="np-pane" id="npContribPane"><div class="np-contrib" id="npContribList"></div><p class="compare-note" style="margin-top:10px">分差 = 治疗贡献 + 管理贡献 + 咨询约束贡献；只解释「相对前周的业务分增减来源」，不直接对应工作量或能力。⭐ 三人变化伴随排班结构改变，作为线索使用，不直接归因个人能力。</p></div>
@@ -712,16 +712,16 @@ const OPS_HISTORY={weeks:['6.29','7.6','7.13','7.26','8.3','8.16-17','8.30-31'],
       }).join('');
     }
     function npBindTabs(){
-      document.querySelectorAll('#nursingPerfPane .np-tab').forEach(b=>b.onclick=()=>{
-        document.querySelectorAll('#nursingPerfPane .np-tab').forEach(x=>x.classList.toggle('active',x===b));
-        document.querySelectorAll('#nursingPerfPane .np-pane').forEach(p=>p.classList.toggle('active',p.id===b.dataset.nptab+'Pane'));
+      document.querySelectorAll('.np-tab').forEach(b=>b.onclick=()=>{
+        document.querySelectorAll('.np-tab').forEach(x=>x.classList.toggle('active',x===b));
+        document.querySelectorAll('#npComparePanel .np-pane').forEach(p=>p.classList.toggle('active',p.id===b.dataset.nptab+'Pane'));
       });
-      document.querySelectorAll('#nursingPerfPane .np-mode-tab').forEach(b=>b.onclick=()=>{
-        document.querySelectorAll('#nursingPerfPane .np-mode-tab').forEach(x=>x.classList.toggle('active',x===b));
+      document.querySelectorAll('.np-mode-tab').forEach(b=>b.onclick=()=>{
+        document.querySelectorAll('.np-mode-tab').forEach(x=>x.classList.toggle('active',x===b));
         const target=b.dataset.npmode==='week'?'npSuggestWeekPane':'npSuggestCumPane';
-        document.querySelectorAll('#nursingPerfPane .np-pane').forEach(p=>p.classList.toggle('active',p.id===target));
+        document.querySelectorAll('#npSuggestPanel .np-pane').forEach(p=>p.classList.toggle('active',p.id===target));
       });
-      const panels=document.querySelectorAll('#nursingPerfPane .business-panel');
+      const panels=document.querySelectorAll('#nursingPerfPane .business-panel, #trendPane .business-panel');
       panels.forEach(p=>p.addEventListener('toggle',()=>{const s=p.querySelector(':scope>summary span');if(s)s.textContent=p.open?'点击收起 ⌃':'点击展开 ⌄'}));
       const btn=document.getElementById('npExpandAll');if(btn)btn.onclick=()=>{const any=Array.from(panels).some(p=>!p.open);panels.forEach(p=>p.open=any);btn.textContent=any?'全部收起':'全部展开'};
     }
@@ -789,7 +789,7 @@ const OPS_HISTORY={weeks:['6.29','7.6','7.13','7.26','8.3','8.16-17','8.30-31'],
       service:{metrics:[['14天就诊','463人'],['第二周初诊','28人'],['第二周日均初诊','4.0人']],note:'<strong>两周初诊总数都是 28 人</strong>，但第二周多 1 天，日均初诊下降 14.3%。客服周报到院率也降至 23.5%，需用患者编号核对是否同一批人。',diag:'<div class="diagnosis-item tone-risk"><b>日报补充判断 · 总数没掉，日均效率在掉</b><p>第一周 6 天、第二周 7 天，初诊都是 28 人，因此日均初诊从 4.7 降到 4.0。给每条线索补渠道、预约、到院和初诊时间，定位流失步骤。</p></div>'},
       marketing:{metrics:[['14天初诊','59人'],['周末收入占比','46.6%'],['第二周日均收入','−7.8%']],note:'<strong>第二周总收入增加 7.6%，但日均效率下降 7.8%</strong>。营销不能只看总额和对接量，要看每个渠道最终带来多少初诊、入院和收入。',diag:'<div class="diagnosis-item tone-risk"><b>日报补充判断 · 总额增长不等于营销效率提高</b><p>第二周比第一周多 1 天，周总收入增加但日均下降。9月6日和13日贡献 35.7% 营业额；应拆解两天的渠道、活动、医生排班和项目组合，验证能否复制到平日。</p></div>'}
     };
-    const openDeptSales=openDeptV2;openDeptV2=function(key){openDeptSales(key);document.getElementById('deptDailyPanel')?.remove();const x=deptDaily[key];if(x){document.getElementById('trendPane').insertAdjacentHTML('afterbegin',`<section class="dept-sales-panel" id="deptDailyPanel"><div class="dept-sales-head"><strong>最新营业日报怎么影响本部门</strong><span>${x.range||'9月1—14日'}</span></div><div class="dept-sales-metrics">${x.metrics.map(m=>`<div><b>${m[1]}</b>${m[0]}</div>`).join('')}</div><p class="dept-sales-note">${x.note}</p>${key==='marketing'?'<button class="dept-sales-action" onclick="openSales(\'monthly\')">查看3—9月营销与营业分析 →</button>':''}</section>`);document.getElementById('diagnosisList').insertAdjacentHTML('afterbegin',x.diag)}};
+    const openDeptSales=openDeptV2;openDeptV2=function(key){openDeptSales(key);const _npHome=document.getElementById('nursingPerfPane');['npProblemPanel','npComparePanel'].forEach(function(id){var el=document.getElementById(id);if(!el||!_npHome)return;if(key==='nursing'){document.getElementById('trendPane').appendChild(el);}else if(el.parentNode!==_npHome){_npHome.appendChild(el);}});document.getElementById('deptDailyPanel')?.remove();const x=deptDaily[key];if(x){document.getElementById('trendPane').insertAdjacentHTML('afterbegin',`<section class="dept-sales-panel" id="deptDailyPanel"><div class="dept-sales-head"><strong>最新营业日报怎么影响本部门</strong><span>${x.range||'9月1—14日'}</span></div><div class="dept-sales-metrics">${x.metrics.map(m=>`<div><b>${m[1]}</b>${m[0]}</div>`).join('')}</div><p class="dept-sales-note">${x.note}</p>${key==='marketing'?'<button class="dept-sales-action" onclick="openSales(\'monthly\')">查看3—9月营销与营业分析 →</button>':''}</section>`);document.getElementById('diagnosisList').insertAdjacentHTML('afterbegin',x.diag)}};
     selectSalesMonth(9);
   </script>
   <script>
