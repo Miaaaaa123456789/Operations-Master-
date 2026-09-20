@@ -72,102 +72,118 @@
   </style>
   <style>
     /* ===== 护理绩效分析 ===== */
-    .nursing-perf .np-banner{padding:11px 14px;border-radius:14px;background:#fff7e6;border:1px solid #f3e3c0;color:#7c6338;font-size:12px;line-height:1.6;margin-bottom:12px}
-    .nursing-perf .np-banner b{color:#5a4416}
-    .nursing-perf .np-orig-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .np-banner{padding:11px 14px;border-radius:14px;background:#fff7e6;border:1px solid #f3e3c0;color:#7c6338;font-size:12px;line-height:1.6;margin-bottom:12px}
+    .np-banner b{color:#5a4416}
+    .np-orig-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
     .nursing-perf table.np-orig{width:100%;border-collapse:collapse;font-size:12px;min-width:560px}
-    .nursing-perf .np-orig th{padding:9px 8px;background:#f4f6fb;color:#5a6072;text-align:left;font-weight:700;font-size:11px;border-bottom:1px solid var(--line);white-space:nowrap}
-    .nursing-perf .np-orig td{padding:9px 8px;border-bottom:1px solid #f0f1f5;vertical-align:middle}
-    .nursing-perf .np-orig tr.top1 td{background:#fff4f1}
-    .nursing-perf .np-orig tr.top2 td{background:#fff7eb}
-    .nursing-perf .np-orig tr.top3 td{background:#fffaef}
-    .nursing-perf .np-orig .np-rankno{display:inline-block;min-width:24px;height:22px;line-height:22px;border-radius:7px;background:#5a6072;color:#fff;text-align:center;font-weight:800;font-size:11px;padding:0 6px}
-    .nursing-perf .np-orig tr.top1 .np-rankno{background:#E0576F}
-    .nursing-perf .np-orig tr.top2 .np-rankno{background:#d96f2e}
-    .nursing-perf .np-orig tr.top3 .np-rankno{background:#a55fd1}
-    .nursing-perf .np-mismatch{color:#a82b46;font-size:10px;background:#fff0f3;border-radius:5px;padding:1px 5px;margin-left:3px;white-space:nowrap}
-    .nursing-perf .np-problem{display:grid;gap:8px;margin-top:8px}
-    .nursing-perf .np-problem-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
-    .nursing-perf .np-problem-cell{padding:11px 12px;border-radius:12px;background:#fff;border:1px solid var(--line);font-size:12px;line-height:1.55}
-    .nursing-perf .np-problem-cell.risk{border-color:#f2ccd4;background:#fff8fa}
-    .nursing-perf .np-problem-cell.action{border-color:#cdeae5;background:#f3fbf9}
-    .nursing-perf .np-problem-cell label{display:block;font-size:11px;font-weight:800;color:#0058b0;margin-bottom:5px;letter-spacing:.04em;text-transform:uppercase}
-    .nursing-perf .np-problem-cell.risk label{color:#a82b46}
-    .nursing-perf .np-problem-cell.action label{color:#168c83}
-    .nursing-perf .np-problem-cell p{margin:0;color:#5b6377}
-    .nursing-perf .np-tabs,.nursing-perf .np-mode-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:3px;background:#f2f3f8;border-radius:11px;margin-bottom:12px}
-    .nursing-perf .np-mode-tabs{grid-template-columns:repeat(2,1fr)}
-    .nursing-perf .np-tab,.nursing-perf .np-mode-tab{border:0;background:transparent;border-radius:9px;padding:8px 6px;color:#777c8d;font-size:12px;font-weight:700;cursor:pointer}
-    .nursing-perf .np-tab.active,.nursing-perf .np-mode-tab.active{background:#fff;color:var(--blue);box-shadow:0 3px 10px rgba(59,61,91,.08)}
-    .nursing-perf .np-pane{display:none}
-    .nursing-perf .np-pane.active{display:block}
-    .nursing-perf .np-cover{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 12px;font-size:11px;color:#5b6377}
-    .nursing-perf .np-cover span{padding:4px 9px;border-radius:7px;background:#f4f6fb}
-    .nursing-perf .np-cover span.full{background:#eaf9f7;color:#168c83}
-    .nursing-perf .np-cover span.partial{background:#fff7e6;color:#7c6338}
-    .nursing-perf .np-cover span.miss{background:#fff0f3;color:#a82b46}
-    .nursing-perf .np-rank-list{display:grid;gap:4px}
-    .nursing-perf .np-rank-row{display:grid;grid-template-columns:88px 1fr 70px;gap:8px;align-items:center;padding:6px 8px;font-size:12px;border-radius:10px;border:1px solid transparent}
-    .nursing-perf .np-rank-row:hover{background:#f6f7fb}
-    .nursing-perf .np-rank-row.highlight{background:#fff7e6;border-color:#f3e3c0}
-    .nursing-perf .np-rank-row .name{font-weight:700}
-    .nursing-perf .np-rank-row .bars{display:grid;grid-template-columns:1fr 1fr;gap:5px;align-items:center}
-    .nursing-perf .np-bar{position:relative;height:14px;background:#eef0f5;border-radius:5px;overflow:hidden}
-    .nursing-perf .np-bar i{display:block;height:100%;border-radius:5px;width:var(--w);transform-origin:left;background:#82a8d8;animation:growBar .9s ease both}
-    .nursing-perf .np-bar.curr i{background:#0066CC}
-    .nursing-perf .np-rank-row .delta{font-size:11px;text-align:right;font-weight:800}
-    .nursing-perf .np-rank-row .delta.up{color:#21A6A0}
-    .nursing-perf .np-rank-row .delta.down{color:#E0576F}
-    .nursing-perf .np-shift-grid{display:grid;gap:6px}
-    .nursing-perf .np-shift-row{display:grid;grid-template-columns:90px 1fr;gap:8px;align-items:center;padding:5px 4px;border-bottom:1px solid #f0f1f5}
-    .nursing-perf .np-shift-row.highlight{background:#fff7e6;margin:0 -6px;padding:5px 10px;border-radius:8px;border-bottom:none}
-    .nursing-perf .np-shift-cells{display:grid;grid-template-columns:repeat(12,1fr);gap:2px}
-    .nursing-perf .np-shift-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;border-radius:4px;line-height:1}
-    .nursing-perf .np-shift-cell.ce{background:#5cba7f}
-    .nursing-perf .np-shift-cell.wu{background:#d96f2e}
-    .nursing-perf .np-shift-cell.ban{background:#a55fd1}
-    .nursing-perf .np-shift-cell.ji{background:#1d4ed8}
-    .nursing-perf .np-shift-cell.ye{background:#0a3d99}
-    .nursing-perf .np-shift-cell.men{background:#0aa1b2}
-    .nursing-perf .np-shift-cell.xiu{background:#d9dbe3;color:#888}
-    .nursing-perf .np-shift-cell.qk{background:#f4f5f9;color:#a0a4b0;border:1px dashed #d0d3da}
-    .nursing-perf .np-shift-cell.tb{background:#fff;color:#a82b46;border:1px dashed #f2ccd4}
-    .nursing-perf .np-shift-legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:10px;font-size:11px;color:#5b6377}
-    .nursing-perf .np-shift-legend span{display:inline-flex;align-items:center;gap:4px}
-    .nursing-perf .np-shift-legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
-    .nursing-perf .np-contrib{display:grid;gap:11px}
-    .nursing-perf .np-contrib-row{padding:11px;border:1px solid var(--line);border-radius:13px;background:#fff}
-    .nursing-perf .np-contrib-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:9px;flex-wrap:wrap}
-    .nursing-perf .np-contrib-head strong{font-size:13px}
-    .nursing-perf .np-contrib-head span{font-size:11px;color:var(--muted)}
-    .nursing-perf .np-contrib-bars{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
-    .nursing-perf .np-contrib-bar{padding:9px 10px;border-radius:9px;background:#f4f6fb;font-size:11px;color:#5b6377}
-    .nursing-perf .np-contrib-bar b{display:block;font-size:15px;color:var(--ink);margin-top:2px}
-    .nursing-perf .np-contrib-bar.up b{color:#21A6A0}
-    .nursing-perf .np-contrib-bar.down b{color:#E0576F}
-    .nursing-perf .np-contrib-bar.flat b{color:#858a98}
-    .nursing-perf .np-contrib-row .np-note{margin:9px 0 0;font-size:11px;color:#5b6377;line-height:1.55}
-    .nursing-perf .np-suggest-table{width:100%;border-collapse:collapse;font-size:12px}
-    .nursing-perf .np-suggest-table th{padding:9px 8px;background:#f4f6fb;color:#5a6072;text-align:left;font-weight:700;font-size:11px;border-bottom:1px solid var(--line);white-space:nowrap}
-    .nursing-perf .np-suggest-table td{padding:9px 8px;border-bottom:1px solid #f0f1f5;vertical-align:middle}
-    .nursing-perf .np-suggest-table tr.top1 td{background:#fff4f1}
-    .nursing-perf .np-suggest-table tr.top2 td{background:#fff7eb}
-    .nursing-perf .np-suggest-table tr.top3 td{background:#fffaef}
-    .nursing-perf .np-suggest-table .np-rankno{display:inline-block;min-width:24px;height:22px;line-height:22px;border-radius:7px;background:#5a6072;color:#fff;text-align:center;font-weight:800;font-size:11px;padding:0 6px}
-    .nursing-perf .np-suggest-table tr.top1 .np-rankno{background:#E0576F}
-    .nursing-perf .np-suggest-table tr.top2 .np-rankno{background:#d96f2e}
-    .nursing-perf .np-suggest-table tr.top3 .np-rankno{background:#a55fd1}
-    .nursing-perf .np-suggest-table .np-rankno.tbd{background:#fff0f3;color:#a82b46}
-    .nursing-perf .np-tbd{display:inline-block;font-size:10px;background:#fff0f3;color:#a82b46;border-radius:5px;padding:1px 5px;margin-left:3px}
-    .nursing-perf .np-api{display:grid;gap:8px;margin-top:8px}
-    .nursing-perf .np-api-item{padding:10px 12px;border:1px solid var(--line);border-radius:13px;background:#fff;font-size:12px;line-height:1.55}
-    .nursing-perf .np-api-item code{font-family:Menlo,Consolas,monospace;font-size:11px;background:#f4f6fb;border-radius:5px;padding:1px 6px;color:#0058b0}
-    .nursing-perf .np-api-item p{margin:4px 0 0;color:#5b6377}
+    .np-orig th{padding:9px 8px;background:#f4f6fb;color:#5a6072;text-align:left;font-weight:700;font-size:11px;border-bottom:1px solid var(--line);white-space:nowrap}
+    .np-orig td{padding:9px 8px;border-bottom:1px solid #f0f1f5;vertical-align:middle}
+    .np-orig tr.top1 td{background:#fff4f1}
+    .np-orig tr.top2 td{background:#fff7eb}
+    .np-orig tr.top3 td{background:#fffaef}
+    .np-orig .np-rankno{display:inline-block;min-width:24px;height:22px;line-height:22px;border-radius:7px;background:#5a6072;color:#fff;text-align:center;font-weight:800;font-size:11px;padding:0 6px}
+    .np-orig tr.top1 .np-rankno{background:#E0576F}
+    .np-orig tr.top2 .np-rankno{background:#d96f2e}
+    .np-orig tr.top3 .np-rankno{background:#a55fd1}
+    .np-mismatch{color:#a82b46;font-size:10px;background:#fff0f3;border-radius:5px;padding:1px 5px;margin-left:3px;white-space:nowrap}
+    .np-problem{display:grid;gap:8px;margin-top:8px}
+    .np-problem-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+    .np-problem-cell{padding:11px 12px;border-radius:12px;background:#fff;border:1px solid var(--line);font-size:12px;line-height:1.55}
+    .np-problem-cell.risk{border-color:#f2ccd4;background:#fff8fa}
+    .np-problem-cell.action{border-color:#cdeae5;background:#f3fbf9}
+    .np-problem-cell label{display:block;font-size:11px;font-weight:800;color:#0058b0;margin-bottom:5px;letter-spacing:.04em;text-transform:uppercase}
+    .np-problem-cell.risk label{color:#a82b46}
+    .np-problem-cell.action label{color:#168c83}
+    .np-problem-cell p{margin:0;color:#5b6377}
+    .np-pb{display:grid;gap:9px;margin-top:8px}
+    .np-pb-item{background:#fff;border:1px solid var(--line);border-left:4px solid #E0576F;border-radius:13px;padding:12px 13px 11px}
+    .np-pb-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .np-pb-no{width:20px;height:20px;border-radius:50%;background:#E0576F;color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center;flex:0 0 auto}
+    .np-pb-head strong{font-size:13.5px;color:#242A38;line-height:1.4;flex:1 1 auto;min-width:0}
+    .np-pb-tag{font-size:10.5px;font-weight:800;color:#A8203C;background:#FCF2F3;border:1px solid #F2CCD4;border-radius:6px;padding:2px 7px;white-space:nowrap;flex:0 0 auto}
+    .np-pb-facts{display:grid;gap:3px;margin:8px 0 0 28px}
+    .np-pb-facts p{margin:0;font-size:12px;line-height:1.6;color:#5B6377;padding-left:12px;position:relative}
+    .np-pb-facts p::before{content:'';position:absolute;left:2px;top:8px;width:4px;height:4px;border-radius:50%;background:#C9CEDB}
+    .np-pb-facts b{color:#A8203C;font-weight:800}
+    .np-pb-do{margin:9px 0 0 28px;padding-top:8px;border-top:1px dashed #E6E8F0;font-size:11.5px;line-height:1.62;color:#6B7280;display:flex;gap:7px;align-items:flex-start}
+    .np-pb-do em{flex:0 0 auto;font-style:normal;font-weight:800;color:#168C83;font-size:10.5px;background:#F3FBF9;border:1px solid #CDEAE5;border-radius:5px;padding:1px 6px;white-space:nowrap;margin-top:2px}
+    .np-tabs,.np-mode-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:3px;background:#f2f3f8;border-radius:11px;margin-bottom:12px}
+    .np-mode-tabs{grid-template-columns:repeat(2,1fr)}
+    .np-tab,.np-mode-tab{border:0;background:transparent;border-radius:9px;padding:8px 6px;color:#777c8d;font-size:12px;font-weight:700;cursor:pointer}
+    .np-tab.active,.np-mode-tab.active{background:#fff;color:var(--blue);box-shadow:0 3px 10px rgba(59,61,91,.08)}
+    .np-pane{display:none}
+    .np-pane.active{display:block}
+    .np-cover{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 12px;font-size:11px;color:#5b6377}
+    .np-cover span{padding:4px 9px;border-radius:7px;background:#f4f6fb}
+    .np-cover span.full{background:#eaf9f7;color:#168c83}
+    .np-cover span.partial{background:#fff7e6;color:#7c6338}
+    .np-cover span.miss{background:#fff0f3;color:#a82b46}
+    .np-rank-list{display:grid;gap:4px}
+    .np-rank-row{display:grid;grid-template-columns:88px 1fr 70px;gap:8px;align-items:center;padding:6px 8px;font-size:12px;border-radius:10px;border:1px solid transparent}
+    .np-rank-row:hover{background:#f6f7fb}
+    .np-rank-row.highlight{background:#fff7e6;border-color:#f3e3c0}
+    .np-rank-row .name{font-weight:700}
+    .np-rank-row .bars{display:grid;grid-template-columns:1fr 1fr;gap:5px;align-items:center}
+    .np-bar{position:relative;height:14px;background:#eef0f5;border-radius:5px;overflow:hidden}
+    .np-bar i{display:block;height:100%;border-radius:5px;width:var(--w);transform-origin:left;background:#82a8d8;animation:growBar .9s ease both}
+    .np-bar.curr i{background:#0066CC}
+    .np-rank-row .delta{font-size:11px;text-align:right;font-weight:800}
+    .np-rank-row .delta.up{color:#21A6A0}
+    .np-rank-row .delta.down{color:#E0576F}
+    .np-shift-grid{display:grid;gap:6px}
+    .np-shift-row{display:grid;grid-template-columns:90px 1fr;gap:8px;align-items:center;padding:5px 4px;border-bottom:1px solid #f0f1f5}
+    .np-shift-row.highlight{background:#fff7e6;margin:0 -6px;padding:5px 10px;border-radius:8px;border-bottom:none}
+    .np-shift-cells{display:grid;grid-template-columns:repeat(12,1fr);gap:2px}
+    .np-shift-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;border-radius:4px;line-height:1}
+    .np-shift-cell.ce{background:#5cba7f}
+    .np-shift-cell.wu{background:#d96f2e}
+    .np-shift-cell.ban{background:#a55fd1}
+    .np-shift-cell.ji{background:#1d4ed8}
+    .np-shift-cell.ye{background:#0a3d99}
+    .np-shift-cell.men{background:#0aa1b2}
+    .np-shift-cell.xiu{background:#d9dbe3;color:#888}
+    .np-shift-cell.qk{background:#f4f5f9;color:#a0a4b0;border:1px dashed #d0d3da}
+    .np-shift-cell.tb{background:#fff;color:#a82b46;border:1px dashed #f2ccd4}
+    .np-shift-legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:10px;font-size:11px;color:#5b6377}
+    .np-shift-legend span{display:inline-flex;align-items:center;gap:4px}
+    .np-shift-legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+    .np-contrib{display:grid;gap:11px}
+    .np-contrib-row{padding:11px;border:1px solid var(--line);border-radius:13px;background:#fff}
+    .np-contrib-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:9px;flex-wrap:wrap}
+    .np-contrib-head strong{font-size:13px}
+    .np-contrib-head span{font-size:11px;color:var(--muted)}
+    .np-contrib-bars{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+    .np-contrib-bar{padding:9px 10px;border-radius:9px;background:#f4f6fb;font-size:11px;color:#5b6377}
+    .np-contrib-bar b{display:block;font-size:15px;color:var(--ink);margin-top:2px}
+    .np-contrib-bar.up b{color:#21A6A0}
+    .np-contrib-bar.down b{color:#E0576F}
+    .np-contrib-bar.flat b{color:#858a98}
+    .np-contrib-row .np-note{margin:9px 0 0;font-size:11px;color:#5b6377;line-height:1.55}
+    .np-suggest-table{width:100%;border-collapse:collapse;font-size:12px}
+    .np-suggest-table th{padding:9px 8px;background:#f4f6fb;color:#5a6072;text-align:left;font-weight:700;font-size:11px;border-bottom:1px solid var(--line);white-space:nowrap}
+    .np-suggest-table td{padding:9px 8px;border-bottom:1px solid #f0f1f5;vertical-align:middle}
+    .np-suggest-table tr.top1 td{background:#fff4f1}
+    .np-suggest-table tr.top2 td{background:#fff7eb}
+    .np-suggest-table tr.top3 td{background:#fffaef}
+    .np-suggest-table .np-rankno{display:inline-block;min-width:24px;height:22px;line-height:22px;border-radius:7px;background:#5a6072;color:#fff;text-align:center;font-weight:800;font-size:11px;padding:0 6px}
+    .np-suggest-table tr.top1 .np-rankno{background:#E0576F}
+    .np-suggest-table tr.top2 .np-rankno{background:#d96f2e}
+    .np-suggest-table tr.top3 .np-rankno{background:#a55fd1}
+    .np-suggest-table .np-rankno.tbd{background:#fff0f3;color:#a82b46}
+    .np-tbd{display:inline-block;font-size:10px;background:#fff0f3;color:#a82b46;border-radius:5px;padding:1px 5px;margin-left:3px}
+    .np-api{display:grid;gap:8px;margin-top:8px}
+    .np-api-item{padding:10px 12px;border:1px solid var(--line);border-radius:13px;background:#fff;font-size:12px;line-height:1.55}
+    .np-api-item code{font-family:Menlo,Consolas,monospace;font-size:11px;background:#f4f6fb;border-radius:5px;padding:1px 6px;color:#0058b0}
+    .np-api-item p{margin:4px 0 0;color:#5b6377}
     @media(max-width:719px){
-      .nursing-perf .np-problem-row{grid-template-columns:1fr}
-      .nursing-perf .np-rank-row{grid-template-columns:78px 1fr 50px}
-      .nursing-perf .np-shift-row{grid-template-columns:1fr}
-      .nursing-perf .np-contrib-bars{grid-template-columns:1fr}
+      .np-problem-row{grid-template-columns:1fr}
+      .np-pb-facts,.np-pb-do{margin-left:0}
+      .np-pb-item{padding:11px 12px 10px}
+      .np-pb-do{display:block}
+      .np-pb-do em{display:inline-block;margin:0 6px 4px 0}
+      .np-rank-row{grid-template-columns:78px 1fr 50px}
+      .np-shift-row{grid-template-columns:1fr}
+      .np-contrib-bars{grid-template-columns:1fr}
     }
     /* ===== AI 诊断 / 洞察 语义配色（按侧重点区分颜色） ===== */
     .diag-legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 11px}
@@ -244,7 +260,7 @@
         </div></details>
         <details class="business-panel" id="npProblemPanel"><summary><strong>② 现有问题与解决方案 · 9.13—9.19（源表整改措施）</strong><span>点击展开 ⌄</span></summary><div class="business-body">
           <div class="np-problem" id="npProblemList"></div>
-          <div class="rank-source" style="margin-top:10px">依据：《护士工作量与质量分析排名》「不足与整改措施」sheet（业主 2026-09-20 提供，覆盖 9.13—9.19），共 7 条；上列 6 条为主项，另有「安全与约束管理」作为关注项（本周约束执行 16 次，患者请假与病情波动需持续排查）。</div>
+          <div class="rank-source" style="margin-top:10px">依据：《护士工作量与质量分析排名》「不足与整改措施」sheet（业主 2026-09-20 提供，覆盖 9.13—9.19），共 7 条；上列 6 条为主项，另有「安全与约束管理」作为关注项（本周约束执行 16 次，患者请假与病情波动需持续排查）。第 1 条的达标线为「<b>全部项目完成率 100%</b>」，系源表口径（若按 90% 阈值，则 7 天中 6 天达标、仅 9.15 未达）。</div>
         </div></details>
         <details class="business-panel" id="npComparePanel"><summary><strong>③ 前几周环比 · 9.7—9.13 排班口径（周排名波动 × 班次构成 × 业务分差贡献）</strong><span>点击展开 ⌄</span></summary><div class="business-body">
           <div class="np-cover"><span class="miss">8.24–8.30：仅 8.29、8.30 两天（覆盖 2 天），不排名</span><span class="partial">8.31–9.6：覆盖 6 天（缺 8.31 排班），按可获数据复算</span><span class="partial">9.7–9.12：覆盖 6 天（9.13 仅计划）</span><span class="partial">9.7–9.13：含 9.13 计划排班</span></div>
@@ -568,12 +584,31 @@ const OPS_HISTORY={weeks:['6.29','7.6','7.13','7.26','8.3','8.16-17','8.30-31'],
       {rank:17,name:'任健康',bizScore:4.97,bizRank:17,qcScore:60.00,qcRank:10,total:54.2,note:'在岗 3 天 · 治疗应做量最小'}
     ];
     const npProblems=[
-      {problem:'物理治疗完成率未达源表标准（100%）',evidence:'达标线来源：本表「不足与整改措施」第 1 条，标准为全部项目完成率 100%。9.13—9.19 七个工作日内仅 9.18 一日全部项目达 100%，其余 6 日多项未达标：9.15 交流电 84%、经颅磁 80%、脑功能 85%、放松 80%；9.14 放松 75% 与 85%、失眠 50%；9.13 团体 50%；9.19 放松 85.7%。',action:'建立「未做治疗」台账闭环（未做原因→是否补做→补做时间），次日交接追踪；不配合患者落实健康宣教与劝导，必要时由医生评估调整方案并记录；完成率纳入每日晨会通报，未达 100% 项目当日说明原因。'},
-      {problem:'患者依从性与沟通告知不足',evidence:'未做原因集中于「患者不愿做」「家属不让做」「请假返回太晚」「情绪不佳」，且多止于「已告知医生」即止，无后续跟进与替代安排记录。',action:'治疗前加强治疗目的与获益的健康宣教；制定情绪不佳、请假、出院等场景的应对流程与替代方案（改期、补做）；「告知医生」须形成处理闭环记录（医生意见、改期或补做安排）。'},
-      {problem:'心理护理 / 心理咨询覆盖不足',evidence:'分管患者心理咨询次数多为 0—2 次，日均约 0.2 次/人，7 天合计仅十余次，覆盖明显偏低。',action:'将情绪评估与心理护理纳入每日交班必填项；对情绪不佳、约束、请假患者优先安排心理护理并记录；建立每周心理护理覆盖率统计与考核。'},
-      {problem:'质控得分波动大、个别护士持续偏低',evidence:'刘佳佳 9.13 仅 46 分、丁思意 9.19 仅 49 分、杜萧 9.19 仅 50 分、彭龙华 9.16 与 9.17 连续 50 分、赵雯倩多日低于 60 分；9.19 整体偏低。',action:'按质控扣分明细归类，找出高频扣分点重点整改；对低分护士一对一规范培训与带教；质控分与绩效考核挂钩，形成「检查—反馈—整改—复查」闭环。'},
-      {problem:'排班与工作量不均衡',evidence:'在岗天数 2—7 天差异大（李永鑫 7 天，彭榆凯 2 天、杨新金与任健康 3 天）；部分护士单日应做 60 次以上（赵雯倩 9.15 应做 60、彭榆凯 9.16 应做 62、何培培 9.18 应做 60、丁思意 9.19 应做 78）。',action:'按在岗天数与单日负荷均衡排班；单日治疗量超 50 次时实行双人分担或弹性支援；建立排班负荷看板并动态调整。'},
-      {problem:'数据记录与质控台账质量不足',evidence:'9.17 丁思意物理治疗「完成率」填 0 但实做 12（应为 100%）；docx 完成率标注不严谨（出现「75%%」、团体未做 0 却填实做 1）；9.18「完成率 100%：责任护士」未署名；xlsx 与 docx 两套口径并存。',action:'统一数据填报模板与口径，完成率字段采用自动计算公式；每日数据由护士长或质控员复核，错误当班纠正；统一使用一套台账，废止重复手工统计。'}
+      {tag:'治疗执行',problem:'物理治疗完成率未达标（源表标准 100%）',
+       facts:['7 天中仅 <b>9.18</b> 全部项目达 100%',
+              '<b>9.15</b> 最低 <b>84.1%</b>：交流电 84% / 经颅磁 80% / 脑功能 85% / 放松 80%',
+              '全周未做 <b>85</b> 次（应做 1019 / 实做 934）'],
+       action:'建立「未做治疗」台账闭环（原因→是否补做→补做时间），次日交接追踪；未达标项目当日说明原因，纳入晨会通报'},
+      {tag:'患者配合',problem:'患者依从性与沟通告知不足',
+       facts:['未做原因集中在「患者不愿做」「家属不让做」「请假返回太晚」「情绪不佳」',
+              '多止于「已告知医生」即止，<b>无补做或改期安排记录</b>'],
+       action:'治疗前做治疗目的与获益宣教；制定情绪不佳 / 请假 / 出院场景的替代方案（改期、补做）；「告知医生」须留处理闭环记录'},
+      {tag:'心理护理',problem:'心理护理 / 心理咨询覆盖不足',
+       facts:['分管患者心理咨询多为 <b>0—2 次</b>',
+              '日均约 <b>0.2 次/人</b>，7 天合计仅十余次'],
+       action:'情绪评估与心理护理纳入每日交班必填；对情绪不佳、约束、请假患者优先安排并记录；建立每周覆盖率统计与考核'},
+      {tag:'护理质量',problem:'质控得分波动大、个别护士持续偏低',
+       facts:['刘佳佳 9.13 仅 <b>46</b> 分 · 丁思意 9.19 仅 <b>49</b> 分 · 杜萧 9.19 仅 <b>50</b> 分',
+              '彭龙华 9.16—9.17 连续 <b>50</b> 分 · 赵雯倩多日低于 60 分 ; 9.19 整体偏低'],
+       action:'按扣分明细归类，找高频失分点重点整改；对低分护士一对一培训带教；与绩效挂钩，形成「检查—反馈—整改—复查」闭环'},
+      {tag:'人力排班',problem:'排班与工作量不均衡',
+       facts:['在岗天数 <b>2—7 天</b>差异大（李永鑫 7 天 vs 彭榆凯 2 天）',
+              '单日应做峰值 <b>78</b> 次（丁思意 9.19），另有 3 人达 60 次以上'],
+       action:'按在岗天数与单日负荷均衡排班；单日治疗量超 50 次时双人分担或弹性支援；建立排班负荷看板并动态调整'},
+      {tag:'数据质量',problem:'数据记录与质控台账质量不足',
+       facts:['9.17 丁思意「完成率」填 0 但实做 <b>12</b>（应为 100%）',
+              '「75%%」笔误 · 9.18「完成率 100%」未署名 · <b>xlsx 与 docx 两套口径并存</b>'],
+       action:'统一填报模板，完成率字段用公式自动计算；每日由护士长 / 质控员复核，错误当班纠正；统一一套台账，废止重复手工统计'}
     ];
     const npRankChange=[
       {name:'医生组',prevRank:1,prevScore:30.0106,currRank:15,currScore:10.2660,highlight:true},
@@ -674,7 +709,7 @@ const OPS_HISTORY={weeks:['6.29','7.6','7.13','7.26','8.3','8.16-17','8.30-31'],
     }
     function npRenderProblems(){
       const host=document.getElementById('npProblemList');if(!host)return;
-      host.innerHTML=npProblems.map(p=>`<div class="np-problem-row"><div class="np-problem-cell risk"><label>问题</label><p>${p.problem}</p></div><div class="np-problem-cell"><label>依据</label><p>${p.evidence}</p></div><div class="np-problem-cell action"><label>处理</label><p>${p.action}</p></div></div>`).join('');
+      host.innerHTML=npProblems.map((p,ix)=>`<article class="np-pb-item"><div class="np-pb-head"><span class="np-pb-no">${ix+1}</span><strong>${p.problem}</strong><span class="np-pb-tag">${p.tag}</span></div><div class="np-pb-facts">${p.facts.map(f=>`<p>${f}</p>`).join('')}</div><div class="np-pb-do"><em>处理</em><span>${p.action}</span></div></article>`).join('');
     }
     function npRenderRankChange(){
       const host=document.getElementById('npRankList');if(!host)return;
