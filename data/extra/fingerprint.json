@@ -1,0 +1,9 @@
+{
+ "psyScheduleBlocks": 17,
+ "psyCoursePeriods": 5,
+ "psyGroupRecords": 148,
+ "svcCallbackRecords": 66,
+ "svcVisitlogRecords": 13,
+ "svcWorkloadRecords": 28,
+ "svcComplaintRecords": 3
+}
