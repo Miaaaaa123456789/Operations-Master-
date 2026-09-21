@@ -6,8 +6,8 @@
     "therapyFeeWan": 21.8,
     "therapyVisits": 459,
     "followup": null,
-    "psychVisits": 32,
-    "psychRevenue": 25752
+    "psychVisits": 40,
+    "psychRevenue": 19002
   },
   "narrativeMain": {
     "admit": 14,
@@ -15,7 +15,7 @@
     "revenueWan": 49.4
   },
   "periodLabel": "数据更新至 2026年9月21日",
-  "snapshotAt": "2026-09-21T01:55:38.983Z",
+  "snapshotAt": "2026-09-21T02:34:17.700Z",
   "source": "kdocs/cbwp2cvTiFyK",
   "auth": {
     "kdocs": true,

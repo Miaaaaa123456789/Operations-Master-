@@ -43,9 +43,21 @@
   "times": 1.0,
   "content": "询问教授中秋到院时间",
   "feedback": "出院复查",
-  "score": null,
+  "score": 4.0,
   "followup": "已告知得到消息会主动通知",
   "arrived": "否"
+ },
+ {
+  "date": "2026-09-19",
+  "staff": "温诗怡",
+  "patient": "李欣芮",
+  "ptype": "复诊患者",
+  "times": 1.0,
+  "content": "提醒复查和挂号时间，到院复查",
+  "feedback": "到院复查",
+  "score": 5.0,
+  "followup": "到院复查",
+  "arrived": "是"
  },
  {
   "date": "2026-09-19",
@@ -222,22 +234,10 @@
   "ptype": "复诊患者",
   "times": 1.0,
   "content": "协调心理咨询时间，人在国外",
-  "feedback": "",
-  "score": null,
-  "followup": "",
-  "arrived": ""
- },
- {
-  "date": "2026-09-14",
-  "staff": "温诗怡",
-  "patient": "张琪谕",
-  "ptype": "复诊患者",
-  "times": 1.0,
-  "content": "",
-  "feedback": "",
-  "score": null,
-  "followup": "",
-  "arrived": ""
+  "feedback": "回复及时，安排妥当",
+  "score": 5.0,
+  "followup": "当天已协调",
+  "arrived": "否"
  },
  {
   "date": "2026-09-14",

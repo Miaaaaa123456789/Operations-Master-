@@ -177,8 +177,8 @@
  "callback_by_week": {
   "W3(9.14-9.20)": {
    "n": 68,
-   "arrived": 29,
-   "avg": 4.91
+   "arrived": 30,
+   "avg": 4.9
   }
  },
  "callback_by_staff": {
@@ -189,8 +189,8 @@
   },
   "温诗怡": {
    "n": 20,
-   "arrived": 9,
-   "avg": 4.88
+   "arrived": 10,
+   "avg": 4.85
   },
   "蒋雨": {
    "n": 28,
