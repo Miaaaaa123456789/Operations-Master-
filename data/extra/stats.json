@@ -210,13 +210,24 @@
  },
  "workload_by_staff": {
   "张欣雨": {
-   "days": 6,
-   "duty": 600.0,
+   "days": 7,
+   "duty": 700.0,
    "extra": 7.0,
    "value": 48.0,
-   "total": 655.0,
+   "total": 755.0,
    "callback": 0.0,
    "revisit": 8.0,
+   "referral": 0.0,
+   "keyday": 3.5
+  },
+  "张钰洁": {
+   "days": 7,
+   "duty": 700.0,
+   "extra": 0.0,
+   "value": 0.0,
+   "total": 700.0,
+   "callback": 0.0,
+   "revisit": 0.0,
    "referral": 0.0,
    "keyday": 3.0
   },
@@ -231,17 +242,6 @@
    "referral": 0.0,
    "keyday": 2.0
   },
-  "张钰洁": {
-   "days": 6,
-   "duty": 600.0,
-   "extra": 0.0,
-   "value": 0.0,
-   "total": 600.0,
-   "callback": 0.0,
-   "revisit": 0.0,
-   "referral": 0.0,
-   "keyday": 2.5
-  },
   "蒋雨": {
    "days": 5,
    "duty": 500.0,
@@ -254,33 +254,38 @@
    "keyday": 3.0
   },
   "黄诗棋": {
-   "days": 4,
-   "duty": 400.0,
-   "extra": 0.0,
-   "value": 0.0,
-   "total": 400.0,
-   "callback": 0.0,
-   "revisit": 0.0,
-   "referral": 0.0,
-   "keyday": 0.5
-  },
-  "温诗怡": {
    "days": 5,
    "duty": 500.0,
-   "extra": 4.0,
+   "extra": 10.0,
    "value": 0.0,
-   "total": 104.0,
+   "total": 510.0,
    "callback": 0.0,
    "revisit": 0.0,
    "referral": 0.0,
-   "keyday": 2.0
+   "keyday": 1.0
+  },
+  "温诗怡": {
+   "days": 6,
+   "duty": 600.0,
+   "extra": 4.0,
+   "value": 0.0,
+   "total": 204.0,
+   "callback": 0.0,
+   "revisit": 0.0,
+   "referral": 0.0,
+   "keyday": 2.5
   }
  },
  "workload_by_week": {
   "W3(9.14-9.20)": {
    "days": 32,
-   "total": 2975.0,
+   "total": 2980.0,
    "keyday": 13.0
+  },
+  "other": {
+   "days": 4,
+   "total": 405.0,
+   "keyday": 2.0
   }
  }
 }

@@ -1,31 +1,31 @@
 {
   "fingerprint": {
-    "admit": 11,
+    "admit": 14,
     "outpatient": 209,
-    "revenueWan": 56,
-    "therapyFeeWan": 22.3,
-    "therapyVisits": 608,
+    "revenueWan": 49.4,
+    "therapyFeeWan": 21.8,
+    "therapyVisits": 459,
     "followup": null,
     "psychVisits": 32,
     "psychRevenue": 25752
   },
   "narrativeMain": {
-    "admit": 11,
+    "admit": 14,
     "outpatient": 209,
-    "revenueWan": 56
+    "revenueWan": 49.4
   },
   "periodLabel": "数据更新至 2026年9月21日",
-  "snapshotAt": "2026-09-21T00:19:57.978Z",
+  "snapshotAt": "2026-09-21T01:11:49.158Z",
   "source": "kdocs/cbwp2cvTiFyK",
   "auth": {
     "kdocs": true,
     "wecom": true
   },
-  "summary": "入院 11 人，门诊 209 人，物理治疗 608 人次，环比见信号详情。总收入仅作核对指标（本期 56 万）。",
+  "summary": "入院 14 人，门诊 209 人，物理治疗 459 人次，环比见信号详情。总收入仅作核对指标（本期 49.4 万）。",
   "mainNumbers": [
     {
       "label": "入院（人）",
-      "value": "11",
+      "value": "14",
       "delta": "—",
       "deltaColor": "rgba(255,255,255,.85)"
     },
@@ -37,7 +37,7 @@
     },
     {
       "label": "物理治疗（人次）",
-      "value": "608",
+      "value": "459",
       "delta": "—",
       "deltaColor": "rgba(255,255,255,.85)"
     }
