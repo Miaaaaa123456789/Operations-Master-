@@ -2,8 +2,8 @@
  "psyScheduleBlocks": 17,
  "psyCoursePeriods": 5,
  "psyGroupRecords": 149,
- "svcCallbackRecords": 68,
- "svcVisitlogRecords": 14,
- "svcWorkloadRecords": 36,
+ "svcCallbackRecords": 114,
+ "svcVisitlogRecords": 48,
+ "svcWorkloadRecords": 44,
  "svcComplaintRecords": 3
 }
