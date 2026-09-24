@@ -560,6 +560,19 @@
   .ov-kpi strong{font-size:21px;letter-spacing:-1px}
 }
 </style>
+  <style>
+    /* ===== 排名数据治理决策：月内动态、月末锁定 ===== */
+    .rank-governance{margin-top:18px;border:1px solid #cfe1f3;border-radius:22px;background:linear-gradient(145deg,#f7fbff,#fff);box-shadow:0 10px 28px rgba(0,79,157,.07);overflow:hidden}
+    .rg-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px;border-bottom:1px solid #e2edf7}.rg-head h2{margin:0;font-size:17px;color:#17304f}.rg-head p{margin:5px 0 0;color:#66758a;font-size:12px;line-height:1.6}.rg-status{flex:none;padding:6px 9px;border-radius:999px;background:#fff3db;color:#946100;border:1px solid #efd49a;font-size:11px;font-weight:800}.rg-cycle{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;padding:14px 16px}.rg-step{position:relative;padding:10px;border-radius:12px;background:#fff;border:1px solid #e4ebf3}.rg-step b{display:block;color:#0066CC;font-size:12px}.rg-step span{display:block;margin-top:4px;color:#687386;font-size:11px;line-height:1.45}.rg-rules{display:grid;gap:7px;padding:0 16px 14px}.rg-rule{display:grid;grid-template-columns:74px 1fr;gap:9px;padding:9px 10px;border-radius:11px;background:#f3f7fc;font-size:11.5px;line-height:1.55;color:#5e6c7f}.rg-rule b{color:#17466f}.rg-details{margin:0 16px 16px;border:1px solid #e1e8f0;border-radius:13px;background:#fff;overflow:hidden}.rg-details summary{list-style:none;cursor:pointer;padding:11px 12px;color:#0058b0;font-size:12px;font-weight:800;display:flex;justify-content:space-between}.rg-details summary::-webkit-details-marker{display:none}.rg-depts{display:grid;gap:6px;padding:0 12px 12px}.rg-dept{padding:9px;border-radius:9px;background:#f7f8fb;font-size:11.5px;line-height:1.55;color:#606b7c}.rg-dept b{color:#1f3c5a}.rg-foot{margin:0 16px 16px;padding:9px 11px;border-left:3px solid #21A6A0;border-radius:4px 10px 10px 4px;background:#eef9f7;color:#39716d;font-size:11.5px;line-height:1.6}
+    @media(max-width:719px){.rg-cycle{grid-template-columns:repeat(2,1fr)}.rg-head{flex-direction:column}.rg-rule{grid-template-columns:1fr}.rg-status{align-self:flex-start}}
+  </style>
+  <link rel="stylesheet" href="./marketing-redesign.css">
+  <link rel="stylesheet" href="./business-analysis.css">
+  <link rel="stylesheet" href="./marketing-detail.css">
+  <link rel="stylesheet" href="./final-enhancements.css">
+  <link rel="stylesheet" href="./revision-v6.css">
+  <link rel="stylesheet" href="./data-import.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230b70d8'/%3E%3Cpath d='M16 44V30h8v14zm12 0V20h8v24zm12 0V12h8v32z' fill='white'/%3E%3C/svg%3E">
 </head>
 <body><div class="sys-banner">内部经营看板 · 数据仅供院内分析使用</div>
   <div class="app">
@@ -1303,6 +1316,7 @@ const OPS_HISTORY={weeks:['6.29','7.6','7.13','7.26','8.3','8.16-17','8.30-31'],
   var IDX=[
     {t:'本周经营总览',k:'版块',f:function(){jump('#overview')}},
     {t:'9月营收目标进度',k:'版块',f:function(){jump('#overview')}},
+    {t:'排名数据治理决策（月内动态、月末正式）',k:'版块',f:function(){jump('#rankGovernance')}},
     {t:'部门经营（5 个部门卡）',k:'版块',f:function(){jump('#departments')}},
     {t:'AI 今日决策建议',k:'版块',f:function(){jump('#insights')}},
     {t:'核心指标',k:'版块',f:function(){jump('#coreMetrics')}},
@@ -1353,4 +1367,26 @@ const OPS_HISTORY={weeks:['6.29','7.6','7.13','7.26','8.3','8.16-17','8.30-31'],
   if(entry) entry.addEventListener('click',function(){ jump('#insights'); });
 })();
 </script>
+<script>
+(function(){
+  var overview=document.getElementById('overview');
+  if(!overview||document.getElementById('rankGovernance')) return;
+  var section=document.createElement('section');
+  section.className='rank-governance section';
+  section.id='rankGovernance';
+  section.setAttribute('aria-label','排名数据治理决策');
+  section.innerHTML=`<div class="rg-head"><div><h2>排名数据治理决策</h2><p>各部门、各岗位分别排名；月内随有效数据动态变化，月末核验后才形成正式结果。</p></div><span class="rg-status">月内动态试算</span></div>
+    <div class="rg-cycle"><div class="rg-step"><b>① 每月重置</b><span>每月1日按业务发生时间重新累计</span></div><div class="rg-step"><b>② 数据进入</b><span>次日09:00抓取，通过核验即重算名次</span></div><div class="rg-step"><b>③ 月内试算</b><span>名次可升降，只作管理观察，不直接发薪</span></div><div class="rg-step"><b>④ 月末锁定</b><span>次月1日复核，次月2日12:00正式锁定</span></div></div>
+    <div class="rg-rules"><div class="rg-rule"><b>排名准入</b><span>只纳入实际出勤、责任可归因且记录有效的人员；完整率≥95%、按时率≥90%、关键冲突率≤2%。</span></div><div class="rg-rule"><b>缺失处理</b><span>未填显示“待补”，冲突显示“待核”，均不按0；真实为0且有来源证据时才记0。</span></div><div class="rg-rule"><b>更正留痕</b><span>月末后补录不得静默改榜，须提交更正申请，审批后生成修订版并保留原快照。</span></div></div>
+    <details class="rg-details"><summary><span>各部门的数据如何进入月累计排名</span><span>展开 ⌄</span></summary><div class="rg-depts"><div class="rg-dept"><b>医生组：</b>HIS入出院＋医嘱/病历＋治疗执行＋收费退费；医生当日确认实际管床和方案调整责任，按实际执行时间与有效收费计入。</div><div class="rg-dept"><b>护理组：</b>排班＋护士工作量＋医嘱应做＋治疗执行；排班自动导入，护士只补未做原因和处置，替班归实际执行人。</div><div class="rg-dept"><b>心理咨询组：</b>管理表V4＋咨询/团体登记＋排班收费；服务结束后提交，团体按场次与去重人次分列，公益与收费分列。</div><div class="rg-dept"><b>客服服务部：</b>回访/主动服务台账＋HIS到院；过程量按有效接触计，到院必须匹配挂号、收费或入院证据。</div><div class="rg-dept"><b>营销中心：</b>有效对接表＋渠道表＋HIS到院/入院/收费；接触、到院、入院、收入分别排名，重复归因进入待核池。</div><div class="rg-dept"><b>经营收入：</b>收费日报＋退费流水；只认有效收费净额，退费冲回原归属期，不同口径不得混算。</div></div></details>
+    <p class="rg-foot"><b>统一时限：</b>业务后2小时内补录必要字段，当日24:00前确认，次日10:00前由部门负责人处理待补/待核；每周留快照，月末才锁定正式排名。</p>`;
+  overview.insertAdjacentElement('afterend',section);
+})();
+</script>
+<script src="./marketing-redesign.js"></script>
+<script src="./business-analysis.js"></script>
+<script src="./marketing-detail.js"></script>
+<script src="./final-enhancements.js"></script>
+<script src="./revision-v6.js"></script>
+<script src="./data-import.js"></script>
 </body></html>
