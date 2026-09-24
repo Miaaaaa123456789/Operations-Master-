@@ -960,12 +960,24 @@
   "arrived": "是"
  },
  {
+  "date": "2026-09-23",
+  "staff": "张欣雨",
+  "patient": "唐语宸",
+  "ptype": "复诊",
+  "times": 2.0,
+  "content": "23号没挂到26的号",
+  "feedback": "希望加号",
+  "score": 5.0,
+  "followup": "告知可以在24号挂27的号",
+  "arrived": ""
+ },
+ {
   "date": "2026-09-21",
   "staff": "蒋雨",
   "patient": "李炯虹",
   "ptype": "复诊",
   "times": 1.0,
-  "content": "刚复查完调药，提醒教授来院指导时间，不适随诊",
+  "content": "刚复查完调药，提醒教授来院指导时间，不适随",
   "feedback": "状态可，计划国庆后复查",
   "score": 5.0,
   "followup": "留意国庆后来院指导时间，提前通知",
@@ -982,6 +994,18 @@
   "score": 5.0,
   "followup": "无",
   "arrived": "是"
+ },
+ {
+  "date": "2026-09-21",
+  "staff": "蒋雨",
+  "patient": "时金涵",
+  "ptype": "复诊",
+  "times": 1.0,
+  "content": "告知本周教授指导时间，提醒挂号",
+  "feedback": "已知晓",
+  "score": 5.0,
+  "followup": "留意挂号情况",
+  "arrived": "否"
  },
  {
   "date": "2026-09-21",
@@ -1360,11 +1384,23 @@
   "staff": "蒋雨",
   "patient": "时金涵",
   "ptype": "复诊",
-  "times": 1.0,
+  "times": 2.0,
   "content": "想来开药时间较晚，协调医生药房等候",
   "feedback": "开药",
   "score": 5.0,
   "followup": "提前挂号把药开起，让药房把药配上，等患者来了直接取",
+  "arrived": "是"
+ },
+ {
+  "date": "2026-09-24",
+  "staff": "蒋雨",
+  "patient": "周紫南",
+  "ptype": "复诊",
+  "times": 4.0,
+  "content": "确认是否挂上专家号",
+  "feedback": "预约复查",
+  "score": 5.0,
+  "followup": "已落实并告知号序",
   "arrived": "是"
  }
 ]

@@ -181,14 +181,14 @@
    "avg": 4.9
   },
   "other": {
-   "n": 47,
-   "arrived": 18,
+   "n": 50,
+   "arrived": 19,
    "avg": 4.98
   }
  },
  "callback_by_staff": {
   "张欣雨": {
-   "n": 32,
+   "n": 33,
    "arrived": 10,
    "avg": 4.9
   },
@@ -198,8 +198,8 @@
    "avg": 4.85
   },
   "蒋雨": {
-   "n": 55,
-   "arrived": 26,
+   "n": 57,
+   "arrived": 27,
    "avg": 4.98
   }
  },
@@ -216,6 +216,17 @@
   "other": 36
  },
  "workload_by_staff": {
+  "蒋雨": {
+   "days": 7,
+   "duty": 700.0,
+   "extra": 34.0,
+   "value": 467.0,
+   "total": 1201.0,
+   "callback": 72.0,
+   "revisit": 15.0,
+   "referral": 1.0,
+   "keyday": 4.0
+  },
   "张钰洁": {
    "days": 9,
    "duty": 900.0,
@@ -260,17 +271,6 @@
    "referral": 0.0,
    "keyday": 2.0
   },
-  "蒋雨": {
-   "days": 6,
-   "duty": 600.0,
-   "extra": 26.0,
-   "value": 90.0,
-   "total": 716.0,
-   "callback": 0.0,
-   "revisit": 11.0,
-   "referral": 0.0,
-   "keyday": 3.5
-  },
   "温诗怡": {
    "days": 6,
    "duty": 600.0,
@@ -290,9 +290,9 @@
    "keyday": 13.0
   },
   "other": {
-   "days": 12,
-   "total": 1279.0,
-   "keyday": 6.0
+   "days": 13,
+   "total": 1764.0,
+   "keyday": 6.5
   }
  }
 }
