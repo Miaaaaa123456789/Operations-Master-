@@ -52,3 +52,13 @@
 .file-row{flex-wrap:wrap}
 .file-row .thumb{cursor:zoom-in}
 .thumb-big{width:100%;margin-top:8px;border-radius:12px;border:1px solid #dde5ef;background:#fff;max-height:320px;object-fit:contain}
+
+.ocr-status{margin-top:10px;padding:9px 11px;border-radius:10px;background:#eef6ff;color:#1165c8;font-size:11.5px;font-weight:700}
+.edit-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -15px;padding:0 15px}
+.edit-table{min-width:560px}
+.edit-table th:nth-child(1),.edit-table td:nth-child(1){width:58px}
+.edit-table th:nth-child(4),.edit-table td:nth-child(4),
+.edit-table th:nth-child(5),.edit-table td:nth-child(5),
+.edit-table th:nth-child(6),.edit-table td:nth-child(6),
+.edit-table th:nth-child(7),.edit-table td:nth-child(7){width:46px}
+.cell-in{padding:0 5px}

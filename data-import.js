@@ -24,34 +24,42 @@
   var DOW = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
   /* ============================ 种子数据 ============================
-     9.1—9.22 逐日营业日报（单位：元）｜ 9.1—9.14 取自 data/daily-sales/2026-09.csv
-     9.15 由 9.16 环比反推、9.16—9.22 取自业主营收日报截图
-     合计 9.1—9.22 = 1,538,866.16 元（153.89 万），与看板现值一致
+     逐日营业日报，单位：元 / 人
+     数组含义：[门诊收入, 在院收入, 初诊, 复诊, 在院, 入院, 出院]
+     · 收入：9.1—9.14 取自 data/daily-sales/2026-09.csv；9.15 由 9.16 环比反推；
+             9.16—9.24 取自业主营收日报截图（含当月累计收入交叉校验）
+     · 人数：9.1—9.14 取自同一 CSV；9.18—9.24 取自营收日报截图逐列识别；
+             9.15—9.17 截图无此行，人数记 null（不参与人数环比）
+     · 校验：9.1—9.24 累计 = 1,678,790.99 元（167.88 万），与源表「当月累计收入」一致
      ================================================================ */
   var SEED = {
-    '2026-09-01': [8329.46, 13695.01],
-    '2026-09-02': [16747.27, 62605.00],
-    '2026-09-03': [4710.35, 35411.99],
-    '2026-09-04': [31464.50, 40703.93],
-    '2026-09-05': [15041.96, 39769.70],
-    '2026-09-06': [140116.70, 43682.69],
-    '2026-09-07': [20267.31, 39148.42],
-    '2026-09-08': [21632.61, 36448.39],
-    '2026-09-09': [17044.52, 41666.05],
-    '2026-09-10': [10042.88, 36522.53],
-    '2026-09-11': [9814.03, 38027.06],
-    '2026-09-12': [18029.88, 33831.37],
-    '2026-09-13': [133002.16, 31013.81],
-    '2026-09-14': [20100.68, 15521.66],
-    '2026-09-15': [34846.27, 43388.86],
-    '2026-09-16': [13958.85, 28288.75],
-    '2026-09-17': [34398.72, 28935.61],
-    '2026-09-18': [40570.20, 32821.31],
-    '2026-09-19': [99908.85, 37754.86],
-    '2026-09-20': [27228.16, 33779.66],
-    '2026-09-21': [22568.92, 30721.41],
-    '2026-09-22': [25087.04, 30216.77]
+    '2026-09-01': [8329.46, 13695.01, 4, 13, 28, 2, 0],
+    '2026-09-02': [16747.27, 62605.00, 3, 15, 27, 1, 1],
+    '2026-09-03': [4710.35, 35411.99, 0, 14, 25, 0, 1],
+    '2026-09-04': [31464.50, 40703.93, 8, 24, 29, 6, 0],
+    '2026-09-05': [15041.96, 39769.70, 4, 30, 31, 2, 0],
+    '2026-09-06': [140116.70, 43682.69, 9, 92, 30, 3, 1],
+    '2026-09-07': [20267.31, 39148.42, 3, 16, 30, 4, 0],
+    '2026-09-08': [21632.61, 36448.39, 3, 20, 30, 1, 0],
+    '2026-09-09': [17044.52, 41666.05, 3, 12, 29, 1, 1],
+    '2026-09-10': [10042.88, 36522.53, 1, 12, 28, 0, 0],
+    '2026-09-11': [9814.03, 38027.06, 3, 17, 30, 2, 0],
+    '2026-09-12': [18029.88, 33831.37, 4, 17, 30, 0, 0],
+    '2026-09-13': [133002.16, 31013.81, 11, 108, 27, 4, 3],
+    '2026-09-14': [20100.68, 15521.66, 3, 14, 24, 1, 1],
+    '2026-09-15': [34846.27, 43388.86, null, null, null, null, null],
+    '2026-09-16': [13958.85, 28288.75, null, null, null, null, null],
+    '2026-09-17': [34398.72, 28935.61, null, null, null, null, null],
+    '2026-09-18': [40570.20, 32821.31, 3, 26, 25, 2, 2],
+    '2026-09-19': [99908.85, 37754.86, 7, 79, 28, 5, 2],
+    '2026-09-20': [27228.16, 33779.66, 6, 17, 27, 2, 3],
+    '2026-09-21': [22568.92, 30721.41, 3, 17, 26, 1, 2],
+    '2026-09-22': [25087.04, 30216.77, 6, 13, 26, 2, 2],
+    '2026-09-23': [25904.97, 36553.99, 2, 7, 28, 3, 1],
+    '2026-09-24': [38082.09, 39383.78, 6, 33, 30, 4, 2]
   };
+  /* 字段下标（供渲染与校验共用） */
+  var F_OUT = 0, F_INP = 1, F_FIRST = 2, F_AGAIN = 3, F_INHOS = 4, F_ADMIT = 5, F_DISCH = 6;
 
   /* ============================ 工具 ============================ */
   function p2(n) { return (n < 10 ? '0' : '') + n; }
@@ -124,8 +132,9 @@
     var ov = {}, k;
     for (k in daily) {
       if (!Object.prototype.hasOwnProperty.call(daily, k)) continue;
-      var s = SEED[k];
-      if (!s || s[0] !== daily[k][0] || s[1] !== daily[k][1]) ov[k] = daily[k];
+      var s = SEED[k], v = daily[k];
+      var same = s && s.length === v.length && s.every(function (x, i) { return x === v[i]; });
+      if (!same) ov[k] = v;
     }
     writeJSON(LS_DAILY, ov);
   }
@@ -141,13 +150,26 @@
   }
   function agg(daily, days) {
     var o = 0, i = 0, hit = 0;
+    var p = { first: 0, again: 0, admit: 0, disch: 0, inhos: null, inhosAt: null };
+    var cover = { first: 0, again: 0, admit: 0, disch: 0 };
     days.forEach(function (d) {
       var v = daily[d]; if (!v) return;
-      if (v[0] != null) o += v[0];
-      if (v[1] != null) i += v[1];
+      if (v[F_OUT] != null) o += v[F_OUT];
+      if (v[F_INP] != null) i += v[F_INP];
+      if (v[F_FIRST] != null) { p.first += v[F_FIRST]; cover.first++; }
+      if (v[F_AGAIN] != null) { p.again += v[F_AGAIN]; cover.again++; }
+      if (v[F_ADMIT] != null) { p.admit += v[F_ADMIT]; cover.admit++; }
+      if (v[F_DISCH] != null) { p.disch += v[F_DISCH]; cover.disch++; }
+      if (v[F_INHOS] != null) { p.inhos = v[F_INHOS]; p.inhosAt = d; }
       hit++;
     });
-    return { o: o, i: i, t: o + i, n: hit, days: days.slice() };
+    p.cover = cover;
+    p.days = hit;
+    return { o: o, i: i, t: o + i, n: hit, days: days.slice(), p: p };
+  }
+  /* 人数是否覆盖了窗口内全部有收入的日子（用于决定要不要展示环比） */
+  function peopleComplete(a) {
+    return a.n > 0 && a.p.cover.first === a.n && a.p.cover.admit === a.n && a.p.cover.disch === a.n;
   }
   function summary(daily) {
     var twDays = keysIn(daily, WEEK_START, WEEK_END);
@@ -183,8 +205,17 @@
     var weShare = lw.t ? weAmt / lw.t * 100 : 0;
     var revCut = cut;
     var globalCut = revCut && revCut > SOURCE_CUTOFF ? revCut : SOURCE_CUTOFF;
+    // 最近 7 个有收入数据的日期（用于逐日明细）
+    var recent = mDays.slice().filter(function (d) { return daily[d] && ((daily[d][F_OUT] || 0) + (daily[d][F_INP] || 0)) > 0; });
+    var rec7 = recent.slice(-7);
+    var rec7Agg = agg(daily, rec7);
+    var recWeekend = 0;
+    rec7.forEach(function (d) { if (isWeekend(d)) recWeekend += (daily[d][F_OUT] || 0) + (daily[d][F_INP] || 0); });
+    rec7Agg.weShare = rec7Agg.t ? recWeekend / rec7Agg.t * 100 : 0;
     return {
       tw: tw, lw: lw, same: same, sameDays: sameDays, mtd: mtd, mDays: mDays,
+      rec7: rec7, rec7Agg: rec7Agg,
+      twPeopleOk: peopleComplete(tw), samePeopleOk: peopleComplete(same),
       cut: cut, cutD: cutD, done: done, pct: pct, timePct: timePct,
       leftDays: leftDays, leftAmt: leftAmt, need: need, twAvg: twAvg, sameAvg: sameAvg,
       gap: gap, delta: delta, missing: missing, lwDays: lwDays, lwAvg: lwAvg,
@@ -515,26 +546,30 @@
     var barCard = $$('.mkt-card').filter(function (c) { return /营收速度缺口/.test(c.textContent); })[0];
     if (barCard && barCard.querySelector('.mkt-badge')) barCard.querySelector('.mkt-badge').textContent = '缺口 ' + num(Math.max(0, s.gap), 2) + '万/日';
 
-    /* ---- 收入结构（上周完整周） ---- */
-    if (s.lw.t) {
-      var oPct = s.lw.o / s.lw.t * 100, iPct = s.lw.i / s.lw.t * 100;
+    /* ---- 收入结构（本周至今） ---- */
+    if (s.tw.t) {
+      var oPct = s.tw.o / s.tw.t * 100, iPct = s.tw.i / s.tw.t * 100;
       $$('.mkt-ring div').forEach(function (e) {
-        e.innerHTML = '<b>' + wan(s.lw.t, 2) + '万</b>上周完整周';
+        e.innerHTML = '<b>' + wan(s.tw.t, 2) + '万</b>本周 ' + shortRange(s.twDays);
       });
       var lg = $$('.mkt-legend span');
-      if (lg[0]) lg[0].innerHTML = '<b style="color:#26ae81">' + oPct.toFixed(1) + '%</b>门诊 ' + wan(s.lw.o, 2) + '万';
-      if (lg[1]) lg[1].innerHTML = '<b style="color:#2e8ee9">' + iPct.toFixed(1) + '%</b>住院 ' + wan(s.lw.i, 2) + '万';
+      if (lg[0]) lg[0].innerHTML = '<b style="color:#26ae81">' + oPct.toFixed(1) + '%</b>门诊 ' + wan(s.tw.o, 2) + '万';
+      if (lg[1]) lg[1].innerHTML = '<b style="color:#2e8ee9">' + iPct.toFixed(1) + '%</b>住院 ' + wan(s.tw.i, 2) + '万';
+      var ringCard = $$('.mkt-card').filter(function (c) { return /收入结构/.test(c.textContent); })[0];
+      if (ringCard && ringCard.querySelector('.mkt-card-head p')) {
+        ringCard.querySelector('.mkt-card-head p').textContent = '本周 ' + shortRange(s.twDays) + ' · ' + (oPct >= iPct ? '门诊' : '住院') + '为主要收入来源';
+      }
     }
 
-    /* ---- 逐日明细表（上周完整周） ---- */
+    /* ---- 逐日明细表（最近 7 天，含最新数据） ---- */
     var tbl = $('.mkt-day-table');
-    if (tbl && s.lwDays.length) {
+    if (tbl && s.rec7.length) {
       var tb = tbl.querySelector('tbody'), tf = tbl.querySelector('tfoot');
-      var mx = Math.max.apply(null, s.lwDays.map(function (d) { return (daily[d][0] || 0) + (daily[d][1] || 0); }));
-      var mn = Math.min.apply(null, s.lwDays.map(function (d) { return (daily[d][0] || 0) + (daily[d][1] || 0); }));
+      var mx = Math.max.apply(null, s.rec7.map(function (d) { return (daily[d][F_OUT] || 0) + (daily[d][F_INP] || 0); }));
+      var mn = Math.min.apply(null, s.rec7.map(function (d) { return (daily[d][F_OUT] || 0) + (daily[d][F_INP] || 0); }));
       var rowsHtml = '', prev = null;
-      s.lwDays.forEach(function (d) {
-        var amt = (daily[d][0] || 0) + (daily[d][1] || 0);
+      s.rec7.forEach(function (d) {
+        var amt = (daily[d][F_OUT] || 0) + (daily[d][F_INP] || 0);
         var diffTxt = '—', diffCls = '';
         if (prev) { var r = (amt - prev) / prev * 100; diffTxt = sign(r, 1) + '%'; diffCls = r >= 0 ? 'up' : 'down'; }
         var judge = '常态', jcls = '';
@@ -543,17 +578,17 @@
         else if (prev != null && amt > prev) { judge = '回升'; jcls = 'up'; }
         else if (prev != null && amt < prev) { judge = '回落'; jcls = 'down'; }
         var we = isWeekend(d) ? ' class="weekend"' : '';
-        rowsHtml += '<tr' + we + '><td>' + (+d.slice(5, 7)) + '.' + (+d.slice(8)) + ' ' + dowOf(d) + '</td><td><strong>' + wan(amt, 2) + '万</strong></td><td class="' + diffCls + '">' + diffTxt + '</td><td>' + (amt / s.lw.t * 100).toFixed(1) + '%</td><td class="' + jcls + '">' + judge + '</td></tr>';
+        rowsHtml += '<tr' + we + '><td>' + (+d.slice(5, 7)) + '.' + (+d.slice(8)) + ' ' + dowOf(d) + '</td><td><strong>' + wan(amt, 2) + '万</strong></td><td class="' + diffCls + '">' + diffTxt + '</td><td>' + (amt / s.rec7Agg.t * 100).toFixed(1) + '%</td><td class="' + jcls + '">' + judge + '</td></tr>';
         prev = amt;
       });
       if (tb) tb.innerHTML = rowsHtml;
-      if (tf) tf.innerHTML = '<tr><td>完整周合计</td><td>' + wan(s.lw.t, 2) + '万</td><td>日均' + wan(s.lwAvg, 2) + '万</td><td>100%</td><td>关键日集中</td></tr>';
+      if (tf) tf.innerHTML = '<tr><td>合计</td><td>' + wan(s.rec7Agg.t, 2) + '万</td><td>日均' + wan(s.rec7Agg.n ? s.rec7Agg.t / s.rec7Agg.n : 0, 2) + '万</td><td>100%</td><td>关键日集中</td></tr>';
       var head = tbl.closest('.mkt-card');
       if (head) {
         var hp = head.querySelector('.mkt-card-head p');
-        if (hp) hp.textContent = '最近完整周 ' + shortRange(s.lwDays) + ' · 营收日报口径';
+        if (hp) hp.textContent = '最近 7 天 ' + shortRange(s.rec7) + ' · 营收日报口径';
         var hb = head.querySelector('.mkt-badge');
-        if (hb) hb.textContent = '周末贡献 ' + s.weShare.toFixed(1) + '%';
+        if (hb) hb.textContent = '周末贡献 ' + s.rec7Agg.weShare.toFixed(1) + '%';
       }
     }
 
@@ -614,17 +649,17 @@
 
     /* ---- 逐日经营判断 ---- */
     var insights = $$('.mkt-day-insight');
-    if (insights.length >= 4 && s.lwDays.length) {
-      var minD = s.lwDays[0], maxD = s.lwDays[0];
-      s.lwDays.forEach(function (d) {
-        var a = (daily[d][0] || 0) + (daily[d][1] || 0);
-        if (a < (daily[minD][0] || 0) + (daily[minD][1] || 0)) minD = d;
-        if (a > (daily[maxD][0] || 0) + (daily[maxD][1] || 0)) maxD = d;
+    if (insights.length >= 4 && s.rec7.length) {
+      var minD = s.rec7[0], maxD = s.rec7[0];
+      s.rec7.forEach(function (d) {
+        var a = (daily[d][F_OUT] || 0) + (daily[d][F_INP] || 0);
+        if (a < (daily[minD][F_OUT] || 0) + (daily[minD][F_INP] || 0)) minD = d;
+        if (a > (daily[maxD][F_OUT] || 0) + (daily[maxD][F_INP] || 0)) maxD = d;
       });
-      var minA = (daily[minD][0] || 0) + (daily[minD][1] || 0);
-      var maxA = (daily[maxD][0] || 0) + (daily[maxD][1] || 0);
-      insights[0].querySelector('b').textContent = dowOf(minD) + '收入仅' + wan(minA, 2) + '万';
-      insights[1].querySelector('b').textContent = dowOf(maxD) + '单日贡献' + (maxA / s.lw.t * 100).toFixed(1) + '%';
+      var minA = (daily[minD][F_OUT] || 0) + (daily[minD][F_INP] || 0);
+      var maxA = (daily[maxD][F_OUT] || 0) + (daily[maxD][F_INP] || 0);
+      insights[0].querySelector('b').textContent = (+minD.slice(5, 7)) + '.' + (+minD.slice(8)) + ' ' + dowOf(minD) + '仅' + wan(minA, 2) + '万';
+      insights[1].querySelector('b').textContent = (+maxD.slice(5, 7)) + '.' + (+maxD.slice(8)) + ' ' + dowOf(maxD) + '贡献' + (maxA / s.rec7Agg.t * 100).toFixed(1) + '%';
       var g4 = insights[3];
       if (g4) {
         g4.querySelector('b').textContent = '本周营收已有及时口径';
@@ -634,10 +669,57 @@
       }
     }
 
+    /* ---- 营销 6 项 KPI：本周至今（营收日报口径，含入出院与门诊） ---- */
+    var kpis = $$('.mkt-kpis .mkt-kpi');
+    if (kpis.length >= 6 && s.tw.t) {
+      var t1 = s.tw, P1 = t1.p;
+      var conv = P1.cover.first === t1.n && P1.first > 0 ? P1.admit / P1.first * 100 : null;
+      var kvals = [
+        ['¥' + wan(t1.o, 2) + '万', '占本周收入 ' + (t1.o / t1.t * 100).toFixed(1) + '%'],
+        ['¥' + wan(t1.i, 2) + '万', '占本周收入 ' + (t1.i / t1.t * 100).toFixed(1) + '%'],
+        [P1.first + '人', shortRange(s.twDays) + ' 累计'],
+        [P1.admit + '人', conv == null ? '入院累计' : '初诊转入院 ' + conv.toFixed(1) + '%'],
+        [P1.disch + '人', '患者池流出'],
+        [(P1.inhos == null ? '—' : P1.inhos + '人'), P1.inhosAt ? ((+P1.inhosAt.slice(5, 7)) + '.' + (+P1.inhosAt.slice(8))) + ' 时点' : '待补']
+      ];
+      kpis.slice(0, 6).forEach(function (k, i) {
+        var st1 = k.querySelector('strong'), sp1 = k.querySelector('span');
+        if (st1) st1.textContent = kvals[i][0];
+        if (sp1) sp1.textContent = kvals[i][1];
+      });
+    }
+
+    /* ---- 转化漏斗：本周至今 ---- */
+    if (s.tw.t) {
+      var P2 = s.tw.p;
+      var fbox = $$('.mkt-flow-box');
+      if (fbox.length >= 2) {
+        var fb1 = fbox[0].querySelector('b'), fb2 = fbox[1].querySelector('b');
+        if (fb1) fb1.textContent = P2.first;
+        if (fb2) fb2.textContent = P2.admit;
+      }
+      var outs = $$('.mkt-outflow');
+      if (outs.length >= 2) {
+        var s1 = outs[0].querySelector('span'), v1 = outs[0].querySelector('b');
+        var s2 = outs[1].querySelector('span'), v2 = outs[1].querySelector('b');
+        if (s1) s1.textContent = '初诊转入院';
+        if (v1) v1.textContent = P2.first > 0 ? (P2.admit / P2.first * 100).toFixed(1) + '%' : '—';
+        if (s2) s2.textContent = '本周出院';
+        if (v2) v2.textContent = P2.disch + '人';
+      }
+      var flowCard = $$('.mkt-card').filter(function (c) { return c.querySelector('.mkt-flow'); })[0];
+      if (flowCard && flowCard.querySelector('.mkt-card-head p')) {
+        flowCard.querySelector('.mkt-card-head p').textContent = '本周 ' + shortRange(s.twDays) + ' · 出院独立作为患者池流出';
+      }
+    }
+
     /* ---- 口径说明 ---- */
     var src = $('.mkt-source');
     if (src) {
-      src.textContent = '口径：本周至今为 9.21—9.27（各源数据截至 ' + cutTxt + '，营收日报至 ' + revTxt + '）；上周完整周为 ' + shortRange(s.lwDays) + '（营收 ' + wan(s.lw.t, 2) + ' 万 ＝ 门诊 ' + wan(s.lw.o, 2) + ' ＋ 在院 ' + wan(s.lw.i, 2) + '）；月度目标 ' + MONTH_TARGET + ' 万，累计 ' + wan(s.mtd.t, 2) + ' 万（' + (s.cut ? (+s.cut.slice(5, 7)) + '月' + (+s.cut.slice(8)) + '日' : '—') + '）。导入新数据后先校验冲突，再更新看板。';
+      var P3 = s.tw.p;
+      src.textContent = '口径：本周至今 ' + shortRange(s.twDays) + '（各源数据截至 ' + cutTxt + '，营收日报至 ' + revTxt + '）＝营业额 ' + wan(s.tw.t, 2) + ' 万（门诊 ' + wan(s.tw.o, 2) + ' ＋ 住院 ' + wan(s.tw.i, 2) + '）、初诊 ' + P3.first + ' 人、入院 ' + P3.admit + ' 人、出院 ' + P3.disch + ' 人'
+        + (P3.inhosAt ? '，' + ((+P3.inhosAt.slice(5, 7)) + '.' + (+P3.inhosAt.slice(8))) + ' 在院 ' + P3.inhos + ' 人' : '')
+        + '；对照上周同期 ' + shortRange(s.sameDays) + '（' + wan(s.same.t, 2) + ' 万）。上周完整周 ' + shortRange(s.lwDays) + ' 营收 ' + wan(s.lw.t, 2) + ' 万。月度目标 ' + MONTH_TARGET + ' 万，累计 ' + wan(s.mtd.t, 2) + ' 万（' + (s.cut ? (+s.cut.slice(5, 7)) + '月' + (+s.cut.slice(8)) + '日' : '—') + '）。导入新数据后先校验冲突，再更新看板。';
     }
 
     /* ---- 数据口径风险卡里的营收部分 ---- */
@@ -645,6 +727,493 @@
       e.innerHTML = e.innerHTML.replace(/营收日报[^；。]*[；。]/, '营收日报已更新至 ' + revTxt + '；');
     });
   }
+
+// ============================================================================
+//  图片识别（OCR）：营收日报截图 → 逐行营收与人数
+//  策略：整图粗识别定位「列」→ 按列间隙分块 → 分块放大 14 倍精识别 → 合并重建
+//  为什么这样做：本项目实测，同一张 848×244 的截图
+//    · 整图 2.5~6 倍识别 → 数字大面积误识（"25904.97" → "s9008es"）
+//    · 分块放大 14 倍识别 → "2026.9.23 25904.97 817.93 2 7" 基本全对
+//  依赖：Tesseract.js（懒加载，fast 模型约 1.9MB，浏览器缓存后可复用）
+// ============================================================================
+  var OCR_SRC = {
+    js: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js',
+    worker: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',
+    core: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1',
+    lang: 'https://tessdata.projectnaptha.com/4.0.0_fast'
+  };
+  var ocrWorker = null, ocrBusy = false;
+
+  function loadScript(src) {
+    return new Promise(function (res, rej) {
+      if (document.querySelector('script[data-ocr="1"]')) return res();
+      var el = document.createElement('script');
+      el.src = src; el.async = true; el.dataset.ocr = '1';
+      el.onload = function () { res(); };
+      el.onerror = function () { rej(new Error('无法加载识别引擎（网络受限）')); };
+      document.head.appendChild(el);
+    });
+  }
+  function ocrProgress(txt) {
+    var el = document.getElementById('ocrStatus');
+    if (el) { el.textContent = txt; el.style.display = txt ? '' : 'none'; }
+  }
+  function getWorker() {
+    if (ocrWorker) return Promise.resolve(ocrWorker);
+    ocrProgress('正在加载识别引擎（首次约 2MB，之后走缓存）…');
+    return loadScript(OCR_SRC.js).then(function () {
+      if (typeof Tesseract === 'undefined') throw new Error('识别引擎未就绪');
+      return Tesseract.createWorker('eng', 1, {
+        workerPath: OCR_SRC.worker, corePath: OCR_SRC.core, langPath: OCR_SRC.lang,
+        logger: function (m) {
+          if (m.status === 'loading tesseract core') ocrProgress('加载识别核心…');
+          else if (m.status === 'loading language traineddata') ocrProgress('加载数字识别模型…');
+          else if (m.status === 'initializing api') ocrProgress('初始化…');
+          else if (m.status === 'recognizing text') ocrProgress('识别中 ' + Math.round((m.progress || 0) * 100) + '%');
+        }
+      });
+    }).then(function (w) {
+      /* 这组参数是实测调出来的：
+         · user_defined_dpi 不设时 Tesseract 会按 70dpi 处理小图，字符被过度降采样
+         · psm 6 = 视为单一文本块，适合表格逐块识别
+         · preserve_interword_spaces 让邻列数字不会被粘成一个 token */
+      return w.setParameters({
+        user_defined_dpi: '300',
+        tessedit_pageseg_mode: '6'
+      }).then(function () { ocrWorker = w; return w; });
+    });
+  }
+
+  /* ---- 图像处理 ---- */
+  function imgToCanvas(img, scale) {
+    var c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.width * scale));
+    c.height = Math.max(1, Math.round(img.height * scale));
+    var g = c.getContext('2d');
+    g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+    g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(img, 0, 0, c.width, c.height);
+    return c;
+  }
+  /* 直接从原图裁剪并缩放：避免先放大整图（848×244 放大 16 倍 = 13568×3904，
+     接近浏览器 canvas 上限，会导致 drawImage 静默失败、块全黑 → 识别不到任何内容） */
+  function cropScale(img, x0, x1, scale, binarize) {
+    var c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round((x1 - x0) * scale));
+    c.height = Math.max(1, Math.round(img.height * scale));
+    var g = c.getContext('2d');
+    g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+    g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(img, x0, 0, Math.max(1, x1 - x0), img.height, 0, 0, c.width, c.height);
+    if (binarize) {
+      /* Otsu 自适应阈值：微信压缩过的截图中数字边缘有灰阶噪点，二值化后 Tesseract 更稳 */
+      try {
+        var d = g.getImageData(0, 0, c.width, c.height), p = d.data;
+        var hist = new Array(256).fill(0), n = c.width * c.height;
+        var gray = new Uint8Array(n);
+        for (var i = 0, j = 0; i < p.length; i += 4, j++) {
+          var v = (p[i] * 0.299 + p[i + 1] * 0.587 + p[i + 2] * 0.114) | 0;
+          gray[j] = v; hist[v]++;
+        }
+        var sum = 0; for (var t = 0; t < 256; t++) sum += t * hist[t];
+        var sumB = 0, wB = 0, best = 0, thr = 128;
+        for (var t2 = 0; t2 < 256; t2++) {
+          wB += hist[t2]; if (!wB) continue;
+          var wF = n - wB; if (!wF) break;
+          sumB += t2 * hist[t2];
+          var mB = sumB / wB, mF = (sum - sumB) / wF;
+          var bt = wB * wF * (mB - mF) * (mB - mF);
+          if (bt > best) { best = bt; thr = t2; }
+        }
+        for (var k = 0, j2 = 0; k < p.length; k += 4, j2++) {
+          var b = gray[j2] > thr ? 255 : 0;
+          p[k] = p[k + 1] = p[k + 2] = b; p[k + 3] = 255;
+        }
+        g.putImageData(d, 0, 0);
+      } catch (e) { /* 二值化失败就用原图 */ }
+    }
+    return c;
+  }
+  function cropCanvas(canvas, x0, x1) {
+    var c = document.createElement('canvas');
+    c.width = Math.max(1, x1 - x0); c.height = canvas.height;
+    var g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(canvas, -x0, 0);
+    return c;
+  }
+  function loadImg(src) {
+    return new Promise(function (res, rej) {
+      var i = new Image();
+      i.onload = function () { res(i); };
+      i.onerror = function () { rej(new Error('图片无法读取')); };
+      i.src = src;
+    });
+  }
+
+  /* ---- 把一块的识别结果转成带坐标的 token ---- */
+  function wordsOf(data) {
+    var o = [];
+    var push = function (w) { if (w && w.text && w.bbox) o.push(w); };
+    if (Array.isArray(data.words) && data.words.length) { data.words.forEach(push); return o; }
+    (data.blocks || []).forEach(function (b) {
+      (b.paragraphs || []).forEach(function (p) {
+        (p.lines || []).forEach(function (l) { (l.words || []).forEach(push); });
+      });
+    });
+    return o;
+  }
+  var MONEY_RE = /^-?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?$/;
+  function numToken(t) {
+    if (t == null) return null;
+    var s = String(t).trim();
+    if (!/\d/.test(s)) return null;
+    var neg = /^[-−–—]/.test(s);
+    s = s.replace(/^[-−–—]/, '').replace(/[^\d.,]/g, '');
+    if (!s) return null;
+    var v;
+    if (/^\d{1,3}([.,]\d{3})+$/.test(s)) v = parseFloat(s.replace(/[.,]/g, ''));
+    else if (/^\d+\.\d+$/.test(s)) v = parseFloat(s);
+    else if (/^\d+$/.test(s)) v = parseFloat(s);
+    else v = parseFloat(s.replace(/,/g, ''));
+    if (!isFinite(v)) return null;
+    return neg ? -v : v;
+  }
+  var DATE_RE = /(\d{4})\s*[.\-/年]\s*(\d{1,2})\s*[.\-/月]\s*(\d{1,2})/;
+  function mkDate(y, mo, d) {
+    y = +y; mo = +mo; d = +d;
+    if (y < 2000 || y > 2100 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+    return y + '-' + p2(mo) + '-' + p2(d);
+  }
+  /* 鲁棒取日期：OCR 对 "2026.9.23" 的识别结果可能是
+     "2026.9.23" / "2026 9 23" / "2026923"（丢点）/ "20260923"（补零） */
+  function findDate(txt) {
+    var t = String(txt || '');
+    var m = t.match(/(20\d{2})\s*[.\-/年]\s*(\d{1,2})\s*[.\-/月]\s*(\d{1,2})/);
+    if (m) { var r1 = mkDate(m[1], m[2], m[3]); if (r1) return r1; }
+    // 年 + 无分隔的 3~4 位（月日）
+    m = t.match(/(20\d{2})(\d{3,4})(?!\d)/);
+    if (m) {
+      var tail = m[2], cands = [];
+      if (tail.length === 3) cands.push([+tail.charAt(0), +tail.slice(1)]);
+      else cands.push([+tail.slice(0, 2), +tail.slice(2)], [+tail.charAt(0), +tail.slice(1, 3)]);
+      for (var i = 0; i < cands.length; i++) {
+        var r2 = mkDate(m[1], cands[i][0], cands[i][1]);
+        if (r2) return r2;
+      }
+    }
+    // 仅 "9.23"（表头区可能没有年份）
+    m = t.match(/(?:^|\s)(\d{1,2})\s*[.\-/月]\s*(\d{1,2})(?!\d)/);
+    if (m) { var r3 = mkDate(YEAR, m[1], m[2]); if (r3) return r3; }
+    return null;
+  }
+  var YEAR = 2026;
+
+  /* 三数关系判定：门诊 + 在院 = 当日合计。
+     OCR 常整列丢失小数点（27228.16 → 2722816），因此对每个数再试 ×1 / ×0.01 / ×100，
+     取「需要缩放次数最少」且能配平的组合 —— 这既救回丢点，又不会把无关数字硬凑。 */
+  var SCALES = [1, 0.01, 100];
+  function tryTriple(a, b, c) {
+    var best = null;
+    for (var i = 0; i < 3; i++) for (var j = 0; j < 3; j++) for (var k = 0; k < 3; k++) {
+      var A = a * SCALES[i], B = b * SCALES[j], C = c * SCALES[k];
+      if (A < 500 || B < 500 || C < 500) continue;
+      if (A > 600000 || B > 600000 || C > 800000) continue;   // 单日营收量级上限
+      var tol = Math.max(0.06, C * 0.0008);
+      if (Math.abs(A + B - C) > tol) continue;
+      var fixes = (i ? 1 : 0) + (j ? 1 : 0) + (k ? 1 : 0);
+      if (!best || fixes < best.fixes) best = { A: A, B: B, C: C, fixes: fixes };
+    }
+    return best;
+  }
+
+  /* 金额归一：单日/累计都不超过 500 万，超过则视为整列丢了小数点 */
+  function normMoney(v) { return Math.abs(v) > 5000000 ? v / 100 : v; }
+
+  /* 已定合计时反求两加数（门诊/在院），同样允许小数点丢失的缩放恢复 */
+  function pairSum(a, b, target) {
+    var best = null;
+    for (var i = 0; i < 3; i++) for (var j = 0; j < 3; j++) {
+      var A = a * SCALES[i], B = b * SCALES[j];
+      if (A < 500 || B < 500 || A > 600000 || B > 600000) continue;
+      var tol = Math.max(0.06, target * 0.0008);
+      if (Math.abs(A + B - target) > tol) continue;
+      var fixes = (i ? 1 : 0) + (j ? 1 : 0);
+      if (!best || fixes < best.fixes) best = { A: A, B: B, fixes: fixes };
+    }
+    return best;
+  }
+
+  /* ---- 按 y 聚行 ---- */
+  function groupRows(tokens) {
+    if (!tokens.length) return [];
+    var a = tokens.slice().sort(function (x, y) { return (x.y - y.y) || (x.x - y.x); });
+    var hs = a.map(function (t) { return t.h; }).sort(function (x, y) { return x - y; });
+    var h = hs[Math.floor(hs.length / 2)] || 10;
+    var tol = Math.max(6, h * 0.7);
+    var rows = [];
+    a.forEach(function (t) {
+      var r = null;
+      for (var i = 0; i < rows.length; i++) if (Math.abs(rows[i].cy - t.y) <= tol) { r = rows[i]; break; }
+      if (!r) { r = { cy: t.y, ts: [] }; rows.push(r); }
+      r.ts.push(t);
+      r.cy = r.ts.reduce(function (s2, x) { return s2 + x.y; }, 0) / r.ts.length;
+    });
+    rows.sort(function (x, y) { return x.cy - y.cy; });
+    rows.forEach(function (r) { r.ts.sort(function (x, y) { return x.x - y.x; }); });
+    return rows;
+  }
+  /* ---- 按 x 聚类成列 ---- */
+  function clusterCols(tokens, tol) {
+    var xs = tokens.map(function (t) { return t.xc; }).sort(function (a, b) { return a - b; });
+    if (!xs.length) return [];
+    var cols = [], cur = [xs[0]];
+    for (var i = 1; i < xs.length; i++) {
+      if (xs[i] - cur[cur.length - 1] <= tol) cur.push(xs[i]);
+      else { cols.push(cur); cur = [xs[i]]; }
+    }
+    cols.push(cur);
+    return cols.map(function (g) { return g.reduce(function (a, b) { return a + b; }, 0) / g.length; });
+  }
+
+  /* ---- 主流程 ---- */
+  function ocrRevenueImage(src, onNote) {
+    var imgW = 0, note = onNote || function () { };
+    return loadImg(src).then(function (img) {
+      imgW = img.width;
+      return getWorker().then(function (w) { return { w: w, img: img }; });
+    }).then(function (ctx) {
+      var w = ctx.w, img = ctx.img;
+      /* ① 粗识别：只为定位「列」，不取数值 */
+      ocrProgress('定位表格结构…');
+      var scaleCoarsePre = Math.min(3, Math.max(1.5, 2200 / img.width));
+      return w.recognize(imgToCanvas(img, scaleCoarsePre), {}, { blocks: true, text: true })
+        .then(function (r) {
+          var raw = wordsOf(r.data).map(function (x) {
+            return { x: x.bbox.x0, xc: (x.bbox.x0 + x.bbox.x1) / 2, y: (x.bbox.y0 + x.bbox.y1) / 2,
+                     w: x.bbox.x1 - x.bbox.x0, h: x.bbox.y1 - x.bbox.y0, text: x.text };
+          });
+          var scaleCoarse = scaleCoarsePre;
+          // 还原到原图坐标
+          raw.forEach(function (t) { t.x /= scaleCoarse; t.xc /= scaleCoarse; t.y /= scaleCoarse; t.h /= scaleCoarse; t.w /= scaleCoarse; });
+          return { w: w, img: img, coarse: raw };
+        });
+    }).then(function (ctx) {
+      var w = ctx.w, img = ctx.img, coarse = ctx.coarse;
+      /* ② 由粗识别结果推出列位置，进而在「列间隙」处切块（不会切断数字） */
+      var W = imgW;
+      /* 关键：用 token 的左右边界求「真实空隙」，切点只落在空隙里，绝不切断数字。
+         早期版本用「列中心的中点」当切点，实测会把 "2026.9.23" 从中间切开。 */
+      var tk = coarse.filter(function (t) { return /\d/.test(t.text) && t.h > 0; })
+                     .sort(function (a, b) { return a.x - b.x; });
+      /* 字符高度中位数：Tesseract 的最佳字符高度约 30—40px，
+         过度放大（如 ×15 得 150px）会触发内部降采样，识别反而变差 */
+      var hArr = coarse.filter(function (t) { return t.h > 0; })
+                       .map(function (t) { return t.h; }).sort(function (a, b) { return a - b; });
+      var medH = hArr.length ? hArr[Math.floor(hArr.length / 2)] : 10;
+
+      var groups = [];
+      tk.forEach(function (t) {
+        var right = t.x + (t.w || t.h * 0.6 * String(t.text).length);
+        var g = groups[groups.length - 1];
+        if (g && t.x <= g.x1 + Math.max(3, t.h * 0.45)) g.x1 = Math.max(g.x1, right);
+        else groups.push({ x0: t.x, x1: right });
+      });
+      var gaps = [];
+      for (var gi = 1; gi < groups.length; gi++) {
+        var ga = groups[gi - 1].x1, gb = groups[gi].x0;
+        if (gb - ga > Math.max(3, W * 0.004)) gaps.push({ c: (ga + gb) / 2, w: gb - ga });
+      }
+      gaps.sort(function (a, b) { return b.w - a.w; });
+      var minW = W * 0.17, cuts = [];
+      gaps.forEach(function (g) {
+        if (cuts.every(function (c) { return Math.abs(c - g.c) >= minW; }) && g.c >= minW && W - g.c >= minW) cuts.push(g.c);
+      });
+      cuts.sort(function (a, b) { return a - b; });
+      if (cuts.length < 2) { cuts = [Math.round(W / 3), Math.round(W * 2 / 3)]; }
+      var bounds = [0].concat(cuts).concat([W]);
+      var blocks = [];
+      for (var b = 0; b < bounds.length - 1; b++) {
+        var x0 = bounds[b], x1 = bounds[b + 1];
+        if (x1 - x0 < W * 0.03) continue;
+        // 留 6% 重叠，避免边界数字被切断
+        var ov = Math.round(W * 0.06);
+        blocks.push({ x0: Math.max(0, x0 - (b ? ov : 0)), x1: Math.min(W, x1 + (b < bounds.length - 2 ? ov : 0)) });
+      }
+      note('识别中：' + blocks.length + ' 块');
+      /* ③ 逐块放大识别 */
+      var collected = [];
+      var blockTexts = [];
+      var chain = Promise.resolve();
+      blocks.forEach(function (bl, idx) {
+        chain = chain.then(function () {
+          ocrProgress('识别中 ' + (idx + 1) + '/' + blocks.length + '…');
+          var bw = bl.x1 - bl.x0;
+          /* 目标：放大后块宽约 1200px。实测（本项目 848×244 的营收日报截图）
+             · 块宽 4000+px（字符高 150px）→ 数字大面积误识
+             · 块宽 1200px （字符高 ~40px，接近 Tesseract 最佳区间）→ 识别稳定 */
+          var sc = Math.max(3, Math.min(8, Math.round(1200 / bw)));
+          /* binarize 参数保留但默认关闭：实测对本项目这张微信压缩截图反而使日期列丢失 */
+          var cv = cropScale(img, bl.x0, bl.x1, sc, false);
+          return w.recognize(cv, {}, { blocks: true, text: true }).then(function (r) {
+            blockTexts.push('[' + idx + '] ' + String(r.data.text || '').replace(/\n+/g, ' | ').slice(0, 150));
+            wordsOf(r.data).forEach(function (x) {
+              var raw = x.text.trim();
+              if (!raw) return;
+              var v = numToken(raw);
+              if (DATE_RE.test(raw) || findDate(raw)) v = null;   // 日期不是金额
+              if (v == null && !findDate(raw)) return;
+              collected.push({
+                text: raw, v: v,
+                x: bl.x0 + x.bbox.x0 / sc, xc: bl.x0 + (x.bbox.x0 + x.bbox.x1) / 2 / sc,
+                y: (x.bbox.y0 + x.bbox.y1) / 2 / sc, h: (x.bbox.y1 - x.bbox.y0) / sc
+              });
+            });
+          });
+        });
+      });
+      return chain.then(function () {
+        return { img: img, tokens: collected,
+                 meta: { blocks: blocks.length, bounds: bounds, coarse: coarse.length,
+                         texts: blockTexts, medH: medH } };
+      });
+    }).then(function (ctx) {
+      /* ④ 去重（重叠区会产生重复 token） */
+      var toks = ctx.tokens.slice().sort(function (a, b) { return (a.xc - b.xc); });
+      var kept = [];
+      toks.forEach(function (t) {
+        for (var i = 0; i < kept.length; i++) {
+          var k = kept[i];
+          if (Math.abs(k.xc - t.xc) < Math.max(4, t.h * 0.5) && Math.abs(k.y - t.y) < Math.max(4, t.h * 0.7)) {
+            // 同位置：取更长的数字文本（重叠切割常导致残缺）
+            if (String(t.text).replace(/\D/g, '').length > String(k.text).replace(/\D/g, '').length) kept[i] = t;
+            return;
+          }
+        }
+        kept.push(t);
+      });
+      /* ⑤ 重建表格 */
+      var rows = groupRows(kept);
+      var out = [], lastDate = null;
+      rows.forEach(function (r) {
+        var joined = r.ts.map(function (t) { return t.text; }).join(' ');
+        var ds = findDate(joined);
+        if (!ds) {
+          /* 日期列被 OCR 吃掉时无法可靠定位是哪一天 —— 曾按「上一行 +1」推断，
+             实测把 9.24 误标成 9.21，因此不再推断：保留该行数值、日期留空，由用户指定。 */
+          var nv = r.ts.filter(function (t) { return t.v != null && Math.abs(t.v) >= 500; }).sort(function (a, b) { return b.v - a.v; });
+          if (nv.length < 2) return;
+          out.push({
+            date: '', raw: joined.slice(0, 140), verified: false, undated: true,
+            out: normMoney(nv[nv.length - 1].v), inp: normMoney(nv[nv.length - 2].v),
+            nums: r.ts.filter(function (t) { return t.v != null; }).map(function (t) { return { v: t.v, xc: t.xc }; })
+          });
+          return;
+        }
+        var nums = r.ts.filter(function (t) { return t.v != null && Math.abs(t.v) >= 0.005; });
+        /* 三数自校验：门诊 + 在院 = 当日合计 —— 语言无关，可定位并自证 */
+        var best = null;
+        for (var i = 0; i < nums.length; i++) for (var j = i + 1; j < nums.length; j++) for (var k = 0; k < nums.length; k++) {
+          if (k === i || k === j) continue;
+          var A = nums[i], B = nums[j], C = nums[k];
+          var fit = tryTriple(A.v, B.v, C.v);
+          if (!fit) continue;
+          var sc = fit.C - fit.fixes * 1e9;   // 优先「缩放次数少」，其次合计更大
+          if (!best || sc > best.sc) best = { A: A, B: B, C: C, fit: fit, sc: sc };
+        }
+        var rec = {
+          date: ds,
+          raw: joined.slice(0, 140), verified: !!best
+        };
+        if (best) {
+          var L = best.A.xc <= best.B.xc ? best.A : best.B;
+          var Rr = best.A.xc <= best.B.xc ? best.B : best.A;
+          var vA = best.fit.A, vB = best.fit.B;
+          var leftIsOut = best.A.xc <= best.B.xc;
+          rec.out = leftIsOut ? vA : vB;
+          rec.inp = leftIsOut ? vB : vA;
+          rec.total = best.fit.C;
+          rec.fixed = best.fit.fixes > 0;
+          rec.nums = nums.map(function (t) { return { v: t.v, xc: t.xc }; });
+          /* 人数：夹在 门诊↔在院 之间的小整数为 初诊/复诊；
+             夹在 在院↔合计 之间的小整数依次为 在院/入院/出院初次/出院多次 */
+          var small = function (a, b) {
+            return nums.filter(function (t) {
+              return t !== L && t !== Rr && t !== best.C &&
+                     t.v > 0 && t.v < 500 && t.v % 1 === 0 &&   // 人数是整数，排除 "-3975.20" 这类残片
+                     t.xc > a && t.xc < b;
+            }).sort(function (x, y) { return x.xc - y.xc; });
+          };
+          var leftSide = small(L.xc, Rr.xc);
+          if (leftSide[0]) rec.first = leftSide[0].v;
+          if (leftSide[1]) rec.again = leftSide[1].v;
+          var rightSide = small(Rr.xc, best.C.xc);
+          if (rightSide[0]) rec.inhos = rightSide[0].v;
+          if (rightSide[1]) rec.admit = rightSide[1].v;
+          if (rightSide[2]) rec.disch = (rightSide[2].v || 0) + (rightSide[3] ? rightSide[3].v : 0);
+        }
+        out.push(rec);
+      });
+
+      /* 累计递推校验：营收日报的「当月累计收入」逐日递增，相邻两日之差就是当日合计。
+         该列金额大、变化明显，OCR 反而最稳；用它来锁定当日合计，可排除
+         「两个错数恰好也能配平」的情况（实测 9.21 行曾被误判为 77200 + 2979）。 */
+      var cumRows = out.filter(function (r) {
+        var c = null;
+        (r.nums || []).forEach(function (n) {
+          var vv = normMoney(n.v);
+          if (vv >= 300000 && (!c || vv > c)) c = vv;    // 累计列是该行最大的金额
+        });
+        if (!c) return false;
+        r.cum = c; return true;
+      });
+      cumRows.sort(function (a, b) { return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
+      for (var ci = 1; ci < cumRows.length; ci++) {
+        var gap2 = cumRows[ci].cum - cumRows[ci - 1].cum;
+        if (gap2 > 500 && gap2 < 800000) { cumRows[ci].cumDiff = gap2; }
+      }
+      cumRows.forEach(function (r) {
+        if (!r.cumDiff || !r.nums || r.nums.length < 2) return;
+        var hit = null;
+        for (var i = 0; i < r.nums.length && !hit; i++) {
+          for (var j = i + 1; j < r.nums.length && !hit; j++) {
+            var fit = pairSum(r.nums[i].v, r.nums[j].v, r.cumDiff);
+            if (fit) hit = { i: i, j: j, fit: fit };
+          }
+        }
+        if (hit) {
+          var A = r.nums[hit.i], B = r.nums[hit.j];
+          var left2 = A.xc <= B.xc;
+          r.verified = true; r.byCum = true; r.total = r.cumDiff;
+          r.out = left2 ? hit.fit.A : hit.fit.B;
+          r.inp = left2 ? hit.fit.B : hit.fit.A;
+        } else {
+          r.verified = false;   // 用累计差也凑不出 → 判为待核对，不写入
+        }
+      });
+
+      /* 既没有日期、又无法用累计差验证的行，绝大多数是数字残片（如 "800 | 1959"），
+         直接丢弃，否则会把噪声灌进识别表 */
+      out = out.filter(function (r) { return r.date || r.verified; });
+
+      var meta = ctx.meta || { blocks: 0, bounds: [], coarse: 0 };
+      try {
+        window.__ocrDebug = { blocks: meta.blocks, bounds: meta.bounds, coarse: meta.coarse, medH: meta.medH,
+                              collected: toks.length, kept: kept.length, rows: rows.length, blocks: meta.texts,
+                              parsed: out.length, verified: out.filter(function (r4) { return r4.verified; }).length,
+                              byCum: out.filter(function (r4) { return r4.byCum; }).length, sample: out.slice(0, 8),
+                              lines: rows.map(function (r3) {
+                                return r3.ts.map(function (t) { return t.text; }).join(' ').slice(0, 110);
+                              }).slice(0, 12) };
+      } catch (e) { }
+      var okN = out.filter(function (r2) { return r2.verified; }).length;
+      ocrProgress(out.length
+        ? ('识别到 ' + out.length + ' 行：' + okN + ' 行数值自洽可直接使用，其余请在下方核对补全')
+        : ('未提取到数据行（共识别 ' + kept.length + ' 个数字 / ' + rows.length + ' 行文本）。可改用「粘贴文本」或手工填写'));
+      return out;
+    });
+  }
+// ============================================================================
 
   /* ============================ 抽屉 UI ============================ */
   var host = document.createElement('div');
@@ -656,7 +1225,8 @@
     + '<div class="import-body">'
     + '  <input id="importFile" type="file" multiple accept=".csv,.tsv,.txt,.xlsx,.png,.jpg,.jpeg,.webp,image/*" hidden>'
     + '  <div class="drop-zone" id="dropZone"><div class="drop-icon">⇧</div><b>拖入图片或表格文件</b>'
-    + '<span>CSV / XLSX 自动解析并抓取日期、门诊收入、在院收入；图片显示预览，数值在下方确认</span></div>'
+    + '<span>CSV / XLSX 自动解析；图片自动识别日期、门诊/在院收入与入出院人数，结果可在下方核对修改</span></div>'
+    + '  <div class="ocr-status" id="ocrStatus" style="display:none"></div>'
     + '  <div class="import-steps"><div class="import-step active" data-n="1">上传</div><div class="import-step" data-n="2">识别</div>'
     + '<div class="import-step" data-n="3">校验</div><div class="import-step" data-n="4">确认更新</div></div>'
     + '  <section class="import-card"><h3>本次文件<span class="card-hint" id="fileCount"></span></h3><div id="fileList"></div></section>'
@@ -748,20 +1318,39 @@
       if (kind === 'csv') p = readText(f).then(function (t) { rec.rows = rowsFromTable(splitCSV(t)); });
       else if (kind === 'xlsx') p = f.arrayBuffer().then(function (b) { return parseXLSX(b); }).then(function (r) { rec.rows = r; });
       else if (kind === 'xls') p = Promise.reject(new Error('旧版 .xls 无法在浏览器解析，请另存为 .xlsx 或 .csv'));
-      else if (kind === 'image') { rec.thumb = URL.createObjectURL(f); rec.rows = []; p = Promise.resolve(); }
+      else if (kind === 'image') {
+        rec.thumb = URL.createObjectURL(f);
+        rec.rows = [];
+        p = ocrRevenueImage(rec.thumb, function (n) { rec.status = n; renderFiles(); })
+          .then(function (got) { rec.rows = got || []; })
+          .catch(function (e) { rec.ocrError = (e && e.message) ? e.message : String(e); });
+      }
       else p = Promise.reject(new Error('不支持的文件类型'));
       return p.then(function () {
         if (!rec.rows.length) {
           if (kind === 'image') {
-            rec.status = '待确认数值';
+            rec.status = rec.ocrError ? ('识别失败：' + rec.ocrError) : '未识别到数字，请手工填写';
             var g = guessDateFromName(f.name);
             if (g && g > SOURCE_CUTOFF) g = null;   // 晚于数据截止日 → 多为文件生成/接收时间，不作数据日期
             g = g || nextMissingDate();
             if (g) rowEditorAdd({ date: g, out: null, inp: null });
           } else { rec.status = '未识别到数据行'; rec.error = '未识别到「日期 + 门诊/在院收入」的数据行'; }
         } else {
-          rec.status = '已解析 ' + rec.rows.length + ' 行';
-          rec.rows.forEach(function (r) { rowEditorAdd({ date: r.date, out: r.out, inp: r.inp }); });
+          var good = rec.rows.filter(function (r) { return r.verified; });
+          rec.status = '识别到 ' + rec.rows.length + ' 行，其中 ' + good.length + ' 行数值自洽';
+          rec.rows.forEach(function (r) {
+            if (r.verified) {
+              /* 门诊 + 在院 = 当日合计 三重校验通过 → 连同人次一起填入，用户核对即可 */
+              rowEditorAdd({ date: r.date, out: r.out, inp: r.inp, first: r.first, again: r.again,
+                             inhos: r.inhos, admit: r.admit, disch: r.disch });
+            } else if (r.date) {
+              /* 只认到日期 → 先把行带出来，用户补 3 个数字，不必手输日期 */
+              rowEditorAdd({ date: r.date });
+            } else if (r.verified) {
+              /* 日期没认出来但金额已由累计差验证 → 保留金额，日期留空由用户指定 */
+              rowEditorAdd({ date: '', out: r.out, inp: r.inp });
+            }
+          });
         }
       }).catch(function (err) {
         rec.error = err && err.message ? err.message : String(err);
@@ -812,24 +1401,34 @@
   }
 
   /* ---------- 行编辑 ---------- */
+  var NUMKEYS = ['out', 'inp', 'first', 'again', 'inhos', 'admit', 'disch'];
   function rowEditorAdd(r) {
-    var dup = rows.filter(function (x) { return x.date === r.date && x.out === r.out && x.inp === r.inp; }).length;
+    var d = normDate(r.date) || r.date || '';
+    var dup = rows.filter(function (x) {
+      return (normDate(x.date) || x.date || '') === d && x.out === r.out && x.inp === r.inp;
+    }).length;
     if (dup) return;
-    rows.push({ date: r.date || '', out: r.out == null ? '' : r.out, inp: r.inp == null ? '' : r.inp });
+    var row = { date: r.date || '' };
+    NUMKEYS.forEach(function (k) { row[k] = (r[k] == null || r[k] === '') ? '' : r[k]; });
+    rows.push(row);
   }
   function renderRows() {
-    if (!rows.length) { rowEditor.innerHTML = '<div class="import-empty">暂无识别结果 —— 拖入文件、粘贴文本，或手工添加一行</div>'; return; }
-    rowEditor.innerHTML = '<table class="edit-table"><thead><tr><th>日期</th><th>门诊收入</th><th>在院收入</th><th>合计</th><th></th></tr></thead><tbody>'
+    if (!rows.length) { rowEditor.innerHTML = '<div class="import-empty">暂无识别结果 —— 拖入图片或表格、粘贴文本，或手工添加一行</div>'; return; }
+    var cols = [['date', '日期', '9.23'], ['out', '门诊收入', '25087.04'], ['inp', '在院收入', '30216.77'],
+                ['first', '初诊', '2'], ['again', '复诊', '7'], ['admit', '入院', '3'], ['disch', '出院', '1']];
+    rowEditor.innerHTML = '<div class="edit-scroll"><table class="edit-table"><thead><tr>'
+      + cols.map(function (c) { return '<th>' + c[1] + '</th>'; }).join('')
+      + '<th>合计</th><th></th></tr></thead><tbody>'
       + rows.map(function (r, i) {
         var o = toNum(r.out), p = toNum(r.inp);
         var tot = (o || 0) + (p || 0);
-        return '<tr>'
-          + '<td><input class="cell-in date" data-i="' + i + '" data-k="date" value="' + esc(shortDate(r.date)) + '" placeholder="9.23"></td>'
-          + '<td><input class="cell-in" data-i="' + i + '" data-k="out" value="' + esc(r.out) + '" placeholder="25087.04" inputmode="decimal"></td>'
-          + '<td><input class="cell-in" data-i="' + i + '" data-k="inp" value="' + esc(r.inp) + '" placeholder="30216.77" inputmode="decimal"></td>'
+        return '<tr>' + cols.map(function (c) {
+          var cls = c[0] === 'date' ? 'cell-in date' : 'cell-in';
+          return '<td><input class="' + cls + '" data-i="' + i + '" data-k="' + c[0] + '" value="' + esc(c[0] === 'date' ? shortDate(r.date) : r[c[0]]) + '" placeholder="' + c[2] + '" inputmode="decimal"></td>';
+        }).join('')
           + '<td class="cell-total">' + (tot ? wan(tot, 2) + '万' : '—') + '</td>'
           + '<td><button class="row-del" data-rdel="' + i + '" title="删除">×</button></td></tr>';
-      }).join('') + '</tbody></table>';
+      }).join('') + '</tbody></table></div>';
     $$('.cell-in', rowEditor).forEach(function (el) {
       el.oninput = function () {
         var i = +el.dataset.i, k = el.dataset.k;
@@ -853,7 +1452,9 @@
   function revalidate() {
     var daily = loadDaily();
     var parsed = rows.map(function (r) {
-      return { date: normDate(r.date) || '', out: toNull(r.out), inp: toNull(r.inp), raw: '' };
+      var o = { date: normDate(r.date) || '', out: toNull(r.out), inp: toNull(r.inp), raw: '' };
+      ['first', 'again', 'inhos', 'admit', 'disch'].forEach(function (k) { o[k] = toNull(r[k]); });
+      return o;
     }).filter(function (r) { return r.date || r.out != null || r.inp != null; });
     verdict = verifyRows(parsed, daily);
     var v = verdict.rows, c = { new: 0, update: 0, same: 0, conflict: 0, invalid: 0 };
@@ -869,7 +1470,9 @@
       html += '<table class="map-table"><thead><tr><th>日期</th><th>看板指标</th><th>新值</th><th>状态</th></tr></thead><tbody>'
         + det.map(function (r) {
           var st = { new: '<span class="tag">新增</span>', update: '<span class="tag tag-up">更新</span>', conflict: '<span class="tag tag-bad">冲突</span>', invalid: '<span class="tag tag-bad">无效</span>' }[r.status] || '';
-          var val = (r.out != null ? '门诊 ' + wan(r.out, 2) + '万' : '') + (r.inp != null ? '　在院 ' + wan(r.inp, 2) + '万' : '');
+          var val = (r.out != null ? '门诊 ' + wan(r.out, 2) + '万' : '') + (r.inp != null ? '　在院 ' + wan(r.inp, 2) + '万' : '')
+            + ((r.first != null || r.admit != null || r.disch != null)
+              ? '<div class="old-val">' + (r.first != null ? '初诊 ' + r.first + '　' : '') + (r.admit != null ? '入院 ' + r.admit + '　' : '') + (r.disch != null ? '出院 ' + r.disch : '') + '</div>' : '');
           var old = r.old ? '<div class="old-val">原：门诊 ' + wan(r.old[0], 2) + '万　在院 ' + wan(r.old[1], 2) + '万</div>' : '';
           var note = r.notes && r.notes.length ? '<div class="old-val">' + esc(r.notes.join('；')) + '</div>' : '';
           return '<tr><td>' + (r.date ? (r.date.slice(5, 7) + '.' + r.date.slice(8)) : '—') + '</td><td>当日营业额</td><td>' + val + old + note + '</td><td>' + st + '</td></tr>';
@@ -931,9 +1534,16 @@
     if (host.querySelector('#snapChk').checked) snapshotBefore(daily, files.map(function (f) { return f.name; }));
     var beforeCut = summary(daily).revCut;
     var touched = 0;
+    var FK = { out: F_OUT, inp: F_INP, first: F_FIRST, again: F_AGAIN, inhos: F_INHOS, admit: F_ADMIT, disch: F_DISCH };
     ok.forEach(function (r) {
       if (r.out == null && r.inp == null) return;
-      daily[r.date] = [r.out == null ? 0 : r.out, r.inp == null ? 0 : r.inp];
+      var cur = daily[r.date] || [];
+      var arr = [];
+      for (var i = 0; i < 7; i++) arr[i] = (cur[i] === undefined ? null : cur[i]);
+      Object.keys(FK).forEach(function (k) { if (r[k] != null) arr[FK[k]] = r[k]; });
+      if (arr[F_OUT] == null) arr[F_OUT] = 0;
+      if (arr[F_INP] == null) arr[F_INP] = 0;
+      daily[r.date] = arr;
       touched++;
     });
     saveDaily(daily);
