@@ -960,6 +960,30 @@
   "arrived": "是"
  },
  {
+  "date": "2026-09-22",
+  "staff": "张欣雨",
+  "patient": "谭媛嘉",
+  "ptype": "复诊",
+  "times": 2.0,
+  "content": "预约咨询",
+  "feedback": "预约咨询，想约25号10点",
+  "score": 5.0,
+  "followup": "及时联系心理咨询师，告知患者，25号10点有人了，更改为25号上午11点已约",
+  "arrived": ""
+ },
+ {
+  "date": "2026-09-22",
+  "staff": "张欣雨",
+  "patient": "文曾铭",
+  "ptype": "复诊",
+  "times": 2.0,
+  "content": "请问国庆放假不放假",
+  "feedback": "询问国庆放不放假",
+  "score": 5.0,
+  "followup": "告知国庆期间每天都有人上班",
+  "arrived": ""
+ },
+ {
   "date": "2026-09-23",
   "staff": "张欣雨",
   "patient": "唐语宸",
@@ -1377,7 +1401,7 @@
   "feedback": "约陈教授",
   "score": 5.0,
   "followup": "已落实",
-  "arrived": "是"
+  "arrived": "否"
  },
  {
   "date": "2026-09-23",

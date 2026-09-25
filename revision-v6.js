@@ -4,13 +4,13 @@
     const shell=$('.mkt-v2'); if(!shell||$('.mkt-priority',shell))return;
     const hero=$('.mkt-hero',shell); if(!hero)return;
     const priority=document.createElement('section');priority.className='mkt-priority';priority.innerHTML=`
-      <article class="mkt-card priority-compare"><div class="mkt-card-head"><div><span class="priority-label">↗ 环比分析</span><h2>本周至今经营变化</h2><p>9.21—9.23 与上周同期 9.14—9.16 同口径（营业额为 2 天口径）</p></div><span class="mkt-badge">营业额 −4.6%</span></div>
-        <div class="priority-matrix"><div class="head">指标（同期天数）</div><div class="head">上周同期</div><div class="head">本周至今</div><div class="head">变化</div><b>营业额（2 天）</b><span>11.39万</span><span>10.86万</span><span class="bad">−4.6%</span><b>客服随访（3 天）</b><span>42条</span><span>49条</span><span class="good">+16.7%</span><b>标记到院（3 天）</b><span>16人</span><span>18人</span><span class="good">+12.5%</span><b>营销入院（3 天）</b><span>3人</span><span>3人</span><span>持平</span></div>
-        <p class="priority-summary">前端触达增加，但收入没有同步增长；本周营销转化率 27.3% 由小分母放大，实际入院仍为 3 人、接触量下降 15.4%，暂不能解释为效率改善。</p></article>
+      <article class="mkt-card priority-compare"><div class="mkt-card-head"><div><span class="priority-label">↗ 环比分析</span><h2>本周至今经营变化</h2><p>9.21—9.24 与上周同期 9.14—9.17 同口径（各 4 天；营业额为 2 天口径）</p></div><span class="mkt-badge">营业额 −4.6%</span></div>
+        <div class="priority-matrix"><div class="head">指标（同期天数）</div><div class="head">上周同期</div><div class="head">本周至今</div><div class="head">变化</div><b>营业额（2 天）</b><span>11.39万</span><span>10.86万</span><span class="bad">−4.6%</span><b>客服随访（4 天）</b><span>46条</span><span>52条</span><span class="good">+13.0%</span><b>标记到院（4 天）</b><span>17人</span><span>18人</span><span class="good">+5.9%</span><b>营销对接（4 天）</b><span>24条</span><span>28条</span><span class="good">+16.7%</span><b>营销入院（4 天）</b><span>4人</span><span>8人</span><span class="good">+100%</span></div>
+        <p class="priority-summary">前端触达增加，但收入没有同步增长；营销对接 24→28 条、入院 4→8 人、转化率 28.6%，回升明显但仍属小样本，需患者级去重与收费归因后才能定论。</p></article>
       <article class="mkt-card priority-ai"><div class="mkt-card-head"><div><span class="priority-label">✦ AI经营判断</span><h2>当前先处理三件事</h2><p>从收入结果倒查链路断点</p></div></div><div class="priority-ai-grid">
         <div class="priority-ai-item"><i>1</i><div><b>营收速度不足</b><span>累计完成59.2%，落后时间进度14.1pt；剩余8天日均需13.26万。</span></div></div>
         <div class="priority-ai-item"><i>2</i><div><b>到院没有充分变现</b><span>随访和到院增长，但同期营业额下降，应继续匹配挂号、治疗、入院与收费。</span></div></div>
-        <div class="priority-ai-item"><i>3</i><div><b>收入过度依赖高点</b><span>完整周周末贡献40.4%，周一仅3.56万，平日转化能力不足。</span></div></div>
+        <div class="priority-ai-item"><i>3</i><div><b>收入过度依赖高点</b><span>上周完整周周末贡献40.4%，周一仅3.56万，平日转化能力不足。</span></div></div>
       </div></article>`;
     hero.insertAdjacentElement('afterend',priority);
     $$('.mkt-bottom .mkt-card',shell).forEach(c=>{const h=$('h2',c)?.textContent;if(h==='环比分析'||h==='AI经营判断')c.remove()});

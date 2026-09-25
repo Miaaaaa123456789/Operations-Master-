@@ -23,7 +23,7 @@
    "people": 6,
    "items": [
     "09-16 团体(1人)",
-    "09-19 团体减压(2人)",
+    "09-19 家长减压(2人)",
     "09-20 团体(3人)"
    ]
   },
@@ -181,16 +181,16 @@
    "avg": 4.9
   },
   "other": {
-   "n": 50,
-   "arrived": 19,
+   "n": 52,
+   "arrived": 18,
    "avg": 4.98
   }
  },
  "callback_by_staff": {
   "张欣雨": {
-   "n": 33,
+   "n": 35,
    "arrived": 10,
-   "avg": 4.9
+   "avg": 4.91
   },
   "温诗怡": {
    "n": 27,
@@ -199,32 +199,43 @@
   },
   "蒋雨": {
    "n": 57,
-   "arrived": 27,
+   "arrived": 26,
    "avg": 4.98
   }
  },
  "visitlog_by_staff": {
   "张欣雨": 11,
   "黄诗棋": 10,
-  "蒋雨": 8,
-  "陈宇轩": 7,
-  "张钰洁": 7,
-  "温诗怡": 5
+  "蒋雨": 9,
+  "陈宇轩": 9,
+  "温诗怡": 7,
+  "张钰洁": 7
  },
  "visitlog_by_week": {
   "W3(9.14-9.20)": 12,
-  "other": 36
+  "other": 41
  },
  "workload_by_staff": {
   "蒋雨": {
-   "days": 7,
-   "duty": 700.0,
-   "extra": 34.0,
-   "value": 467.0,
-   "total": 1201.0,
-   "callback": 72.0,
-   "revisit": 15.0,
+   "days": 8,
+   "duty": 800.0,
+   "extra": 148.0,
+   "value": 606.0,
+   "total": 1554.0,
+   "callback": 85.0,
+   "revisit": 23.0,
    "referral": 1.0,
+   "keyday": 4.5
+  },
+  "陈宇轩": {
+   "days": 10,
+   "duty": 1000.0,
+   "extra": 96.0,
+   "value": 0.0,
+   "total": 1096.0,
+   "callback": 0.0,
+   "revisit": 0.0,
+   "referral": 0.0,
    "keyday": 4.0
   },
   "张钰洁": {
@@ -249,17 +260,6 @@
    "referral": 0.0,
    "keyday": 4.0
   },
-  "陈宇轩": {
-   "days": 8,
-   "duty": 800.0,
-   "extra": 22.0,
-   "value": 0.0,
-   "total": 822.0,
-   "callback": 0.0,
-   "revisit": 0.0,
-   "referral": 0.0,
-   "keyday": 3.0
-  },
   "黄诗棋": {
    "days": 7,
    "duty": 700.0,
@@ -272,15 +272,15 @@
    "keyday": 2.0
   },
   "温诗怡": {
-   "days": 6,
-   "duty": 600.0,
-   "extra": 4.0,
+   "days": 9,
+   "duty": 900.0,
+   "extra": 52.0,
    "value": 0.0,
-   "total": 204.0,
-   "callback": 0.0,
+   "total": 452.0,
+   "callback": 183.0,
    "revisit": 0.0,
    "referral": 0.0,
-   "keyday": 2.5
+   "keyday": 4.0
   }
  },
  "workload_by_week": {
@@ -290,9 +290,9 @@
    "keyday": 13.0
   },
   "other": {
-   "days": 13,
-   "total": 1764.0,
-   "keyday": 6.5
+   "days": 19,
+   "total": 2639.0,
+   "keyday": 9.5
   }
  }
 }
