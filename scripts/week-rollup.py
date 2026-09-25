@@ -277,7 +277,9 @@ def main():
         print("  共 %d 条有效日报（%s ~ %s）" % (len(recs), recs[0]["date"], recs[-1]["date"]))
         a_c, d_c = psy_agg(recs, lo, hi)
         a_p, d_p = psy_agg(recs, plo, phi)
-        a_all, d_all = psy_agg(recs, "2000-01-01", "2099-12-31")
+        # 「累计」必须限定本次统计区间的下界：源表存在日期写成 2020-09-20 的异常行，
+        # 用 2000—2099 这种全开区间会把它们计入，导致累计数值偏高（已实测差 8 人次接触）。
+        a_all, d_all = psy_agg(recs, "2026-08-31", hi)
 
         def tot(a, fs):
             return int(sum(a[n][k] for n in a for k in fs))

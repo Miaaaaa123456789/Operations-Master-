@@ -207,13 +207,13 @@
   "张欣雨": 11,
   "黄诗棋": 10,
   "蒋雨": 9,
+  "温诗怡": 9,
   "陈宇轩": 9,
-  "温诗怡": 7,
   "张钰洁": 7
  },
  "visitlog_by_week": {
   "W3(9.14-9.20)": 12,
-  "other": 41
+  "other": 43
  },
  "workload_by_staff": {
   "蒋雨": {
@@ -275,11 +275,11 @@
    "days": 9,
    "duty": 900.0,
    "extra": 52.0,
-   "value": 0.0,
-   "total": 452.0,
+   "value": 44.0,
+   "total": 496.0,
    "callback": 183.0,
-   "revisit": 0.0,
-   "referral": 0.0,
+   "revisit": 4.0,
+   "referral": 1.0,
    "keyday": 4.0
   }
  },
@@ -291,7 +291,7 @@
   },
   "other": {
    "days": 19,
-   "total": 2639.0,
+   "total": 2683.0,
    "keyday": 9.5
   }
  }

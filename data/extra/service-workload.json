@@ -1164,12 +1164,12 @@
   "otherExtra": 2.0,
   "extraScore": 10.0,
   "callback": null,
-  "revisit": null,
-  "satisfaction": null,
-  "referral": null,
+  "revisit": 4.0,
+  "satisfaction": 4.0,
+  "referral": 1.0,
   "education": null,
-  "valueScore": null,
-  "total": 110.0,
+  "valueScore": 44.0,
+  "total": 154.0,
   "memo": null
  }
 ]
