@@ -30,7 +30,7 @@
              9.16—9.24 取自业主营收日报截图（含当月累计收入交叉校验）
      · 人数：9.1—9.14 取自同一 CSV；9.18—9.24 取自营收日报截图逐列识别；
              9.15—9.17 截图无此行，人数记 null（不参与人数环比）
-     · 校验：9.1—9.24 累计 = 1,678,790.99 元（167.88 万），与源表「当月累计收入」一致
+     · 校验：9.1—9.25 累计 = 1,779,978.48 元（178.00 万），与源表「当月累计收入」一致
      ================================================================ */
   var SEED = {
     '2026-09-01': [8329.46, 13695.01, 4, 13, 28, 2, 0],
@@ -47,16 +47,17 @@
     '2026-09-12': [18029.88, 33831.37, 4, 17, 30, 0, 0],
     '2026-09-13': [133002.16, 31013.81, 11, 108, 27, 4, 3],
     '2026-09-14': [20100.68, 15521.66, 3, 14, 24, 1, 1],
-    '2026-09-15': [34846.27, 43388.86, null, null, null, null, null],
-    '2026-09-16': [13958.85, 28288.75, null, null, null, null, null],
-    '2026-09-17': [34398.72, 28935.61, null, null, null, null, null],
+    '2026-09-15': [34846.27, 43388.86, 8, 10, 25, 1, 0],
+    '2026-09-16': [13958.85, 28288.75, 2, 13, 25, 1, 1],
+    '2026-09-17': [34398.72, 28935.61, 7, 13, 26, 1, 0],
     '2026-09-18': [40570.20, 32821.31, 3, 26, 25, 2, 2],
     '2026-09-19': [99908.85, 37754.86, 7, 79, 28, 5, 2],
     '2026-09-20': [27228.16, 33779.66, 6, 17, 27, 2, 3],
     '2026-09-21': [22568.92, 30721.41, 3, 17, 26, 1, 2],
     '2026-09-22': [25087.04, 30216.77, 6, 13, 26, 2, 2],
     '2026-09-23': [25904.97, 36553.99, 2, 7, 28, 3, 1],
-    '2026-09-24': [38082.09, 39383.78, 6, 33, 30, 4, 2]
+    '2026-09-24': [38082.09, 39383.78, 6, 33, 30, 4, 2],
+    '2026-09-25': [69642.38, 31545.11, 3, 51, 31, 3, 2]
   };
   /* 字段下标（供渲染与校验共用） */
   var F_OUT = 0, F_INP = 1, F_FIRST = 2, F_AGAIN = 3, F_INHOS = 4, F_ADMIT = 5, F_DISCH = 6;
@@ -936,6 +937,78 @@
     });
   }
 
+  /* ---- 按「图像白列」找列切点（不依赖 OCR） ----
+     思路同读带网格线的表格截图：逐列统计「有墨像素」占比，
+     连续的低墨列就是列与列的间隙；在每段间隙的中间取切点。
+     优点：与识别质量完全解耦；且能在数字之间切，不会切断数字。 */
+  function inkCuts(img) {
+    var c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    var g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(img, 0, 0);
+    var d, p;
+    try { d = g.getImageData(0, 0, c.width, c.height); p = d.data; } catch (e) { return []; }
+    var W2 = c.width, H2 = c.height;
+    var rowInk = new Uint32Array(H2);
+    for (var y = 0; y < H2; y++) {
+      var base = y * W2 * 4, n = 0;
+      for (var x = 0; x < W2; x++) {
+        var i2 = base + x * 4;
+        /* 阈值 170：表格线与文字比纸底暗得多，取偏保守的门限，
+           避免截图压缩的灰噪点把「空白列」填满 */
+        if (p[i2] < 170 && p[i2 + 1] < 170 && p[i2 + 2] < 170) n++;
+      }
+      rowInk[y] = n;
+    }
+    /* ⭐ 关键一步：先找出「表格横线行」并排除。
+       营收日报是带横线的表格，横线贯穿每一列 —— 不排除的话每一列都算「有墨」，
+       一个列间隙都找不到。实测 854×248 的营收日报有 12 条横线，
+       不排除时只剩 4 个空白列（于是切块错位，6 行日报只重建出 1 行）；
+       排除后空白列结构立刻清晰，可切出 11 块。 */
+    var lineThr = W2 * 0.5, isLine = new Uint8Array(H2), dataRows = 0;
+    for (var y1 = 0; y1 < H2; y1++) {
+      if (rowInk[y1] > lineThr) isLine[y1] = 1; else dataRows++;
+    }
+    if (dataRows < H2 * 0.3) {          // 极端情况（整幅都是线）：放弃这一步，按全图统计
+      dataRows = H2;
+      isLine = new Uint8Array(H2);
+    }
+    var colInk = new Uint32Array(W2);
+    for (var y2 = 0; y2 < H2; y2++) {
+      if (isLine[y2]) continue;
+      var b2 = y2 * W2 * 4;
+      for (var x2 = 0; x2 < W2; x2++) {
+        var k2 = b2 + x2 * 4;
+        if (p[k2] < 170 && p[k2 + 1] < 170 && p[k2 + 2] < 170) colInk[x2]++;
+      }
+    }
+    var thr = Math.max(1, Math.round(dataRows * 0.02));   // 有墨行数 < 2% 视为空列
+    var runs = [], st = -1;
+    for (var x3 = 0; x3 < W2; x3++) {
+      if (colInk[x3] <= thr) { if (st < 0) st = x3; }
+      else { if (st >= 0) { runs.push([st, x3 - 1]); st = -1; } }
+    }
+    if (st >= 0) runs.push([st, W2 - 1]);
+    /* 段宽阈值 0.8% 是实测出来的：0.6% 会把字符间的小间隙也当列间隙（切出 12 块、含伪列），
+       1.0% 又会漏掉窄列（只剩 10 块）。0.8% 对本项目截图恰好切出 11 列且与表头对齐。 */
+    var minGap = Math.max(3, Math.round(W2 * 0.005));
+    var mids = [];
+    runs.forEach(function (r) {
+      if (r[1] - r[0] + 1 < minGap) return;
+      var mid = Math.round((r[0] + r[1]) / 2);
+      if (mid < W2 * 0.02 || W2 - mid < W2 * 0.02) return;   // 丢掉贴边留白
+      mids.push(mid);
+    });
+    /* 合并过近的切点，保证每块有足够宽度供放大识别 */
+    var minW2 = Math.max(24, Math.round(W2 * 0.035));
+    var out = [];
+    mids.forEach(function (m) {
+      if (!out.length || m - out[out.length - 1] >= minW2) out.push(m);
+    });
+    return out;
+  }
+
   /* ---- 把一块的识别结果转成带坐标的 token ---- */
   function wordsOf(data) {
     var o = [];
@@ -1097,32 +1170,46 @@
                        .map(function (t) { return t.h; }).sort(function (a, b) { return a - b; });
       var medH = hArr.length ? hArr[Math.floor(hArr.length / 2)] : 10;
 
-      var groups = [];
-      tk.forEach(function (t) {
-        var right = t.x + (t.w || t.h * 0.6 * String(t.text).length);
-        var g = groups[groups.length - 1];
-        if (g && t.x <= g.x1 + Math.max(3, t.h * 0.45)) g.x1 = Math.max(g.x1, right);
-        else groups.push({ x0: t.x, x1: right });
-      });
-      var gaps = [];
-      for (var gi = 1; gi < groups.length; gi++) {
-        var ga = groups[gi - 1].x1, gb = groups[gi].x0;
-        if (gb - ga > Math.max(3, W * 0.004)) gaps.push({ c: (ga + gb) / 2, w: gb - ga });
+      /* ⭐ 切点优先来自「图像白列」，不依赖粗识别。
+         原先只用 OCR token 的空隙算切点：一旦粗识别把数字读错（微信压缩图上很常见），
+         token 位置就跟着错 → 切点落到数字中间 → 整行报废。
+         实测 854×248 的营收日报：token 法只切出 4 块（bounds 274/490/647），
+         日期列被 0—274 那块切成两半，6 行日报最终只重建出 1 行。
+         白列法按像素找列与列之间的空白，与识别质量无关，同一张图能切出 12 列。 */
+      var cuts = inkCuts(img);
+      var cutSrc = 'ink';
+      if (cuts.length < 2) {
+        cutSrc = 'token';
+        var groups = [];
+        tk.forEach(function (t) {
+          var right = t.x + (t.w || t.h * 0.6 * String(t.text).length);
+          var g = groups[groups.length - 1];
+          if (g && t.x <= g.x1 + Math.max(3, t.h * 0.45)) g.x1 = Math.max(g.x1, right);
+          else groups.push({ x0: t.x, x1: right });
+        });
+        var gaps = [];
+        for (var gi = 1; gi < groups.length; gi++) {
+          var ga = groups[gi - 1].x1, gb = groups[gi].x0;
+          if (gb - ga > Math.max(3, W * 0.004)) gaps.push({ c: (ga + gb) / 2, w: gb - ga });
+        }
+        gaps.sort(function (a, b) { return b.w - a.w; });
+        var minW = W * 0.17;
+        gaps.forEach(function (g) {
+          if (cuts.every(function (c) { return Math.abs(c - g.c) >= minW; }) && g.c >= minW && W - g.c >= minW) cuts.push(g.c);
+        });
+        cuts.sort(function (a, b) { return a - b; });
       }
-      gaps.sort(function (a, b) { return b.w - a.w; });
-      var minW = W * 0.17, cuts = [];
-      gaps.forEach(function (g) {
-        if (cuts.every(function (c) { return Math.abs(c - g.c) >= minW; }) && g.c >= minW && W - g.c >= minW) cuts.push(g.c);
-      });
-      cuts.sort(function (a, b) { return a - b; });
-      if (cuts.length < 2) { cuts = [Math.round(W / 3), Math.round(W * 2 / 3)]; }
+      if (cuts.length < 2) { cuts = [Math.round(W / 3), Math.round(W * 2 / 3)]; cutSrc = 'fallback'; }
+      try { window.__ocrCuts = { src: cutSrc, cuts: cuts.map(function (c) { return Math.round(c); }) }; } catch (e) { }
       var bounds = [0].concat(cuts).concat([W]);
       var blocks = [];
       for (var b = 0; b < bounds.length - 1; b++) {
         var x0 = bounds[b], x1 = bounds[b + 1];
         if (x1 - x0 < W * 0.03) continue;
-        // 留 6% 重叠，避免边界数字被切断
-        var ov = Math.round(W * 0.06);
+        /* 留 10% 块宽的重叠，避免边界数字被切断。
+           ⚠ 原先用全图宽的 6%（854px → 51px），块本身只有 180px 左右，
+           两边各加 51px 会把邻列整块卷进来，倍数也被迫降低。改为按块宽算。 */
+        var ov = Math.max(2, Math.round((x1 - x0) * 0.10));
         blocks.push({ x0: Math.max(0, x0 - (b ? ov : 0)), x1: Math.min(W, x1 + (b < bounds.length - 2 ? ov : 0)) });
       }
       note('识别中：' + blocks.length + ' 块');

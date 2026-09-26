@@ -15,7 +15,7 @@
     const anchor=root.querySelector('.mkt-detail-grid')||root.lastElementChild;
     const parent=anchor?anchor.parentElement:root;
     const el=document.createElement('section'); el.className='finance-board'; el.innerHTML=`
-      <div class="finance-head"><div><h3>财务经营分析 · Finance View</h3><p>从预算差异、运行速度、收入结构与情景预测判断经营质量</p></div><span class="finance-tag">数据截至 9月26日（营收 9月24日）</span></div>
+      <div class="finance-head"><div><h3>财务经营分析 · Finance View</h3><p>从预算差异、运行速度、收入结构与情景预测判断经营质量</p></div><span class="finance-tag">数据截至 9月26日（营收 9月25日）</span></div>
       <div class="finance-kpis">
         <div class="finance-kpi bad"><span>预算缺口</span><strong>−106.11万</strong><em>目标 260万</em></div>
         <div class="finance-kpi warn"><span>达标所需日均</span><strong>13.26万</strong><em>剩余 8 天</em></div>
