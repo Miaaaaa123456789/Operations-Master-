@@ -1791,6 +1791,9 @@
     daily: function () { return loadDaily(); },
     render: function () { try { renderRevenue(); } catch (e) { console.warn('renderRevenue', e); } }
   };
+  /* 与脱敏副本（psyc.harness 的 hospital-operations-dashboard）对齐：开放导入面板入口，
+     便于从侧栏 / 顶栏 / 脚本调用，而不只依赖营销面板里那个按钮 */
+  window.openDataImport = open;
 
   /* ---------- 启动 ---------- */
   function boot() {
