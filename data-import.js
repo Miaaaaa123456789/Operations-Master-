@@ -1815,7 +1815,8 @@
       renderRevenue();
       refreshMeta();
     },
-    reset: function () { resetDaily(); renderRevenue(); refreshMeta(); }
+    reset: function () { resetDaily(); renderRevenue(); refreshMeta(); },
+    open: open
   };
   function numOr(v, dflt) { var x = toNum(v); return x == null ? dflt : x; }
   /* 与脱敏副本（psyc.harness 的 hospital-operations-dashboard）对齐：开放导入面板入口，
@@ -1831,6 +1832,8 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(boot, 300); });
   else setTimeout(boot, 300);
 
-  /* 供其他模块/调试使用 */
-  window.OPS_REVENUE = { summary: function () { return summary(loadDaily()); }, render: renderRevenue, open: open, daily: loadDaily };
+  /* ⚠ 原先此处又整体覆盖了一次 window.OPS_REVENUE，把上面的 applyRows / reset 抹掉，
+     导致「统一数据源回写」链路失效。现改为只补充缺失能力，不再覆盖对象。 */
+  /* 抓取日（其他模块统一引用，避免各自硬编码） */
+  window.OPS_INGEST_DATE = TODAY;
 })();

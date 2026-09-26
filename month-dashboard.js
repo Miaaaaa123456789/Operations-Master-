@@ -31,16 +31,16 @@
     departments:[
       {key:'doctor',cls:'doctor',icon:'医',name:'医生组',desc:'住院规模与管床贡献',metric:'31 人',note:'在院 · 9.25 时点',foot:'本周入院 13 · 出院 9'},
       {key:'nursing',cls:'nursing',icon:'护',name:'护理组',desc:'治疗执行与服务兑现',metric:'94.1%',note:'物理治疗完成率（项目口径）',foot:'应做 488 · 未做 29'},
-      {key:'psychology',cls:'psychology',icon:'心',name:'心理咨询组',desc:'咨询承接与收入结构',metric:'37 人次',note:WEEK+'患者接触',foot:'上周接触 40（−7.5%）'},
+      {key:'psychology',cls:'psychology',icon:'心',name:'心理咨询组',desc:'咨询承接与收入结构',metric:'47 人次',note:WEEK+'患者接触',foot:'上周同期 37（+27.0%）'},
       {key:'service',cls:'service',icon:'客',name:'客服服务部',desc:'随访、到院及付费跟踪',metric:'52 条',note:WEEK+'回访台账',foot:'到院 18 · 34.6%'},
       {key:'marketing',cls:'marketing',icon:'营',name:'营销组',desc:'管家、工娱与渠道归集',metric:'34.97万',note:WEEK+'营业额',foot:'入院 13 · 出院 9'}
     ],
     ranks:{
       doctor:[['康言','医生组','出院费用 19.64 万（8 人次）','出院结帐明细 9.1—9.24','动态试算'],['王建宁','医生组','出院费用 15.98 万（9 人次）','出院结帐明细 9.1—9.24','动态试算'],['曾凯','医生组','出院费用 15.84 万（11 人次，人次第 1）','出院结帐明细 9.1—9.24','动态试算'],['王建','医生组','出院费用 12.74 万（7 人次）','出院结帐明细 9.1—9.24','动态试算'],['赵郁莹','医生组','出院费用 11.17 万（6 人次）','出院结帐明细 9.1—9.24','动态试算']],
       nursing:[['何培培','护理组','综合 0.9432 · 周总 24.93','工作量×质控（源表口径）','动态试算'],['李永鑫','护理组','综合 0.9406 · 周总 25.68','工作量×质控（源表口径）','动态试算'],['沈琳','护理组','综合 0.8764','工作量×质控（源表口径）','动态试算'],['刘佳佳','护理组','综合 0.8640','工作量×质控（源表口径）','动态试算'],['赵雯倩','护理组','综合 0.8596','工作量×质控（源表口径）','动态试算']],
-      psychology:[['蔡宜蓉','心理咨询组','综合 0.9516 · 咨询 42 / 接触 53','累计 8.31—9.24 · 咨询2:接触1','动态试算'],['冯浩鹏','心理咨询组','综合 0.8456 · 咨询 36 / 接触 51','累计 8.31—9.24 · 咨询2:接触1','动态试算'],['杨霞','心理咨询组','综合 0.5397 · 咨询 13 / 接触 62','累计 8.31—9.24 · 咨询2:接触1','动态试算'],['赵芳','心理咨询组','综合 0.3996 · 咨询 14 / 接触 33','累计 8.31—9.24 · 咨询2:接触1','动态试算'],['王沛然','心理咨询组','综合 0.2778 · 咨询 7 / 接触 31','累计 8.31—9.24 · 咨询2:接触1','动态试算']],
-      service:[['蒋雨','客服服务部','日均 319.3 分 · 回访 29 条','日工作量（按日均）','动态试算'],['温诗怡','客服服务部','日均 123.0 分 · 回访 7 条','日工作量（按日均）','动态试算'],['陈宇轩','客服服务部','日均 119.0 分 · 主动服务 8 条','日工作量（按日均）','动态试算'],['黄诗棋','客服服务部','日均 113.7 分','日工作量（按日均）','动态试算'],['张钰洁','客服服务部','日均 105.3 分','日工作量（按日均）','动态试算']],
-      marketing:[['金林','营销组','转住院率 29.2%','对接 24 条','趋势参考'],['利娟','营销组','转住院率 23.1%','对接 13 条','趋势参考'],['朱婧','营销组','转住院率 11.5%','对接 26 条','趋势参考'],['菲菲','营销组','本周无新增对接','—','待核'],['国威','营销组','本周无新增对接','—','待核']]
+      psychology:[['冯浩鹏','心理咨询组','综合 0.9946 · 咨询 47 / 接触 61','累计 8.31—9.26 · 咨询2:接触1','动态试算'],['蔡宜蓉','心理咨询组','综合 0.9839 · 咨询 47 / 接触 59','累计 8.31—9.26 · 咨询2:接触1','动态试算'],['杨霞','心理咨询组','综合 0.5177 · 咨询 13 / 接触 62','累计 8.31—9.26 · 咨询2:接触1','动态试算'],['赵芳','心理咨询组','综合 0.3814 · 咨询 14 / 接触 34','累计 8.31—9.26 · 咨询2:接触1','动态试算'],['王沛然','心理咨询组','综合 0.2659 · 咨询 7 / 接触 31','累计 8.31—9.26 · 咨询2:接触1','动态试算']],
+      service:[['蒋雨','客服服务部','日均 281.5 分 · 回访 29 条','日工作量（按日均）','动态试算'],['温诗怡','客服服务部','日均 271.6 分 · 主动服务 9 条','日工作量（按日均）','动态试算'],['陈宇轩','客服服务部','日均 134.4 分 · 主动服务 9 条','日工作量（按日均）','动态试算'],['黄诗棋','客服服务部','日均 133.5 分 · 主动服务 7 条','日工作量（按日均）','动态试算'],['张钰洁','客服服务部','日均 104.0 分 · 主动服务 7 条','日工作量（按日均）','动态试算']],
+      marketing:[['金林','营销组','转住院率 29.2%','对接 24 条','趋势参考'],['利娟','营销组','转住院率 21.4%','对接 14 条','趋势参考'],['朱婧','营销组','转住院率 13.3%','对接 30 条','趋势参考'],['菲菲','营销组','本周无新增对接','—','待核'],['国威','营销组','本周无新增对接','—','待核']]
     }
   };
 
@@ -48,7 +48,10 @@
     var source=window.SEPTEMBER_REVENUE_DATA;if(!source||!source.derive)return;
     var x=source.derive(),m=x.month,w=x.currentWeek,last=source.rows[source.rows.length-1],fmt=function(v){return (v/10000).toFixed(2);},dis=w.discharges;
     var md=function(d){return d?(+d.slice(5,7))+'月'+(+d.slice(8))+'日':'';};
-    baseData.meta={range:'9月1日—9月27日（报告期）',updated:'数据截至 '+source.updatedAt};
+    var _ing=window.OPS_INGEST_DATE||'';
+    var _ingTxt=_ing?(_ing.slice(0,4)+'年'+(+_ing.slice(5,7))+'月'+(+_ing.slice(8))+'日'):'';
+    baseData.meta={range:'9月1日—9月27日（报告期）',
+      updated:(_ingTxt&&_ing!==source.updatedThrough)?('数据截至 '+_ingTxt+'（营收 '+source.updatedAt+'）'):('数据截至 '+source.updatedAt)};
     baseData.kpis=[
       {label:'9月累计营业额',value:fmt(m.total),unit:'万元',note:'截至 '+md(last.date)+' · 完成目标 '+x.amountRate.toFixed(1)+'%'},
       {label:WEEK+'营业额',value:fmt(w.total),unit:'万元',note:'截至 '+md(last.date)+' · 日均 '+fmt(w.average)+' 万'},
@@ -151,7 +154,7 @@
     var h=title.querySelector('h1'),sub=title.querySelector('.subtitle'),range=document.getElementById('rangeChip'),period=document.getElementById('periodBtn');
     if(h)h.textContent='9月经营协同';if(sub)sub.textContent='月累计结果 · '+WEEK+'变化 · 跨部门闭环';/* rangeChip 同时写明月报告期与本周口径（业主：注意保留本周 9.21—9.27 的呈现）；
        periodBtn 交给 data-import.js 统一写抓取日，避免两个模块争抢同一节点 */
-    if(range)range.innerHTML='<i>▦</i>9月1日—9月27日 · '+WEEK+'进行中 · 营收数据至 '+(lastDateMd()||'—');
+    if(range){var _ig=window.OPS_INGEST_DATE||'',_snap=window.SEPTEMBER_REVENUE_DATA||{},_igMd=_ig?((+_ig.slice(5,7))+'月'+(+_ig.slice(8))+'日'):'';range.innerHTML='<i>▦</i>9月1日—9月27日 · '+WEEK+'进行中 · '+((_igMd&&_ig!==_snap.updatedThrough)?('部门数据至 '+_igMd+' · '):'')+'营收数据至 '+(lastDateMd()||'—');}
     title.insertAdjacentHTML('afterend',shell());document.body.insertAdjacentHTML('beforeend',drawerMarkup());
     bind();normalizeAll();
     var observer=new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(function(node){if(node.nodeType===1)normalizeNode(node);});});});observer.observe(document.body,{childList:true,subtree:true});
