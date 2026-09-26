@@ -867,11 +867,13 @@
     }).then(function (w) {
       /* 这组参数是实测调出来的：
          · user_defined_dpi 不设时 Tesseract 会按 70dpi 处理小图，字符被过度降采样
-         · psm 6 = 视为单一文本块，适合表格逐块识别
+         · psm 11 = 稀疏文本。⭐ 实测关键：营收日报每个数字都被表格横线隔开，
+           用 psm 6（单一均匀文本块）会把它们当噪声整块丢弃（门诊收入列 0/7），
+           切 psm 11 后六列金额全部 7/7。窄列在 psm 11 下不足时由块内回退 psm 6。
          · preserve_interword_spaces 让邻列数字不会被粘成一个 token */
       return w.setParameters({
         user_defined_dpi: '300',
-        tessedit_pageseg_mode: '6'
+        tessedit_pageseg_mode: '11'
       }).then(function () { ocrWorker = w; return w; });
     });
   }
@@ -889,14 +891,18 @@
   }
   /* 直接从原图裁剪并缩放：避免先放大整图（848×244 放大 16 倍 = 13568×3904，
      接近浏览器 canvas 上限，会导致 drawImage 静默失败、块全黑 → 识别不到任何内容） */
-  function cropScale(img, x0, x1, scale, binarize) {
+  function cropScale(img, x0, x1, scale, binarize, y0, y1) {
+    /* y0/y1 可选：只裁剪竖直方向的一段（用于跳过顶部标题与表头） */
+    var Y0 = (y0 == null ? 0 : Math.max(0, Math.round(y0)));
+    var Y1 = (y1 == null ? img.height : Math.min(img.height, Math.round(y1)));
+    if (Y1 - Y0 < 4) { Y0 = 0; Y1 = img.height; }
     var c = document.createElement('canvas');
     c.width = Math.max(1, Math.round((x1 - x0) * scale));
-    c.height = Math.max(1, Math.round(img.height * scale));
+    c.height = Math.max(1, Math.round((Y1 - Y0) * scale));
     var g = c.getContext('2d');
     g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
     g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
-    g.drawImage(img, x0, 0, Math.max(1, x1 - x0), img.height, 0, 0, c.width, c.height);
+    g.drawImage(img, x0, Y0, Math.max(1, x1 - x0), Math.max(1, Y1 - Y0), 0, 0, c.width, c.height);
     if (binarize) {
       /* Otsu 自适应阈值：微信压缩过的截图中数字边缘有灰阶噪点，二值化后 Tesseract 更稳 */
       try {
@@ -941,6 +947,98 @@
       i.onerror = function () { rej(new Error('图片无法读取')); };
       i.src = src;
     });
+  }
+
+  /* ---- 表格结构分析：用「表格竖线」定列边界 ----
+     为什么不用「列墨量低 → 判为间隙」：本类营收日报数字之间的空隙与列间空隙宽度相当，
+     会把数字切两半（实测同一张 854×248 的图切出 43 列，切点落在数字中间）。
+     而表格竖线是可靠的结构特征：
+       ① 水平宽度极窄（1—3px）
+       ② 在表格全高范围内几乎每一行都有墨
+     实测：13 条竖线全部命中（另含左右边缘与初诊/复诊分隔线），与表头 14 列逐一对齐。
+     返回 { cols:[列边界x…], charH:字符高, rows:数据行数, hlines:横线数 } */
+  function analyzeTable(img) {
+    var res = { cols: [], charH: 0, rows: 0, hlines: 0, dataTop: 0, dataBot: 0 };
+    var c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    var g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(img, 0, 0);
+    var d, p;
+    try { d = g.getImageData(0, 0, c.width, c.height); p = d.data; } catch (e) { return res; }
+    var W = c.width, H = c.height, x, y;
+    /* 行墨量 → 横向表格线（>50% 图宽） */
+    var rowInk = new Uint32Array(H);
+    for (y = 0; y < H; y++) {
+      var n = 0, base = y * W * 4;
+      for (x = 0; x < W; x++) {
+        var i2 = base + x * 4;
+        if (p[i2] < 170 && p[i2 + 1] < 170 && p[i2 + 2] < 170) n++;
+      }
+      rowInk[y] = n;
+    }
+    var isLine = new Uint8Array(H), hlines = [];
+    for (y = 0; y < H; y++) if (rowInk[y] > W * 0.5) { isLine[y] = 1; hlines.push(y); }
+    res.hlines = hlines.length;
+    if (hlines.length < 3) return res;                 // 没有表格结构 → 交给旧算法
+    var top = hlines[0], bot = hlines[hlines.length - 1];
+    var tableH = bot - top + 1;
+    /* 数据行带：由横线分隔的连续墨行 */
+    var bands = [], st = -1;
+    for (y = top; y <= bot; y++) {
+      var v = isLine[y] ? 0 : rowInk[y];
+      if (v > 2) { if (st < 0) st = y; }
+      else if (st >= 0) { if (y - st >= 6) bands.push([st, y - 1]); st = -1; }
+    }
+    if (st >= 0 && bot - st >= 6) bands.push([st, bot]);
+    if (bands.length < 2) return res;
+    res.rows = bands.length;
+    /* 数据区：bands[0] 是表头带（可能含两行表头，如「出院 初次／多次」），
+       数据从 bands[1] 开始。只识别这一段——否则每个块都会混进顶部标题与表头文字，
+       噪声会把数据行的数字挤掉（实测：不裁剪时 parsed 仅 1 行、verified 0）。 */
+    res.dataTop = Math.max(0, bands[1][0] - 3);
+    res.dataBot = bot;
+    /* 字符高：数据行带高度的中位数（块放大倍数按它算） */
+    var hs = bands.map(function (b) { return b[1] - b[0] + 1; })
+                  .sort(function (a, b) { return a - b; });
+    res.charH = hs[Math.floor(hs.length / 2)] || 0;
+    /* 每个 x 的「全高墨量」与「覆盖行带数」 */
+    var full = new Uint32Array(W), cover = new Uint32Array(W);
+    for (y = top; y <= bot; y++) {
+      var b2 = y * W * 4;
+      for (x = 0; x < W; x++) {
+        var i3 = b2 + x * 4;
+        if (p[i3] < 170 && p[i3 + 1] < 170 && p[i3 + 2] < 170) full[x]++;
+      }
+    }
+    var nb = bands.length;
+    for (var bi = 0; bi < nb; bi++) {
+      var y0 = bands[bi][0], y1 = bands[bi][1];
+      for (x = 0; x < W; x++) {
+        for (y = y0; y <= y1; y++) {
+          var i4 = (y * W + x) * 4;
+          if (p[i4] < 170 && p[i4 + 1] < 170 && p[i4 + 2] < 170) { cover[x]++; break; }
+        }
+      }
+    }
+    /* 竖线候选：覆盖行带数 ≥ nb-1，按相邻 ≤2px 聚类 */
+    var groups = [], cur = null;
+    for (x = 0; x < W; x++) {
+      if (cover[x] >= nb - 1) {
+        if (cur && x - cur[cur.length - 1] <= 2) cur.push(x);
+        else { cur = [x]; groups.push(cur); }
+      }
+    }
+    var cols = [];
+    groups.forEach(function (gr) {
+      if (gr.length > 3) return;                       // 太宽 → 是数字内容，不是线
+      var mx = 0;
+      gr.forEach(function (xx) { if (full[xx] > mx) mx = full[xx]; });
+      if (mx < tableH * 0.85) return;                  // 墨量不足 → 不是贯穿线
+      cols.push(Math.round((gr[0] + gr[gr.length - 1]) / 2));
+    });
+    res.cols = cols;
+    return res;
   }
 
   /* ---- 按「图像白列」找列切点（不依赖 OCR） ----
@@ -1182,8 +1280,13 @@
          实测 854×248 的营收日报：token 法只切出 4 块（bounds 274/490/647），
          日期列被 0—274 那块切成两半，6 行日报最终只重建出 1 行。
          白列法按像素找列与列之间的空白，与识别质量无关，同一张图能切出 12 列。 */
-      var cuts = inkCuts(img);
-      var cutSrc = 'ink';
+      /* ⭐ 优先用「表格竖线」定列（见 analyzeTable 的说明）；
+         竖线法不适用于非表格图时，逐级回退到旧的白列法 / token 法。 */
+      var tbl = analyzeTable(img);
+      var charH = tbl.charH || medH || 10;
+      var cuts = tbl.cols;
+      var cutSrc = 'vline';
+      if (cuts.length < 2) { cuts = inkCuts(img); cutSrc = 'ink'; }
       if (cuts.length < 2) {
         cutSrc = 'token';
         var groups = [];
@@ -1206,16 +1309,19 @@
         cuts.sort(function (a, b) { return a - b; });
       }
       if (cuts.length < 2) { cuts = [Math.round(W / 3), Math.round(W * 2 / 3)]; cutSrc = 'fallback'; }
-      try { window.__ocrCuts = { src: cutSrc, cuts: cuts.map(function (c) { return Math.round(c); }) }; } catch (e) { }
+      try {
+        window.__ocrCuts = { src: cutSrc, cuts: cuts.map(function (c) { return Math.round(c); }),
+                             charH: charH, rows: tbl.rows, hlines: tbl.hlines };
+      } catch (e) { }
       var bounds = [0].concat(cuts).concat([W]);
       var blocks = [];
       for (var b = 0; b < bounds.length - 1; b++) {
         var x0 = bounds[b], x1 = bounds[b + 1];
         if (x1 - x0 < W * 0.03) continue;
-        /* 留 10% 块宽的重叠，避免边界数字被切断。
-           ⚠ 原先用全图宽的 6%（854px → 51px），块本身只有 180px 左右，
-           两边各加 51px 会把邻列整块卷进来，倍数也被迫降低。改为按块宽算。 */
-        var ov = Math.max(2, Math.round((x1 - x0) * 0.10));
+        /* 留少量重叠，避免边界数字被切断。
+           竖线法的边界本身就是表格线（数字不会压线），故重叠只需 3%、下限 2px；
+           用旧白列法时切点可能略偏，留同样比例也够（旧版曾用全图宽 6% = 51px，过大）。 */
+        var ov = Math.max(2, Math.round((x1 - x0) * 0.03));
         blocks.push({ x0: Math.max(0, x0 - (b ? ov : 0)), x1: Math.min(W, x1 + (b < bounds.length - 2 ? ov : 0)) });
       }
       note('识别中：' + blocks.length + ' 块');
@@ -1223,30 +1329,62 @@
       var collected = [];
       var blockTexts = [];
       var chain = Promise.resolve();
+      /* 块识别结果的 token 抽取器（psm 11 与 psm 6 共用） */
+      var extractTokens = function (r, bl, sc) {
+        var got = [];
+        wordsOf(r.data).forEach(function (x) {
+          var raw = String(x.text || '').trim();
+          if (!raw) return;
+          var v = numToken(raw);
+          if (DATE_RE.test(raw) || findDate(raw)) v = null;   // 日期不是金额
+          if (v == null && !findDate(raw)) return;
+          got.push({
+            text: raw, v: v,
+            x: bl.x0 + x.bbox.x0 / sc, xc: bl.x0 + (x.bbox.x0 + x.bbox.x1) / 2 / sc,
+            /* y 要补回「数据区起点」的偏移，否则分组时会把不同行带串在一起 */
+            y: (tbl.dataTop || 0) + (x.bbox.y0 + x.bbox.y1) / 2 / sc,
+            h: (x.bbox.y1 - x.bbox.y0) / sc
+          });
+        });
+        return got;
+      };
+      /* ⭐ 逐块「psm 11 优先 + 智能回退 psm 6」。为什么：
+         psm 6 假定「单一均匀文本块」，会被表格横线分隔开的独立数字整块丢弃 ——
+         实测对门诊收入 / 当月累计两列输出空串（0/7）；切到 psm 11（稀疏文本）后
+         门诊收入 7/7、在院收入 7/7、当日合计 7/7、当月累计 7/7、
+         门诊环比 7/7、在院环比 7/7，日期列 14 个日期全对。
+         但 1—2 位小整数窄列（初诊 / 入院）反而 psm 6 更好（psm 11 上下文不足 → 0）。
+         故：psm 11 读到的数字不足 3 个时，用 psm 6 重跑该块并取更优者。 */
       blocks.forEach(function (bl, idx) {
         chain = chain.then(function () {
           ocrProgress('识别中 ' + (idx + 1) + '/' + blocks.length + '…');
-          var bw = bl.x1 - bl.x0;
-          /* 目标：放大后块宽约 1200px。实测（本项目 848×244 的营收日报截图）
-             · 块宽 4000+px（字符高 150px）→ 数字大面积误识
-             · 块宽 1200px （字符高 ~40px，接近 Tesseract 最佳区间）→ 识别稳定 */
-          var sc = Math.max(3, Math.min(8, Math.round(1200 / bw)));
+          /* ⭐ 倍数按「字符高」定，不再按块宽凑 1200px。
+             实测量化（854×248 营收日报，逐列裁剪）三次：
+               · psm 6  ×2（字符高 40px）→ 门诊收入 1/2；×3 → 2/2
+               · psm 11 ×3 → 六列金额全部 7/7；×4 / ×5 略降（当月累计出现 1369264 .20）
+             原口径按块宽算会到 ×8（字符高 160px），明显过大。
+             故取「目标字符高 60px」，并夹在 2—6 倍之间。 */
+          var sc = Math.max(2, Math.min(6, Math.round(60 / Math.max(6, charH))));
           /* binarize 参数保留但默认关闭：实测对本项目这张微信压缩截图反而使日期列丢失 */
-          var cv = cropScale(img, bl.x0, bl.x1, sc, false);
-          return w.recognize(cv, {}, { blocks: true, text: true }).then(function (r) {
-            blockTexts.push('[' + idx + '] ' + String(r.data.text || '').replace(/\n+/g, ' | ').slice(0, 150));
-            wordsOf(r.data).forEach(function (x) {
-              var raw = x.text.trim();
-              if (!raw) return;
-              var v = numToken(raw);
-              if (DATE_RE.test(raw) || findDate(raw)) v = null;   // 日期不是金额
-              if (v == null && !findDate(raw)) return;
-              collected.push({
-                text: raw, v: v,
-                x: bl.x0 + x.bbox.x0 / sc, xc: bl.x0 + (x.bbox.x0 + x.bbox.x1) / 2 / sc,
-                y: (x.bbox.y0 + x.bbox.y1) / 2 / sc, h: (x.bbox.y1 - x.bbox.y0) / sc
-              });
+          var cv = cropScale(img, bl.x0, bl.x1, sc, false, tbl.dataTop, tbl.dataBot);
+          var OCRD = { blocks: true, text: true };
+          return w.recognize(cv, {}, OCRD).then(function (r) {
+            var g1 = extractTokens(r, bl, sc);
+            var n1 = g1.filter(function (t) { return t.v != null; }).length;
+            blockTexts.push('[11/' + idx + '] ' + String(r.data.text || '').replace(/\n+/g, ' | ').slice(0, 130));
+            if (n1 >= 3) return g1;                      // psm 11 已读够 → 不回退
+            return w.setParameters({ tessedit_pageseg_mode: '6' }).then(function () {
+              return w.recognize(cv, {}, OCRD);
+            }).then(function (r2) {
+              var g2 = extractTokens(r2, bl, sc);
+              var n2 = g2.filter(function (t) { return t.v != null; }).length;
+              blockTexts.push('[6/' + idx + '] ' + String(r2.data.text || '').replace(/\n+/g, ' | ').slice(0, 130));
+              return (n2 > n1) ? g2 : g1;
+            }).then(function (best) {
+              return w.setParameters({ tessedit_pageseg_mode: '11' }).then(function () { return best; });
             });
+          }).then(function (got) {
+            got.forEach(function (t) { collected.push(t); });
           });
         });
       });
@@ -1313,22 +1451,59 @@
           rec.total = best.fit.C;
           rec.fixed = best.fit.fixes > 0;
           rec.nums = nums.map(function (t) { return { v: t.v, xc: t.xc }; });
-          /* 人数：夹在 门诊↔在院 之间的小整数为 初诊/复诊；
-             夹在 在院↔合计 之间的小整数依次为 在院/入院/出院初次/出院多次 */
-          var small = function (a, b) {
-            return nums.filter(function (t) {
-              return t !== L && t !== Rr && t !== best.C &&
-                     t.v > 0 && t.v < 500 && t.v % 1 === 0 &&   // 人数是整数，排除 "-3975.20" 这类残片
-                     t.xc > a && t.xc < b;
-            }).sort(function (x, y) { return x.xc - y.xc; });
+          /* 人数：优先按「列号」取值（表格列边界已知且精确），避免前移顶替。
+             列序（以本类营收日报为例）：
+               门诊收入 → 门诊环比 → 初诊 → 复诊 → 在院收入
+                        → 在院环比 → 在院 → 入院 → 出院初次 → 出院多次 → 当日合计
+             即：初诊 = 门诊收入列 +2、复诊 = +3；
+                 在院 = 在院收入列 +2、入院 = +3、出院初次 = +4、出院多次 = +5。
+             若某列没读出，宁可留空（由用户核对补全），也不要让后面的值顶上 ——
+             实测旧相对取法会把「复诊 79」写成「初诊 79」。 */
+          /* ⚠ 必须用 ctx.meta —— 函数后面的 `var meta = ctx.meta` 在重建循环之后才赋值，
+             在此处因变量提升而是 undefined，会导致永远走回退分支。 */
+          var bnd = (ctx.meta && ctx.meta.bounds) || [];
+          var colOf = function (xc) {
+            for (var ci = 0; ci < bnd.length - 1; ci++) if (xc >= bnd[ci] && xc < bnd[ci + 1]) return ci;
+            return -1;
           };
-          var leftSide = small(L.xc, Rr.xc);
-          if (leftSide[0]) rec.first = leftSide[0].v;
-          if (leftSide[1]) rec.again = leftSide[1].v;
-          var rightSide = small(Rr.xc, best.C.xc);
-          if (rightSide[0]) rec.inhos = rightSide[0].v;
-          if (rightSide[1]) rec.admit = rightSide[1].v;
-          if (rightSide[2]) rec.disch = (rightSide[2].v || 0) + (rightSide[3] ? rightSide[3].v : 0);
+          var cA = colOf(L.xc), cB = colOf(Rr.xc);
+          var pickCol = function (ci) {
+            if (ci < 0 || ci >= bnd.length) return null;
+            var hit = nums.filter(function (t) {
+              return t !== L && t !== Rr && t !== best.C &&
+                     t.v > 0 && t.v < 500 && t.v % 1 === 0 && colOf(t.xc) === ci;
+            });
+            return hit.length === 1 ? hit[0].v : null;   // 唯一命中才采信
+          };
+          if (cA >= 0 && cB > cA) {
+            var f1 = pickCol(cA + 2), f2 = pickCol(cA + 3);
+            var p1 = pickCol(cB + 2), p2 = pickCol(cB + 3), p3 = pickCol(cB + 4), p4 = pickCol(cB + 5);
+            if (f1 != null) rec.first = f1;
+            if (f2 != null) rec.again = f2;
+            if (p1 != null) rec.inhos = p1;
+            if (p2 != null) rec.admit = p2;
+            if (p3 != null || p4 != null) rec.disch = (p3 || 0) + (p4 || 0);
+          } else {
+            /* 回退：没有列边界时，仍按「夹在两组收入之间的第 n 个小整数」取，但要求不模糊 */
+            var small = function (a, b) {
+              return nums.filter(function (t) {
+                return t !== L && t !== Rr && t !== best.C &&
+                       t.v > 0 && t.v < 500 && t.v % 1 === 0 &&
+                       t.xc > a && t.xc < b;
+              }).sort(function (x, y) { return x.xc - y.xc; });
+            };
+            var leftSide = small(L.xc, Rr.xc);
+            if (leftSide.length <= 2) {
+              if (leftSide[0]) rec.first = leftSide[0].v;
+              if (leftSide[1]) rec.again = leftSide[1].v;
+            }
+            var rightSide = small(Rr.xc, best.C.xc);
+            if (rightSide.length <= 4) {
+              if (rightSide[0]) rec.inhos = rightSide[0].v;
+              if (rightSide[1]) rec.admit = rightSide[1].v;
+              if (rightSide[2]) rec.disch = (rightSide[2].v || 0) + (rightSide[3] ? rightSide[3].v : 0);
+            }
+          }
         }
         out.push(rec);
       });
