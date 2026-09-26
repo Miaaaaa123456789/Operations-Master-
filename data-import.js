@@ -438,6 +438,12 @@
       var o = r.out != null ? r.out * unit : null;
       var p = r.inp != null ? r.inp * unit : null;
       var rec = { date: r.date, out: o, inp: p, raw: r.raw, notes: [] };
+      /* ⚠ 原先这里只带 date/out/inp/raw，把人数全部丢掉，导致 applyImport() 里
+         `if (r.first != null) arr[F_FIRST] = r.first` 恒不成立 —— 识别结果表里
+         填的初诊/复诊/在院/入院/出院**一个都写不进去**。此处按原样透传。 */
+      ['first', 'again', 'inhos', 'admit', 'disch'].forEach(function (k) {
+        if (r[k] != null) rec[k] = r[k];
+      });
       if (o == null && p == null) { rec.status = 'invalid'; rec.notes.push('缺少门诊/在院金额'); }
       else if (rec.date < MONTH_FROM || rec.date > MONTH_TO) { rec.status = 'invalid'; rec.notes.push('不在 9 月区间'); }
       else {
@@ -1587,7 +1593,8 @@
   function renderRows() {
     if (!rows.length) { rowEditor.innerHTML = '<div class="import-empty">暂无识别结果 —— 拖入图片或表格、粘贴文本，或手工添加一行</div>'; return; }
     var cols = [['date', '日期', '9.23'], ['out', '门诊收入', '25087.04'], ['inp', '在院收入', '30216.77'],
-                ['first', '初诊', '2'], ['again', '复诊', '7'], ['admit', '入院', '3'], ['disch', '出院', '1']];
+                ['first', '初诊', '2'], ['again', '复诊', '7'], ['inhos', '在院', '31'],
+                ['admit', '入院', '3'], ['disch', '出院', '1']];
     rowEditor.innerHTML = '<div class="edit-scroll"><table class="edit-table"><thead><tr>'
       + cols.map(function (c) { return '<th>' + c[1] + '</th>'; }).join('')
       + '<th>合计</th><th></th></tr></thead><tbody>'
@@ -1699,6 +1706,9 @@
 
   /* ---------- 执行 ---------- */
   function applyImport() {
+    /* ⚠ 识别结果表用 260ms 防抖重算 verdict；用户填完立刻点确认时，
+       verdict 可能还是上一轮的值 → 刚填的人数被丢掉。写入前强制重算一次。 */
+    try { revalidate(); } catch (e) { }
     if (!verdict) return;
     var ok = verdict.rows.filter(function (r) { return r.status === 'new' || r.status === 'update' || r.status === 'same'; });
     if (!ok.length) { showToast('没有可写入的数据行'); return; }

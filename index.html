@@ -671,6 +671,40 @@
     function diagTone(label){const t=String(label||'');for(let i=0;i<DIAG_TONES.length;i++){if(t.indexOf(DIAG_TONES[i][0])>=0)return DIAG_TONES[i][1]}return 'fact'}
     function renderSignals(){document.getElementById('signalList').innerHTML=signals.map((s,i)=>`<details class="signal" ${i===0?'open':''}><summary><span class="risk-dot ${s.level}"></span><span class="signal-title"><strong>${s.title}</strong><span>${s.sub}</span></span><span class="signal-value ${s.level==='good'?'good':''}">${s.value}<i class="chev">⌄</i></span></summary><div class="signal-body"><p>${s.body}</p><div class="signal-action"><strong>建议动作：</strong>${s.action}</div><div class="signal-owner">${s.owners.map(x=>`<span class="pill">${x}</span>`).join('')}</div></div></details>`).join('')}
     /* 部门卡：本周核心指标 + 近七期趋势（趋势取自《各部门周度业绩对比汇总》汇总栏，非上周逐日） */
+    /* 医生部门卡：本周出院 / 患者池净变化 / 趋势线改由营收日报驱动。
+       此前这组是静态值，导入营收数据后不更新（业主 2026-09-27 要求全链路同步）。
+       「在院」取营收日报最近一个有填报的时点，避免最后一天缺该字段时被读成 0。 */
+    function syncDoctorCard(){
+      try{
+        var S=window.OPS_REVENUE&&window.OPS_REVENUE.summary(); if(!S) return;
+        var P=S.tw.p, d=(typeof DEPT_CARD!=='undefined')&&DEPT_CARD&&DEPT_CARD.doctor;
+        if(!d||!d.m1||!d.m2) return;
+        var daily=window.OPS_REVENUE.daily();
+        d.m1.value=String(P.disch);
+        var net=P.admit-P.disch;
+        d.m2.value=(net>=0?'+':'')+net;
+        var tr=[];
+        for(var i=21;i<=27;i++){ var k='2026-09-'+String(i).padStart(2,'0'); var v=daily[k]; tr.push(v&&v[6]!=null?v[6]:null); }
+        d.trend=tr;
+        var ds=S.twDays||[];
+        var span=ds.length?(ds[0].slice(5).replace('-','.')+'—'+ds[ds.length-1].slice(5).replace('-','.')):'本周';
+        var at=P.inhosAt?((+P.inhosAt.slice(5,7))+'月'+(+P.inhosAt.slice(8))+'日'):'';
+        d.note='本周（'+span+'）出院 '+P.disch+' 人、入院 '+P.admit+' 人，患者池净增 '+((net>=0?'+':'')+net)
+          +' 人（营收日报口径），趋势线为本周逐日出院；'
+          +(P.inhos!=null?('最近时点 '+at+' 在院 '+P.inhos+' 人'):'在院人数待补')
+          +'。科主任口径主表表头仍为上周值，两口径统计范围不同，不互相校验。';
+      }catch(e){}
+    }
+    function syncDoctorCardAndRender(){
+      syncDoctorCard();
+      try{ if(typeof renderDepts==='function') renderDepts(); }catch(e){}
+    }
+    window.addEventListener('ops:revenue-updated',syncDoctorCardAndRender);
+    setTimeout(syncDoctorCardAndRender,700);
+    /* ⚠ 对外名不能叫 syncDoctorCard：顶层函数声明本身就是 window 的属性，
+       用同名去赋包装函数会把函数体内的 syncDoctorCard() 绑定改掉 → 无限递归
+       （RangeError: Maximum call stack size exceeded）。故改名为 syncDoctorCardPanel。 */
+    window.syncDoctorCardPanel=syncDoctorCardAndRender;
     const DEPT_CARD={
       doctor:{m1:{label:'本周出院',value:'9',unit:'人'},m2:{label:'患者池净变化',value:'+4',unit:'人'},
         trend:[2,2,1,2,2],axis:'d21',
@@ -855,11 +889,41 @@ const OPS_HISTORY={weeks:['6.29','7.6','7.13','7.26','8.3','8.16-17','8.30-31'],
       </div></div></section><section class="business-panel static-panel"><div class="static-panel-head"><strong>最近四次怎么变</strong><span>每项业务只和自己比</span></div><div class="business-body"><div class="trend-card-grid">${overviewTrends.map(t=>`<article class="trend-card"><div class="trend-card-head"><strong>${t[0]}</strong><span>上周 ${t[2]}</span></div>${spark(t[1])}</article>`).join('')}</div><p class="compare-note">把最早一次记作 100，只看同一项业务变好还是变差，不拿不同部门互相评比。</p></div></section></div>`;
       section.querySelectorAll('.business-panel').forEach(p=>p.addEventListener('toggle',()=>{p.querySelector(':scope>summary span').textContent=p.open?'点击收起　⌃':'点击展开　⌄'}));
     }
+    /* 问题地图：原先是一段写死的 HTML，导入新数据后永不更新（只有初始化时渲染一次）。
+       现改为从 OPS_REVENUE（营收日报，唯一真源）派生，并在 ops:revenue-updated 时重绘。
+       「在管患者」＝当前在院 ＋ 9 月累计出院（营收日报口径）。 */
+    function writeProblemMap(){
+      const sec=document.getElementById('insights'); if(!sec) return;
+      const old=sec.querySelector('.problem-map'); if(old) old.remove();
+      const head=sec.querySelector('.section-head'); if(!head) return;
+      let S=null; try{ S=window.OPS_REVENUE&&window.OPS_REVENUE.summary(); }catch(e){}
+      const inc   = (S&&S.done!=null)   ? S.done.toFixed(2)    : '—';
+      const pctv  = (S&&S.pct!=null)    ? S.pct.toFixed(1)     : '—';
+      const gapv  = (S&&S.leftAmt!=null)? S.leftAmt.toFixed(2) : '—';
+      const P     = (S&&S.tw&&S.tw.p)||{};
+      const ward  = (P.inhos==null) ? '待补' : String(P.inhos);
+      const disch = (S&&S.mtd&&S.mtd.p&&S.mtd.p.disch!=null) ? S.mtd.p.disch : null;
+      const managed = (P.inhos==null||disch==null) ? '待补' : String(P.inhos+disch);
+      head.insertAdjacentHTML('afterend',
+        '<div class="problem-map">'
+        + '<div class="problem-lane"><span class="problem-node"><small>物理治疗应做</small><b>1019 次</b></span>'
+        + '<span class="problem-arrow">→</span><span class="problem-node risk"><small>未做</small><b>85 次</b></span>'
+        + '<span class="problem-arrow">→</span><span class="problem-node action"><small>优先动作</small><b>台账闭环</b></span></div>'
+        + '<div class="problem-lane"><span class="problem-node"><small>9月累计收入</small><b>'+inc+'万</b></span>'
+        + '<span class="problem-arrow">→</span><span class="problem-node risk"><small>目标完成</small><b>'+pctv+'%</b></span>'
+        + '<span class="problem-arrow">→</span><span class="problem-node action"><small>剩余缺口</small><b>'+gapv+'万</b></span></div>'
+        + '<div class="problem-lane"><span class="problem-node"><small>在管患者</small><b>'+managed+' 人</b></span>'
+        + '<span class="problem-arrow">→</span><span class="problem-node"><small>在院</small><b>'+ward+' 人</b></span>'
+        + '<span class="problem-arrow">→</span><span class="problem-node action"><small>优先动作</small><b>按在院派班</b></span></div>'
+        + '</div>');
+    }
+    /* 数据更新后重绘问题地图（data-import.js 每次写入都会派发该事件） */
+    window.addEventListener('ops:revenue-updated',function(){ try{ writeProblemMap(); }catch(e){} });
+    window.writeProblemMap=writeProblemMap;
     function renderVisualInsights(){
       const section=document.getElementById('insights');section.querySelector('.section-head h2').textContent='AI 今日决策建议';section.querySelector('.section-head p').textContent='基于上周数据的关键发现与行动建议';const _sl=section.querySelector('.section-link');_sl.style.display='';_sl.textContent='查看全部洞察 ›';section.classList.add('detail-collapsed');_sl.onclick=()=>{const c=section.classList.toggle('detail-collapsed');_sl.textContent=c?'查看全部洞察 ›':'收起洞察明细 ⌃'};
       section.querySelector('.mascot-brief')?.remove();
-      const old=section.querySelector('.problem-map');if(old)old.remove();
-      section.querySelector('.section-head').insertAdjacentHTML('afterend',`<div class="problem-map"><div class="problem-lane"><span class="problem-node"><small>物理治疗应做</small><b>1019 次</b></span><span class="problem-arrow">→</span><span class="problem-node risk"><small>未做</small><b>85 次</b></span><span class="problem-arrow">→</span><span class="problem-node action"><small>优先动作</small><b>台账闭环</b></span></div><div class="problem-lane"><span class="problem-node"><small>9月累计收入</small><b>178.00万</b></span><span class="problem-arrow">→</span><span class="problem-node risk"><small>目标完成</small><b>68.5%</b></span><span class="problem-arrow">→</span><span class="problem-node action"><small>剩余缺口</small><b>82.00万</b></span></div><div class="problem-lane"><span class="problem-node"><small>在管患者</small><b>78 人</b></span><span class="problem-arrow">→</span><span class="problem-node"><small>在院</small><b>31 人</b></span><span class="problem-arrow">→</span><span class="problem-node action"><small>优先动作</small><b>按在院派班</b></span></div></div>`);
+      writeProblemMap();
       renderDetailedSignals();
     }
     function renderBusinessProfile(){

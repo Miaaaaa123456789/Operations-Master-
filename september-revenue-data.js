@@ -39,7 +39,10 @@
           weekday: DOW[new Date(k + 'T12:00:00').getDay()],
           outpatient: o, inpatient: i,
           first: num(v[2]), repeat: num(v[3]),
-          ward: num(v[4]), admit: num(v[5]),
+          /* ⚠ 在院人数是**时点值**，必填字段缺失时必须保留 null：
+             num(null) 会返回 0，使 lastWard() 的「ward != null」判断永远成立，
+             结果取到最后一天 → 在院被读成 0。 */
+          ward: (v[4] == null || v[4] === '') ? null : num(v[4]), admit: num(v[5]),
           /* ⚠ 本仓 OPS_REVENUE 的出院是一列「合计」（＝初次＋多次）；
              源版拆两列。统一放进 dischargeFirst、dischargeRepeat 记 0，
              这样 summarize() 的 dischargeFirst+dischargeRepeat 仍等于合计。 */
@@ -66,6 +69,14 @@
   }
   function summarize(list) {
     var last = list[list.length - 1] || {};
+    /* ⚠ 「在院人数」是**时点值**、不是可加量：取区间内最后一个**有填报**的日期。
+       原先写 last.ward || 0 —— 只要最后一天没填该字段（导入营收时很常见），
+       在院人数就会直接变成 0，月面板/营销报告会一起显示「在院 0 人」。
+       现在缺字段的日期自动向前回退，并记录实际时点 wardAt。 */
+    var wardV = null, wardAt = '';
+    for (var wi = list.length - 1; wi >= 0; wi--) {
+      if (list[wi].ward != null) { wardV = list[wi].ward; wardAt = list[wi].date; break; }
+    }
     return {
       days: list.length,
       total: sum(list, 'total'),
@@ -76,11 +87,22 @@
       visits: sum(list, 'first') + sum(list, 'repeat'),
       admissions: sum(list, 'admit'),
       discharges: sum(list, 'dischargeFirst') + sum(list, 'dischargeRepeat'),
-      ward: last.ward || 0,
+      dischargeFirst: sum(list, 'dischargeFirst'),
+      dischargeRepeat: sum(list, 'dischargeRepeat'),
+      ward: wardV,
+      wardAt: wardAt,
       average: list.length ? sum(list, 'total') / list.length : 0
     };
   }
   function lastDay() { return data.rows.length ? Number(data.rows[data.rows.length - 1].date.slice(8)) : 0; }
+  /* 全站统一的「最新在院人数」取值：最后一个有填报的日期（缺字段自动回退）。
+     各面板请用它，不要再直接取 rows 最后一行 —— 见 summarize() 里的说明。 */
+  function lastWard() {
+    for (var i = data.rows.length - 1; i >= 0; i--) {
+      if (data.rows[i].ward != null) return { value: data.rows[i].ward, date: data.rows[i].date };
+    }
+    return { value: null, date: '' };
+  }
 
   function derive() {
     var month = summarize(data.rows);
@@ -122,6 +144,7 @@
 
   refresh();
   data.subset = subset;
+  data.lastWard = lastWard;
   data.summarize = summarize;
   data.derive = derive;
   window.SEPTEMBER_REVENUE_DATA = data;

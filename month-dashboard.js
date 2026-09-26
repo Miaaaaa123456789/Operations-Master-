@@ -47,6 +47,8 @@
   function applyRevenueSnapshot(){
     var source=window.SEPTEMBER_REVENUE_DATA;if(!source||!source.derive)return;
     var x=source.derive(),m=x.month,w=x.currentWeek,last=source.rows[source.rows.length-1],fmt=function(v){return (v/10000).toFixed(2);},dis=w.discharges;
+    /* 在院人数取「最近一个有填报的日期」，避免最后一天缺该字段时被显示成 0 */
+    var lw=(source.lastWard&&source.lastWard())||{value:last.ward,date:last.date};
     var md=function(d){return d?(+d.slice(5,7))+'月'+(+d.slice(8))+'日':'';};
     var _ing=window.OPS_INGEST_DATE||'';
     var _ingTxt=_ing?(_ing.slice(0,4)+'年'+(+_ing.slice(5,7))+'月'+(+_ing.slice(8))+'日'):'';
@@ -55,17 +57,17 @@
     baseData.kpis=[
       {label:'9月累计营业额',value:fmt(m.total),unit:'万元',note:'截至 '+md(last.date)+' · 完成目标 '+x.amountRate.toFixed(1)+'%'},
       {label:WEEK+'营业额',value:fmt(w.total),unit:'万元',note:'截至 '+md(last.date)+' · 日均 '+fmt(w.average)+' 万'},
-      {label:'在院人数',value:String(last.ward),unit:'人',note:md(last.date)+' 日终时点'},
+      {label:'在院人数',value:String(lw.value==null?'—':lw.value),unit:'人',note:(lw.date?md(lw.date):md(last.date))+' 日终时点'},
       {label:WEEK+'入院',value:String(w.admissions),unit:'人',note:'9.21—'+md(last.date)+' 已发生'},
-      {label:WEEK+'出院',value:String(dis),unit:'人',note:'初次 8＋多次 1'},
+      {label:WEEK+'出院',value:String(dis),unit:'人',note:'营收日报口径（含多次）'},
       {label:'9月门诊人次',value:String(m.visits),unit:'人次',note:'初诊 '+m.first+'＋复诊 '+m.repeat}
     ];
     baseData.target={actual:Number(fmt(m.total)),goal:260,amountRate:Number(x.amountRate.toFixed(1)),timeRate:Number(x.timeRate.toFixed(1)),gap:Number((x.timeRate-x.amountRate).toFixed(1)),days:x.remainingDays,remaining:Number(fmt(x.remaining)),requiredDaily:Number(fmt(x.requiredDaily)),currentDaily:Number(fmt(w.average)),dailyGap:Number(fmt(x.requiredDaily-w.average))};
     baseData.alerts=[
       {tone:'red',icon:'↘',tag:'高风险',title:'营收速度不足',copy:'截至'+md(last.date)+'金额完成'+x.amountRate.toFixed(1)+'%，落后时间进度'+(x.timeRate-x.amountRate).toFixed(1)+'个百分点，剩余日均需'+fmt(x.requiredDaily)+'万元。'},
       {tone:'orange',icon:'◆',tag:'结构风险',title:'收入集中在少数高峰日',copy:'9月6、13、19日三天贡献约27.3%，周末日均'+fmt(x.weekend.average)+'万元，平日日均'+fmt(x.weekday.average)+'万元。'},
-      {tone:'purple',icon:'＋',tag:'改善信号',title:'本周患者池净增4人',copy:'入院'+w.admissions+'人、出院'+dis+'人，9月25日日终在院'+last.ward+'人。'},
-      {tone:'blue',icon:'✓',tag:'已核验',title:'25天累计连续勾稽',copy:'9月1—'+md(last.date)+'每日合计与累计连续一致；9月1—6日采用后续修订口径，9月26—27日待更新。'}
+      {tone:'purple',icon:'＋',tag:'改善信号',title:'本周患者池净增4人',copy:'入院'+w.admissions+'人、出院'+dis+'人，'+(lw.date?md(lw.date):'')+'日终在院'+lw.value+'人。'},
+      {tone:'blue',icon:'✓',tag:'已核验',title:m.days+'天累计连续勾稽',copy:'9月1—'+md(last.date)+'每日合计与累计连续一致；9月1—6日采用后续修订口径，9月26—27日待更新。'}
     ];
     /* ⚠ 待补日不能硬编码 9.26/9.27：数据真到 9.26 后会重复出现两根「待更新」柱。
        改为「本周 9.21—9.27 中数据里缺的那几天」，并把日期格式统一成 09.xx（与已有柱一致）。 */
@@ -73,7 +75,7 @@
     var _pend=[];for(var _d=21;_d<=27;_d++){var _k='2026-09-'+String(_d).padStart(2,'0');if(!_have[_k])_pend.push({d:_k.slice(5).replace('-','.'),v:null});}
     baseData.daily=source.rows.filter(function(r){return r.date>='2026-09-21';}).map(function(r){return {d:r.date.slice(5).replace('-','.'),v:r.total/10000};}).concat(_pend);
     baseData.weeks=x.weeks.map(function(q,i){return {label:q.label,value:q.total/10000,current:i===3};});
-    baseData.funnel=[{label:'门诊',value:w.visits+'人次'},{label:'入院',value:w.admissions+'人'},{label:'出院',value:dis+'人'},{label:'在院',value:last.ward+'人'}];
+    baseData.funnel=[{label:'门诊',value:w.visits+'人次'},{label:'入院',value:w.admissions+'人'},{label:'出院',value:dis+'人'},{label:'在院',value:(lw.value==null?'待补':lw.value)+'人'}];
     baseData.departments[4].metric=fmt(w.total)+'万';baseData.departments[4].foot='入院 '+w.admissions+' · 出院 '+dis;
   }
   applyRevenueSnapshot();
@@ -87,6 +89,16 @@
 
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function n(v){return typeof v==='number'?v:parseFloat(v)||0;}
+  /* rangeChip 抽成函数：原先只在 mount() 里写一次，导入新数据后仍显示旧营收日。
+     现在 mount 与 september-revenue-updated 各调用一次，时间戳随数据同步。 */
+  function writeRangeChip(){
+    var range=document.getElementById('rangeChip'); if(!range) return;
+    var _ig=window.OPS_INGEST_DATE||'', _snap=window.SEPTEMBER_REVENUE_DATA||{},
+        _igMd=_ig?((+_ig.slice(5,7))+'月'+(+_ig.slice(8))+'日'):'';
+    range.innerHTML='<i>▦</i>9月1日—9月27日 · '+WEEK+'进行中 · '
+      +((_igMd&&_ig!==_snap.updatedThrough)?('部门数据至 '+_igMd+' · '):'')
+      +'营收数据至 '+(lastDateMd()||'—');
+  }
   function lastDateMd(){var src=window.SEPTEMBER_REVENUE_DATA;if(!src||!src.rows||!src.rows.length)return '';var d=src.rows[src.rows.length-1].date;return (+d.slice(5,7))+'月'+(+d.slice(8))+'日';}
   function mascotSrc(){var x=document.querySelector('.hero-mascot img,.hero-mascot,.mascot img,.mascot,[src*="mascot"],[src*="pet"]');return x&&x.tagName==='IMG'?x.src:'';}
   function oldSection(id){var el=document.getElementById(id);if(el)el.classList.add('md-legacy-hidden');}
@@ -154,7 +166,7 @@
     var h=title.querySelector('h1'),sub=title.querySelector('.subtitle'),range=document.getElementById('rangeChip'),period=document.getElementById('periodBtn');
     if(h)h.textContent='9月经营协同';if(sub)sub.textContent='月累计结果 · '+WEEK+'变化 · 跨部门闭环';/* rangeChip 同时写明月报告期与本周口径（业主：注意保留本周 9.21—9.27 的呈现）；
        periodBtn 交给 data-import.js 统一写抓取日，避免两个模块争抢同一节点 */
-    if(range){var _ig=window.OPS_INGEST_DATE||'',_snap=window.SEPTEMBER_REVENUE_DATA||{},_igMd=_ig?((+_ig.slice(5,7))+'月'+(+_ig.slice(8))+'日'):'';range.innerHTML='<i>▦</i>9月1日—9月27日 · '+WEEK+'进行中 · '+((_igMd&&_ig!==_snap.updatedThrough)?('部门数据至 '+_igMd+' · '):'')+'营收数据至 '+(lastDateMd()||'—');}
+    writeRangeChip();
     title.insertAdjacentHTML('afterend',shell());document.body.insertAdjacentHTML('beforeend',drawerMarkup());
     bind();normalizeAll();
     var observer=new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(function(node){if(node.nodeType===1)normalizeNode(node);});});});observer.observe(document.body,{childList:true,subtree:true});
@@ -173,6 +185,6 @@
   window.updateMonthDashboard=function(patch,options){merge(data,patch||{});window.MONTH_DASHBOARD_DATA=data;if(!options||options.persist!==false){try{localStorage.setItem('hospital-month-dashboard-v3-20260926',JSON.stringify(data));}catch(e){}}rerender();return clone(data);};
   window.resetMonthDashboard=function(){data=clone(baseData);window.MONTH_DASHBOARD_DATA=data;try{localStorage.removeItem('hospital-month-dashboard-v3-20260926');}catch(e){}rerender();return clone(data);};
   window.openMonthDashboardPanel=openDrawer;
-  window.addEventListener('september-revenue-updated',function(){applyRevenueSnapshot();data=clone(baseData);window.MONTH_DASHBOARD_DATA=data;rerender();});
+  window.addEventListener('september-revenue-updated',function(){applyRevenueSnapshot();data=clone(baseData);window.MONTH_DASHBOARD_DATA=data;rerender();writeRangeChip();});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount);else mount();
 })();
