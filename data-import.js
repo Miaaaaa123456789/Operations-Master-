@@ -34,23 +34,23 @@
      ================================================================ */
   var SEED = {
     '2026-09-01': [8329.46, 13695.01, 4, 13, 28, 2, 0],
-    '2026-09-02': [16747.27, 62605.00, 3, 15, 27, 1, 1],
-    '2026-09-03': [4710.35, 35411.99, 0, 14, 25, 0, 1],
-    '2026-09-04': [31464.50, 40703.93, 8, 24, 29, 6, 0],
+    '2026-09-02': [16747.27, 62605.00, 3, 15, 27, 1, 2],
+    '2026-09-03': [4710.35, 35411.99, 0, 14, 25, 0, 2],
+    '2026-09-04': [31464.50, 40703.93, 8, 24, 29, 6, 2],
     '2026-09-05': [15041.96, 39769.70, 4, 30, 31, 2, 0],
-    '2026-09-06': [140116.70, 43682.69, 9, 92, 30, 3, 1],
-    '2026-09-07': [20267.31, 39148.42, 3, 16, 30, 4, 0],
-    '2026-09-08': [21632.61, 36448.39, 3, 20, 30, 1, 0],
-    '2026-09-09': [17044.52, 41666.05, 3, 12, 29, 1, 1],
-    '2026-09-10': [10042.88, 36522.53, 1, 12, 28, 0, 0],
+    '2026-09-06': [140116.70, 43682.69, 9, 92, 30, 3, 4],
+    '2026-09-07': [20267.31, 39148.42, 3, 16, 30, 4, 4],
+    '2026-09-08': [21632.61, 36448.39, 3, 20, 30, 1, 1],
+    '2026-09-09': [17044.52, 41666.05, 3, 12, 29, 1, 2],
+    '2026-09-10': [10042.88, 36522.53, 1, 12, 28, 0, 1],
     '2026-09-11': [9814.03, 38027.06, 3, 17, 30, 2, 0],
     '2026-09-12': [18029.88, 33831.37, 4, 17, 30, 0, 0],
-    '2026-09-13': [133002.16, 31013.81, 11, 108, 27, 4, 3],
-    '2026-09-14': [20100.68, 15521.66, 3, 14, 24, 1, 1],
+    '2026-09-13': [133002.16, 31013.81, 11, 108, 27, 4, 7],
+    '2026-09-14': [20100.68, 15521.66, 3, 14, 24, 1, 4],
     '2026-09-15': [34846.27, 43388.86, 8, 10, 25, 1, 0],
     '2026-09-16': [13958.85, 28288.75, 2, 13, 25, 1, 1],
     '2026-09-17': [34398.72, 28935.61, 7, 13, 26, 1, 0],
-    '2026-09-18': [40570.20, 32821.31, 3, 26, 25, 2, 2],
+    '2026-09-18': [40570.20, 32821.31, 3, 26, 25, 2, 3],
     '2026-09-19': [99908.85, 37754.86, 7, 79, 28, 5, 2],
     '2026-09-20': [27228.16, 33779.66, 6, 17, 27, 2, 3],
     '2026-09-21': [22568.92, 30721.41, 3, 17, 26, 1, 2],
@@ -1789,8 +1789,35 @@
   window.OPS_REVENUE = {
     summary: function () { return summary(loadDaily()); },
     daily: function () { return loadDaily(); },
-    render: function () { try { renderRevenue(); } catch (e) { console.warn('renderRevenue', e); } }
+    render: function () { try { renderRevenue(); } catch (e) { console.warn('renderRevenue', e); } },
+    /* 供统一数据源（september-revenue-data.js）回调：
+       rows 来自其 12 字段结构，换算回本仓的 7 位数组后写入唯一真源。
+       这样「从外部模块拖拽导入」也能落到同一份数据上。 */
+    applyRows: function (rows, meta) {
+      if (!Array.isArray(rows) || !rows.length) return;
+      var daily = loadDaily();
+      rows.forEach(function (r) {
+        if (!r || !r.date) return;
+        var cur = daily[r.date] || [];
+        var arr = [];
+        for (var i = 0; i < 7; i++) arr[i] = (cur[i] === undefined ? null : cur[i]);
+        arr[F_OUT] = numOr(r.outpatient, arr[F_OUT]);
+        arr[F_INP] = numOr(r.inpatient, arr[F_INP]);
+        arr[F_FIRST] = numOr(r.first, arr[F_FIRST]);
+        arr[F_AGAIN] = numOr(r.repeat, arr[F_AGAIN]);
+        arr[F_INHOS] = numOr(r.ward, arr[F_INHOS]);
+        arr[F_ADMIT] = numOr(r.admit, arr[F_ADMIT]);
+        arr[F_DISCH] = numOr(toNum(r.dischargeFirst) + toNum(r.dischargeRepeat), arr[F_DISCH]);
+        daily[r.date] = arr;
+      });
+      saveDaily(daily);
+      writeJSON(LS_META, { updatedAt: new Date().toISOString(), files: [(meta && meta.source) || 'september-revenue-data'], rows: rows.length });
+      renderRevenue();
+      refreshMeta();
+    },
+    reset: function () { resetDaily(); renderRevenue(); refreshMeta(); }
   };
+  function numOr(v, dflt) { var x = toNum(v); return x == null ? dflt : x; }
   /* 与脱敏副本（psyc.harness 的 hospital-operations-dashboard）对齐：开放导入面板入口，
      便于从侧栏 / 顶栏 / 脚本调用，而不只依赖营销面板里那个按钮 */
   window.openDataImport = open;
