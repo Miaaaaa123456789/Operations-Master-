@@ -420,14 +420,20 @@ def main():
     lo, hi = wr.week_bounds(ws)
     plo, phi = wr.prev_week(ws)
     today = dt.date.today().isoformat()
+    # ⚠ 源表里有「预填的未来日期行」：管家会提前登记次日的预约（金林 9.27、利娟 9.27/9.29）。
+    # 这些行有患者姓名与业务标记，与已发生的行长得一样，靠字段分不出来 —— 只能用日期挡。
+    hi_eff = min(hi, today)
+    if hi_eff != hi:
+        print('  ⚠ 自然周 %s—%s 中 %s 之后为预填的未来日期行，已排除（统计区间 →%s）'
+              % (lo, hi, hi_eff, hi_eff))
 
-    print('本周 %s — %s ｜ 上周 %s — %s' % (lo, hi, plo, phi))
-    out = {'week': {'lo': lo, 'hi': hi}, 'prev': {'lo': plo, 'hi': phi},
-           'asOf': today, 'depts': {}}
+    print('本周 %s — %s ｜ 上周 %s — %s' % (lo, hi_eff, plo, phi))
+    out = {'week': {'lo': lo, 'hi': hi_eff}, 'weekNatural': {'lo': lo, 'hi': hi},
+           'prev': {'lo': plo, 'hi': phi}, 'asOf': today, 'depts': {}}
 
     for key, fn in [('service', build_service), ('psychology', build_psych), ('marketing', build_gj)]:
         try:
-            rg, mt = fn(lo, hi, plo, phi)
+            rg, mt = fn(lo, hi_eff, plo, phi)
             out['depts'][key] = {'rankGroups': rg, 'metrics': mt}
             print('  ✓ %-12s 排名组 %d ｜ %s' % (key, len(rg), json.dumps(mt, ensure_ascii=False)[:150]))
         except Exception as e:

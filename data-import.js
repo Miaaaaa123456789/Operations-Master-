@@ -19,8 +19,8 @@
   var MONTH_FROM = '2026-09-01', MONTH_TO = '2026-09-30';
   var WEEK_START = '2026-09-21', WEEK_END = '2026-09-27';   // 本周
   var LW_START = '2026-09-14', LW_END = '2026-09-20';      // 上周完整周
-  var SOURCE_CUTOFF = '2026-09-24';   // 其他数据源（客服/心理/管家/团体）的共同截止日
-  var TODAY = '2026-09-25';           // 抓取日
+  var SOURCE_CUTOFF = '2026-09-26';   // 其他数据源（客服/心理/管家/团体）的共同截止日
+  var TODAY = '2026-09-26';           // 抓取日
   var DOW = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
   /* ============================ 种子数据 ============================
@@ -618,6 +618,9 @@
       if (pmBadge && s.delta != null) pmBadge.textContent = '营业额 ' + sign(s.delta, 1) + '%';
       var pmP = $('.priority-compare .mkt-card-head p');
       if (pmP) pmP.textContent = shortRange(s.twDays) + ' 与上周同期 ' + shortRange(s.sameDays) + ' 同口径（各 ' + s.tw.n + ' 天）';
+      /* ⚠ 只更新「营业额」这一行（营收日报是其唯一来源，原有代码已处理）。
+         「营销入院 / 营销对接」是管家台账口径、不由营收日报驱动，不要在这里改，
+         否则会把 4→8 的管家口径偷偷换成全院入院口径。 */
     }
 
     /* ---- 分析横幅 ---- */
@@ -670,22 +673,34 @@
     }
 
     /* ---- 营销 6 项 KPI：本周至今（营收日报口径，含入出院与门诊） ---- */
+    /* ⚠ 标签也必须一起写：本组 6 格原先由「经营问题总览」模块写成
+       客服随访 / 标记到院 / 营销接触 / 营销入院 / 营销转化 / 在院参考，
+       而这里只写值（门诊收入 / 住院收入 / 初诊 …）→ 出现「客服随访 ¥11.16万」这类
+       标签与数值错位。营收日报只能提供收入与就诊人次，故标签一并改为其口径。 */
     var kpis = $$('.mkt-kpis .mkt-kpi');
     if (kpis.length >= 6 && s.tw.t) {
       var t1 = s.tw, P1 = t1.p;
       var conv = P1.cover.first === t1.n && P1.first > 0 ? P1.admit / P1.first * 100 : null;
+      var dspan = shortRange(s.twDays) + '（' + t1.n + ' 天）';
+      var outN = (P1.cover.first === t1.n && P1.cover.again === t1.n) ? (P1.first + P1.again) : null;
       var kvals = [
-        ['¥' + wan(t1.o, 2) + '万', '占本周收入 ' + (t1.o / t1.t * 100).toFixed(1) + '%'],
-        ['¥' + wan(t1.i, 2) + '万', '占本周收入 ' + (t1.i / t1.t * 100).toFixed(1) + '%'],
-        [P1.first + '人', shortRange(s.twDays) + ' 累计'],
-        [P1.admit + '人', conv == null ? '入院累计' : '初诊转入院 ' + conv.toFixed(1) + '%'],
-        [P1.disch + '人', '患者池流出'],
-        [(P1.inhos == null ? '—' : P1.inhos + '人'), P1.inhosAt ? ((+P1.inhosAt.slice(5, 7)) + '.' + (+P1.inhosAt.slice(8))) + ' 时点' : '待补']
+        ['门诊收入', '¥' + wan(t1.o, 2) + '万', '占本周收入 ' + (t1.o / t1.t * 100).toFixed(1) + '%'],
+        ['住院收入', '¥' + wan(t1.i, 2) + '万', '占本周收入 ' + (t1.i / t1.t * 100).toFixed(1) + '%'],
+        ['门诊人次', outN == null ? '待补' : outN + '人',
+         outN == null ? '初诊/复诊待补' : ('初诊 ' + P1.first + ' ＋ 复诊 ' + P1.again)],
+        ['本周入院', P1.admit + '人',
+         conv == null ? dspan : (dspan + ' · 初诊转入院 ' + conv.toFixed(1) + '%')],
+        ['本周出院', P1.disch + '人', dspan],
+        ['在院', P1.inhos == null ? '待补' : P1.inhos + '人',
+         P1.inhosAt ? ((+P1.inhosAt.slice(5, 7)) + '.' + (+P1.inhosAt.slice(8))) + ' 最新时点' : '待补']
       ];
       kpis.slice(0, 6).forEach(function (k, i) {
+        var hd1 = k.querySelector('.mkt-kpi-head');
         var st1 = k.querySelector('strong'), sp1 = k.querySelector('span');
-        if (st1) st1.textContent = kvals[i][0];
-        if (sp1) sp1.textContent = kvals[i][1];
+        if (hd1 && hd1.lastChild && hd1.lastChild.nodeType === 3) hd1.lastChild.nodeValue = kvals[i][0];
+        else if (hd1) hd1.insertAdjacentText('beforeend', kvals[i][0]);
+        if (st1) st1.textContent = kvals[i][1];
+        if (sp1) sp1.textContent = kvals[i][2];
       });
     }
 
@@ -725,6 +740,76 @@
     /* ---- 数据口径风险卡里的营收部分 ---- */
     $$('.mkt-data-warning p').forEach(function (e) {
       e.innerHTML = e.innerHTML.replace(/营收日报[^；。]*[；。]/, '营收日报已更新至 ' + revTxt + '；');
+    });
+
+    /* ---- 主面板（概览 Hero + 营收目标卡）：与营销面板同源、同一次渲染 ---- */
+    renderMainPanel(daily, s);
+    try { window.dispatchEvent(new CustomEvent('ops:revenue-updated', { detail: s })); } catch (e) { }
+  }
+
+  /* 主面板同步：营收日报 → Hero 五指标 + 9 月营收目标进度卡。
+     为什么要有这个函数：这些节点原先在 index.html 里是写死的字面量，
+     导入营收图片后不会变（业主 2026-09-26 反馈「拖进来了但数据没更新」）。 */
+  function renderMainPanel(daily, s) {
+    var tw = s.tw, P = tw.p, cut = s.cut;
+    var cn = function (d) { return d ? ((+d.slice(5, 7)) + '月' + (+d.slice(8)) + '日') : '—'; };
+
+    /* ---- ① Hero 五指标：在院 / 入院 / 出院 / 门诊 / 物理治疗 ---- */
+    var kpis = $$('#heroKpis .ov-kpi');
+    if (kpis.length >= 5) {
+      var days = s.twDays || [];
+      var span = days.length ? (shortRange(days) + '（' + days.length + ' 天）') : '—';
+      // 门诊人次 = 初诊 ＋ 复诊（营收日报「门诊」下的两列）
+      var outPat = (P.cover.first === tw.n && P.cover.again === tw.n) ? (P.first + P.again) : null;
+      var vals = [
+        ['在院人数', P.inhos == null ? '—' : String(P.inhos), '人',
+         P.inhosAt ? ('最新时点 ' + ((+P.inhosAt.slice(5, 7)) + '.' + (+P.inhosAt.slice(8)))) : '待补'],
+        ['本周入院', String(P.admit), '人', span],
+        ['本周出院', String(P.disch), '人', span],
+        ['门诊', outPat == null ? '—' : String(outPat), '人',
+         outPat == null ? '本周初诊/复诊待补' : (span + ' 营收日报')],
+        ['物理治疗', null, null, null]      // 资产表口径，营收日报不含 → 不动
+      ];
+      kpis.slice(0, 5).forEach(function (k, i) {
+        var v = vals[i];
+        if (v[1] === null) return;          // 物理治疗保持原值
+        var lab = k.querySelector('label'), st = k.querySelector('strong'), sp = k.querySelector('.ov-chip');
+        if (lab) lab.textContent = v[0];
+        if (st) st.innerHTML = v[1] + '<em>' + v[2] + '</em>';
+        if (sp) sp.textContent = v[3];
+      });
+    }
+
+    /* ---- ② 9 月营收目标进度卡 ---- */
+    var tp = s.timePct, pc = s.pct, diff = tp - pc;
+    var chip = $('.ov-t-head .ov-chip');
+    if (chip) chip.innerHTML = '9月1日—' + cn(cut) + ' <i>⌄</i>';
+    var amt = $('.ov-amount');
+    if (amt) amt.innerHTML = '<strong>' + wan(s.mtd.t, 2) + '</strong><em>／' + MONTH_TARGET + '万</em>';
+    var bar = $('.ov-bar');
+    if (bar) {
+      bar.setAttribute('aria-label', '营收完成率 ' + pc.toFixed(1) + '%，时间进度 ' + tp.toFixed(1) + '%');
+      var i1 = bar.querySelector('i'), u1 = bar.querySelector('u');
+      if (i1) i1.style.width = Math.max(0, Math.min(100, pc)).toFixed(1) + '%';
+      if (u1) u1.style.left = Math.max(0, Math.min(100, tp)).toFixed(1) + '%';
+    }
+    var two = $$('.ov-two > div > b');
+    if (two.length >= 3) {
+      two[0].textContent = pc.toFixed(1) + '%';
+      two[1].textContent = tp.toFixed(1) + '%';
+      two[2].textContent = (diff >= 0 ? '落后 ' : '领先 ') + Math.abs(diff).toFixed(1) + 'pt';
+      two[2].className = diff >= 0 ? 'neg' : 'pos';
+    }
+    var gap = $('.ov-gap');
+    if (gap) {
+      gap.innerHTML = '剩余 <b>' + s.leftDays + '</b> 天需 <b>' + num(s.leftAmt, 2) + ' 万</b>，'
+        + '日均需 <b>' + num(s.need, 2) + ' 万</b>；上周日均 <b>' + num(s.lwAvg / 10000, 2) + ' 万</b>、'
+        + '本周至今（' + shortRange(s.twDays) + '）日均 <b>' + num(s.twAvg, 2) + ' 万</b>，'
+        + '缺口 <b>' + num(Math.max(0, s.gap), 2) + ' 万</b>。';
+    }
+    var live = $$('.ov-live');
+    live.forEach(function (e) {
+      e.textContent = '每日 09:00 抓取 · 数据更新至 9.' + (+s.globalCut.slice(8));
     });
   }
 
@@ -1612,9 +1697,18 @@
     if (t) { box.value = t; }
   });
 
+  /* ---------- 对外只读接口 ----------
+     供主面板 / 其他模块取当前营收口径（不写 DOM，避免循环依赖） */
+  window.OPS_REVENUE = {
+    summary: function () { return summary(loadDaily()); },
+    daily: function () { return loadDaily(); },
+    render: function () { try { renderRevenue(); } catch (e) { console.warn('renderRevenue', e); } }
+  };
+
   /* ---------- 启动 ---------- */
   function boot() {
     renderFiles(); renderRows(); revalidate(); refreshMeta();
+    /* 首屏与「导入后」走同一条渲染路径：renderRevenue 内部会一并刷新营销面板与主面板 */
     try { renderRevenue(); } catch (e) { console.warn('renderRevenue', e); }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(boot, 300); });
