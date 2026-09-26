@@ -6,6 +6,11 @@
 为什么需要它：看板里各部门的排名原先是一次性手写的，源表更新后不会自动变。
 本脚本把「抓取 → 算排名」固化成一条命令，避免排名长期停留在旧周。
 
+排名口径（业主 2026-09-26 定）：**各部门都不要以填报天数作为排名权重。**
+排名只按业务量与效率排序（条数 / 人次 / 金额、日均、完成率、转化率）；
+填报天数、在岗天数只作数据完整性与可比性提示 —— 不计分、不排序、不作并列判定。
+需要「总量 vs 效率」两看的（如导医日工作量），排序键取「日均」，总量只写在说明里。
+
 用法：
     python3 scripts/gen-rankings.py                      # 本周 = 最近一个周一
     python3 scripts/gen-rankings.py --week-start 2026-09-21 --out data/rankings.json
@@ -112,15 +117,21 @@ def build_service(lo, hi, plo, phi):
         return g
 
     wc, wp = wagg(wcur), wagg(wpre)
+
+    def dayavg(v):
+        return (v['t'] / v['d']) if v['d'] else 0.0
+
     wk_rows = []
-    for k in sorted(wc, key=lambda z: (-wc[z]['t'], z)):
+    # 排序键＝日均分（总分 ÷ 在岗天数）。按周总分排会让在岗天数多的人天然靠前，
+    # 等于把天数当权重；在岗天数只在说明里作可比性提示。
+    for k in sorted(wc, key=lambda z: (-dayavg(wc[z]), z)):
         v = wc[k]
         prevd = wp[k]['d'] if k in wp else 0
         wk_rows.append({'name': k,
-                        'metric': '在岗 %d 天 · 总分 %.0f（履职 %.0f / 附加 %.0f / 增值 %.0f）%s'
-                                  % (v['d'], v['t'], v['du'], v['ex'], v['va'],
+                        'metric': '日均 %.1f 分 · 在岗 %d 天 · 总分 %.0f（履职 %.0f / 附加 %.0f / 增值 %.0f）%s'
+                                  % (dayavg(v), v['d'], v['t'], v['du'], v['ex'], v['va'],
                                      ('　在岗较上周 %+d 天' % (v['d'] - prevd)) if prevd or v['d'] else ''),
-                        'score': int(round(v['t']))})
+                        'score': r1(dayavg(v))})
 
     rankGroups = [
         {'title': '① 导医回访排名（本周 %s · 客服导诊部台账）' % _rng(lo, hi),
@@ -134,10 +145,12 @@ def build_service(lo, hi, plo, phi):
          'note': '口径＝导医主动迎送、协助、宣教等主动服务条数。本周合计 <b>%d 条</b>，'
                  '上周 %s 为 %d 条。' % (len(vcur), _rng(plo, phi), len(vpre)),
          'rows': vrows or [{'name': '—', 'metric': '本周暂无记录', 'score': 0, 'missing': True}]},
-        {'title': '③ 导医日工作量排名（本周 %s）' % _rng(lo, hi),
-         'note': '来源：「日工作量考核表(分级)」。总分 = 履职分 ＋ 附加分 ＋ 增值分。'
+        {'title': '③ 导医日工作量排名（本周 %s · 按日均分）' % _rng(lo, hi),
+         'scoreLabel': '日均分',
+         'note': '来源：「日工作量考核表(分级)」。单日总分 = 履职分 ＋ 附加分 ＋ 增值分。'
                  '本周合计 <b>%d 人日 / %s 分</b>，上周 %s 为 %d 人日 / %s 分。'
-                 '⚠ 本周尚未结束，在岗天数少不等于工作量低，请结合日均看。'
+                 '<b>名次按「日均分」（总分 ÷ 在岗天数）排序</b>——按周总分排会让在岗天数多的人'
+                 '天然靠前，等于用天数当权重；在岗天数只作可比性提示，不计入排名。'
                  % (len(wcur), '{:,.0f}'.format(sum(v['t'] for v in wc.values())),
                     _rng(plo, phi), len(wpre), '{:,.0f}'.format(sum(v['t'] for v in wp.values()))),
          'rows': wk_rows or [{'name': '—', 'metric': '本周暂无记录', 'score': 0, 'missing': True}]},
@@ -172,7 +185,7 @@ def _psy_vals(agg, days, nm):
 
 
 def _rows_by(agg, days, prev, prev_days, kind):
-    """kind: advice 咨询量 / days 填报天数"""
+    """kind: advice 咨询量 / days 填报天数（填报天数只作提示，不排序）"""
     out = []
     for nm in wr.PSY_NAMES:
         c, q, p, d = _psy_vals(agg, days, nm)
@@ -180,13 +193,20 @@ def _rows_by(agg, days, prev, prev_days, kind):
             out.append({'name': nm, 'metric': '本周未填报', 'score': 0, 'missing': True})
             continue
         sc = q if kind == 'advice' else d
-        m = ('咨询 %d · 接触 %d · %d 天' % (q, c, d)) if kind == 'advice' else ('%d 天填报 · 接触 %d · 咨询 %d' % (d, c, q))
+        # 业务量前置，填报天数后置并标注为提示 —— 不让它看起来像权重
+        m = ('咨询 %d · 接触 %d　填报 %d 天（提示）' % (q, c, d)) if kind == 'advice' \
+            else ('填报 %d 天 · 接触 %d · 咨询 %d' % (d, c, q))
         if prev is not None:
             pc, pq, _, pd = _psy_vals(prev, prev_days or {}, nm)
             pv = pq if kind == 'advice' else pd
-            m += ('　上周 %d' % pv) if pv else '　上周无'
+            if kind == 'advice':
+                m += ('　上周 %d' % pv) if pv else '　上周无'
+            else:
+                m += ('　上周填报 %d 天' % pv) if pv else '　上周无'
         out.append({'name': nm, 'metric': m, 'score': sc})
-    out.sort(key=lambda r: (r.get('missing', False), -r['score']))
+    if kind != 'days':
+        # 不排名组按名册顺序列出，避免"按天数列序"再次变成隐形排名
+        out.sort(key=lambda r: (r.get('missing', False), -r['score']))
     return out
 
 
@@ -247,7 +267,8 @@ def build_psych(lo, hi, plo, phi):
             if not (c or q or d):
                 out.append({'name': nm, 'metric': '本周未填报', 'score': 0, 'missing': True})
                 continue
-            m = '%d 天填报 · 接触 %d · 咨询 %d' % (d, c, q)
+            # 业务量前置，填报天数只作提示
+            m = '接触 %d · 咨询 %d　填报 %d 天（提示）' % (c, q, d)
             if prev is not None:
                 pc, _, _, _ = stat(prev, prev_days or {}, nm)
                 m += ('　上周接触 %d' % pc) if pc else '　上周无'
@@ -275,9 +296,13 @@ def build_psych(lo, hi, plo, phi):
                  '接触看投入面，咨询看实际完成量，两者不合并成总分。'
                  % (tc['advice'], tp['advice'], ('%+.1f%%' % d_advice) if d_advice is not None else '—'),
          'rows': _rows_by(cur_a, cur_d, pre_a, pre_d, 'advice')},
-        {'title': '③ 填报天数与质量（本周 %s）' % _rng(lo, hi),
-         'note': '日报填报天数反映过程管理质量。<b>本周未填报：%s</b>。填报天数少不等于工作量低，'
-                 '需结合日均看。' % ('、'.join(not_filled) if not_filled else '无'),
+        {'title': '③ 填报完整性核查（不计分 · 不排名）',
+         'rankless': True,
+         'note': '本组只核对日报是否齐、能不能作可比口径，<b>不产生名次</b>：填报天数不计入任何分值，'
+                 '也不参与排序与并列判定，因此本组<b>不按天数列序</b>（按名册顺序列出）。'
+                 '<b>本周未填报：%s</b>，需先确认为休假还是漏报。'
+                 '要看业务量请看 ① 患者接触 与 ② 咨询工作量，两者与填报天数无关。'
+                 % ('、'.join(not_filled) if not_filled else '无'),
          'rows': _rows_by(cur_a, cur_d, pre_a, pre_d, 'days')},
         {'title': '④ 团体治疗带领（本周 %s · 心理科来访数量「团体治疗登记」）' % _rng(lo, hi),
          'note': '按主带人归集。本周 2 场：9.21 团体（冯浩鹏主 / 蔡宜蓉副，1 人）、'
@@ -297,6 +322,7 @@ def build_psych(lo, hi, plo, phi):
 
 
 def _rate_rows(agg, prev):
+    """按率值降序 —— 不按转住院人数排，否则对接条数多的人天然靠前，等于用条数当率值"""
     out = []
     for nm in wr.GJ_SHEETS.values():
         c = agg.get(nm) or {}
@@ -305,14 +331,15 @@ def _rate_rows(agg, prev):
             out.append({'name': _short(nm), 'metric': '本周无新增对接记录', 'score': 0, 'missing': True})
             continue
         zi = c.get('住院', 0)
-        m = '转住院 %d / 对接 %d = %.1f%%' % (zi, n, pct(zi, n))
+        rate = pct(zi, n)
+        m = '%.1f%% · 转住院 %d / 对接 %d' % (rate, zi, n)
         if prev is not None:
             pc = prev.get(nm) or {}
             if pc.get('对接', 0):
                 m += '　上周 %.1f%%' % pct(pc.get('住院', 0), pc['对接'])
             else:
                 m += '　上周无'
-        out.append({'name': _short(nm), 'metric': m, 'score': zi})
+        out.append({'name': _short(nm), 'metric': m, 'score': rate})
     out.sort(key=lambda r: (r.get('missing', False), -r['score']))
     return out
 
@@ -354,8 +381,10 @@ def build_gj(lo, hi, plo, phi):
                  % (tn, tz, pct(tz, tn), _rng(plo, phi), pn, pz, pct(pz, pn),
                     ('%+.1f%%' % r1(pct(tn - pn, pn))) if pn else '—'),
          'rows': rows_of(cur, pre)},
-        {'title': '② 管家转住院率排名（本周 %s）' % _rng(lo, hi),
-         'note': '率值 = 转住院人数 ÷ 有效对接条数。本周全组 <b>%.1f%%</b>（上周 %.1f%%）。'
+        {'title': '② 管家转住院率排名（本周 %s · 按率值）' % _rng(lo, hi),
+         'scoreLabel': '率值',
+         'note': '率值 = 转住院人数 ÷ 有效对接条数。本组<b>按率值降序</b>——原先按转住院人数排，'
+                 '对接条数多的人天然靠前，等于用条数当率值。本周全组 <b>%.1f%%</b>（上周 %.1f%%）。'
                  '⚠ 个人分母仅十余条，增加 1 人即可波动 5—8 个百分点，<b>只作趋势参考，不作绩效排序</b>。'
                  % (pct(tz, tn), pct(pz, pn)),
          'rows': _rate_rows(cur, pre)},

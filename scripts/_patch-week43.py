@@ -106,7 +106,11 @@ def esc(t):
 
 
 def js_rows(groups):
-    """把生成器的 rankGroups 转成看板用的 JS 字面量"""
+    """把生成器的 rankGroups 转成看板用的 JS 字面量
+
+    透传 rankless / scoreLabel：rankless 组（如心理「填报完整性核查」）不计分不排名，
+    scoreLabel 用于把分值单位写清楚（如「日均分」「率值」）。
+    """
     out = []
     for g in groups:
         rows = ','.join(
@@ -114,7 +118,12 @@ def js_rows(groups):
                 esc(r['name']), esc(r['metric']),
                 (",score:'%s'" % esc(r.get('score'))) if not r.get('missing') else ",missing:true")
             for r in g['rows'])
-        out.append("{title:'%s',note:'%s',rows:[%s]}" % (esc(g['title']), esc(g['note']), rows))
+        extra = ''
+        if g.get('rankless'):
+            extra += ',rankless:true'
+        if g.get('scoreLabel'):
+            extra += ",scoreLabel:'%s'" % esc(g['scoreLabel'])
+        out.append("{title:'%s',note:'%s'%s,rows:[%s]}" % (esc(g['title']), esc(g['note']), extra, rows))
     return '[' + ','.join(out) + ']'
 
 
