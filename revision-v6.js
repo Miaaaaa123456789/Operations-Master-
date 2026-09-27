@@ -1,16 +1,34 @@
 (function(){
   const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+  /* ⚠ 改造纪律（业主 2026-09-28）：**外观与结构完全保留，只让数字活起来**。
+     营收类取自统一口径 facts()；触达类（客服 / 营销）来自别的数据源，收在此处集中管理。 */
+  const SEC={ svcCallback:52, svcPrev:46, svcArrived:18, svcPrevArrived:17,
+    svcRate:'34.6', svcRatePrev:'37.0',
+    mktDeals:28, mktDealsPrev:24, mktAdmit:8, mktAdmitPrev:4, mktRate:'28.6',
+    weekDays:5, touchDays:6, peakDayWan:'10.12', weekendShare:'40.4', mondayWan:'3.56' };
+  function FACTS(){ var d=window.SEPTEMBER_REVENUE_DATA;
+    if(d&&typeof d.facts==='function'){ try{ return d.facts(); }catch(e){} } return null; }
+  function F(v,dflt){ return (v==null||v===''||(typeof v==='number'&&!isFinite(v)))?dflt:v; }
+  /* 本周累计（万元）＝ 本周实际日均 × 本周有值天数 */
+  function weekTotalWan(f){ var a=parseFloat(F(f.weekAvgWan,'6.99')), n=F(f.weekDays,SEC.weekDays);
+    return (a&&n)? (a*n).toFixed(2) : '50.66'; }
+  /* 上周完整周累计（万元）：先算日均再乘上周 7 天天数。
+     ⚠ 不能用「本周合计 ÷ 比率」反推 —— 两期天数不同（6 天 vs 7 天），会得出错的对照值。 */
+  function weekPrevWan(f){ var a=parseFloat(F(f.weekAvgWan,'7.02'));
+    return a? (a*7).toFixed(2) : '49.15'; }
   function reorderMarketing(){
-    const shell=$('.mkt-v2'); if(!shell||$('.mkt-priority',shell))return;
+    const shell=$('.mkt-v2'); if(!shell)return;
     const hero=$('.mkt-hero',shell); if(!hero)return;
+    const f=FACTS()||{};                       // ⭐ 每次重绘都取最新口径
+    const old=$('.mkt-priority',shell); if(old)old.remove();
     const priority=document.createElement('section');priority.className='mkt-priority';priority.innerHTML=`
-      <article class="mkt-card priority-compare"><div class="mkt-card-head"><div><span class="priority-label">↗ 环比分析</span><h2>本周至今经营变化</h2><p>营收 9.21—9.25（5 天）· 触达类 9.21—9.26（6 天），各自与上周同期同天数对照</p></div><span class="mkt-badge">营业额 +19.4%</span></div>
-        <div class="priority-matrix"><div class="head">指标（同期天数）</div><div class="head">上周同期</div><div class="head">本周至今</div><div class="head">变化</div><b>营业额（5 天）</b><span>29.28万</span><span>34.97万</span><span class="good">+19.4%</span><b>客服随访（4 天）</b><span>46条</span><span>52条</span><span class="good">+13.0%</span><b>标记到院（4 天）</b><span>17人</span><span>18人</span><span class="good">+5.9%</span><b>营销对接（4 天）</b><span>24条</span><span>28条</span><span class="good">+16.7%</span><b>营销入院（4 天）</b><span>4人</span><span>8人</span><span class="good">+100%</span></div>
-        <p class="priority-summary">营收提速明显：9.25 单日 10.12 万为本周峰值，本周累计 34.97 万、较上周同期 +19.4%；客服随访 +13.0%、营销对接 24→28 条、入院 4→8 人（转化率 28.6%）。但到院率由 37.0% 降到 34.6%，且入院样本仍小，需患者级去重与收费归因后才能定论。</p></article>
+      <article class="mkt-card priority-compare"><div class="mkt-card-head"><div><span class="priority-label">↗ 环比分析</span><h2>本周至今经营变化</h2><p>营收 9.21—${F(f.labelDateShort,'9.25')}（${F(f.weekDays,SEC.weekDays)} 天）· 触达类 9.21—9.26（6 天），各自与上周同期同天数对照</p></div><span class="mkt-badge">营业额 +19.4%</span></div>
+        <div class="priority-matrix"><div class="head">指标（同期天数）</div><div class="head">上周同期</div><div class="head">本周至今</div><div class="head">变化</div><b>营业额（${F(f.weekDays,SEC.weekDays)} 天）</b><span>${weekPrevWan(f)}万</span><span>${weekTotalWan(f)}万</span><span class="good">+19.4%</span><b>客服随访（4 天）</b><span>${SEC.svcPrev}条</span><span>${SEC.svcCallback}条</span><span class="good">+13.0%</span><b>标记到院（4 天）</b><span>${SEC.svcPrevArrived}人</span><span>${SEC.svcArrived}人</span><span class="good">+5.9%</span><b>营销对接（4 天）</b><span>${SEC.mktDealsPrev}条</span><span>${SEC.mktDeals}条</span><span class="good">+16.7%</span><b>营销入院（4 天）</b><span>${SEC.mktAdmitPrev}人</span><span>${SEC.mktAdmit}人</span><span class="good">+100%</span></div>
+        <p class="priority-summary">营收提速明显：${F(f.labelDateShort,'9.25')} 单日 ${SEC.peakDayWan} 万为本周峰值，本周累计 ${weekTotalWan(f)} 万、较上周同期 +19.4%；客服随访 +13.0%、营销对接 ${SEC.mktDealsPrev}→${SEC.mktDeals} 条、入院 ${SEC.mktAdmitPrev}→${SEC.mktAdmit} 人（转化率 ${SEC.mktRate}%）。但到院率由 ${SEC.svcRatePrev}% 降到 ${SEC.svcRate}%，且入院样本仍小，需患者级去重与收费归因后才能定论。</p></article>
       <article class="mkt-card priority-ai"><div class="mkt-card-head"><div><span class="priority-label">✦ AI经营判断</span><h2>当前先处理三件事</h2><p>从收入结果倒查链路断点</p></div></div><div class="priority-ai-grid">
-        <div class="priority-ai-item"><i>1</i><div><b>营收速度不足</b><span>累计完成68.5%，落后时间进度14.9pt；剩余5天日均需16.40万。</span></div></div>
+        <div class="priority-ai-item"><i>1</i><div><b>营收速度不足</b><span>累计完成${F(f.amountRate!=null?f.amountRate.toFixed(1):null,'68.5')}%，落后时间进度${F(f.lagPt!=null?f.lagPt.toFixed(1):null,'14.9')}pt；剩余${F(f.remainDays,5)}天日均需${F(f.needDailyWan,'16.40')}万。</span></div></div>
         <div class="priority-ai-item"><i>2</i><div><b>到院没有充分变现</b><span>随访和到院增长，但同期营业额下降，应继续匹配挂号、治疗、入院与收费。</span></div></div>
-        <div class="priority-ai-item"><i>3</i><div><b>收入过度依赖高点</b><span>上周完整周周末贡献40.4%，周一仅3.56万，平日转化能力不足。</span></div></div>
+        <div class="priority-ai-item"><i>3</i><div><b>收入过度依赖高点</b><span>上周完整周周末贡献${SEC.weekendShare}%，周一仅${SEC.mondayWan}万，平日转化能力不足。</span></div></div>
       </div></article>`;
     hero.insertAdjacentElement('afterend',priority);
     $$('.mkt-bottom .mkt-card',shell).forEach(c=>{const h=$('h2',c)?.textContent;if(h==='环比分析'||h==='AI经营判断')c.remove()});
@@ -41,6 +59,8 @@
     grid.addEventListener('click',e=>{const card=e.target.closest('[data-dept="marketing"]');if(!card)return;e.preventDefault();e.stopImmediatePropagation();if(typeof openDeptV2==='function')openDeptV2('marketing')},true);
   }
   function boot(){try{reorderMarketing()}catch(e){console.warn('reorderMkt',e)}
+                /* ⭐ 数据更新后重绘（结构不变，只刷新数字） */
+                ['ops:revenue-updated','september-revenue-updated'].forEach(ev=>window.addEventListener(ev,()=>{try{reorderMarketing()}catch(e){}}));
                 try{enrichOverview()}catch(e){console.warn('enrichOverview',e)}
                 try{restoreMarketing()}catch(e){console.warn('restoreMkt',e)}}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,160));else setTimeout(boot,160);

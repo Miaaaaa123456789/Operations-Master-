@@ -133,6 +133,56 @@
     };
   }
 
+  /* ⭐ 统一「经营口径」对象 —— 全站文案取数的**唯一入口**。
+     为什么要它：此前 9 个模块各自硬编码「剩余 5 天 / 需 82.00 万 / 落后 14.9pt」，
+     口径一改就要满页找数字，且极易改漏（本轮实测漏过 3 轮）。
+     现在所有会变的数字都从这里取；数据一变，全站文案跟着变。
+     ⚠ 口径约定（业主 2026-09-28 定）：
+       · 「剩余 X 天」按**数据最新日**算（不是按今天）——
+         这样与「数据更新至」时间戳同源，不会出现「时间戳跳了、天数没跳」。
+       · 时间进度 = 数据最新日 ÷ 当月天数（与营收进度同源比较）。
+       · 负数一律用 U+2212「−」而非 ASCII「-」。 */
+  function buildFacts() {
+    var m = summarize(data.rows);
+    var last = data.rows.length ? data.rows[data.rows.length - 1].date : '';
+    var y = +last.slice(0, 4), mo = +last.slice(5, 7), day = +last.slice(8);
+    var monthDays = (last ? new Date(y, mo, 0).getDate() : 30);
+    var used = last ? day : 0;
+    var remainDays = Math.max(0, monthDays - used);
+    var remain = Math.max(0, GOAL - m.total);
+    var needDaily = remainDays ? remain / remainDays : 0;
+    var timeRate = monthDays ? used / monthDays * 100 : 0;
+    var amountRate = m.total / GOAL * 100;
+    var sgn = function (v, d) { d = d == null ? 1 : d; return (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(d); };
+    var wan = function (yuan, d) { return (yuan / 10000).toFixed(d == null ? 2 : d); };
+    /* 本周已发生的日均（用有值的实际天数，不用自然天数，避免"待补"拉低均值） */
+    var cw = summarize(subset(W4[0], W4[1]));
+    var cwAvg = cw.days ? cw.total / cw.days : 0;
+    return {
+      lastDate: last,                              // '2026-09-25'
+      monthDays: monthDays, usedDays: used, remainDays: remainDays,
+      total: m.total, totalWan: wan(m.total),      // '178.00'
+      goalWan: GOAL / 10000,                       // 260
+      remainWan: wan(remain),                      // '82.00'
+      needDailyWan: wan(needDaily),                // '16.40'
+      mtdAvgWan: wan(m.average),                   // 当月日均
+      weekAvgWan: wan(cwAvg),                      // 本周实际日均
+      gapDailyWan: wan(Math.max(0, needDaily - m.average)),
+      timeRate: timeRate, amountRate: amountRate,
+      lagPt: timeRate - amountRate,                // 落后百分点（正数=落后）
+      forecastWan: wan(m.total + m.average * remainDays),
+      forecastGapWan: wan(Math.max(0, GOAL - (m.total + m.average * remainDays))),
+      days: m.days, weekDays: cw.days,
+      /* 统一格式化的字符串，模块直接用，避免各处再拼 */
+      labelDate: last ? (y + '年' + mo + '月' + day + '日') : '—',
+      labelDateShort: last ? (mo + '.' + day) : '—',
+      labelMonth: last ? (y + '年' + mo + '月') : '—',
+      sgn: sgn
+    };
+  }
+  var FACTS = null;
+  function facts() { if (!FACTS) FACTS = buildFacts(); return FACTS; }
+
   function refresh() {
     data.rows = buildRows();
     var last = data.rows[data.rows.length - 1];
@@ -140,11 +190,16 @@
     data.updatedAt = last
       ? (last.date.slice(0, 4) + '年' + (+last.date.slice(5, 7)) + '月' + (+last.date.slice(8)) + '日 23:59')
       : '—';
+    FACTS = null;          // 数据变了 → 口径缓存失效，下次取用时重算
+    /* ⚠ 不要把 data.facts 覆盖成对象：data.facts 必须始终是**函数**，
+       否则各模块调用 data.facts() 会抛错（此前 refresh 每次写入都会把它换成对象）。 */
+    data.factsCache = facts();
   }
 
   refresh();
   data.subset = subset;
   data.lastWard = lastWard;
+  data.facts = facts;          // ⭐ 全站统一口径：data.facts() 取最新值
   data.summarize = summarize;
   data.derive = derive;
   window.SEPTEMBER_REVENUE_DATA = data;

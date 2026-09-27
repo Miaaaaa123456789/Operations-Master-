@@ -1,39 +1,52 @@
 (function(){
   'use strict';
 
+  /* ⚠ 改造纪律（业主 2026-09-28）：**外观与结构完全保留，只让数字活起来**。
+     本模块已监听 september-revenue-updated，但模板里仍有写死的文案数字，此处统一接上口径。 */
+  function MDF(){ var d=window.SEPTEMBER_REVENUE_DATA;
+    if(d&&typeof d.facts==='function'){ try{ return d.facts(); }catch(e){} } return null; }
+  function MDFv(v,dflt){ return (v==null||v===''||(typeof v==='number'&&!isFinite(v)))?dflt:v; }
+  function MDFt(){ var f=MDF()||{}; return {
+    date: MDFv(f.labelDateShort,'9.26'), dateCN: MDFv(f.labelDate,'9月26日'),
+    remain: MDFv(f.remainDays,4), total: MDFv(f.totalWan,'193.69'),
+    amt: (f.amountRate!=null?f.amountRate.toFixed(1):'74.5'),
+    tim: (f.timeRate!=null?f.timeRate.toFixed(1):'86.7'),
+    need: MDFv(f.needDailyWan,'16.58'), remainWan: MDFv(f.remainWan,'66.31'),
+    avg: MDFv(f.mtdAvgWan,'7.45')
+  }; }
   var WEEK='本周（9.21—9.27）';
   var baseData={
-    meta:{range:'9月1日—9月27日（报告期）',updated:'数据截至 2026年9月25日 23:59'},
+    meta:{range:'9月1日—9月27日（报告期）',updated:'数据截至 2026年9月26日 23:59'},
     kpis:[
-      {label:'9月累计营业额',value:'178.00',unit:'万元',note:'截至 9.25 · 完成目标 68.5%'},
-      {label:WEEK+'营业额',value:'34.97',unit:'万元',note:'截至 9.25 · 日均 6.99 万'},
-      {label:'在院人数',value:'31',unit:'人',note:'9.25 日终时点'},
-      {label:WEEK+'入院',value:'13',unit:'人',note:'9.21—9.25 已发生'},
-      {label:WEEK+'出院',value:'9',unit:'人',note:'初次 8＋多次 1'},
-      {label:'物理治疗',value:'459',unit:'人次',note:'上周完整周'}
+      {label:'9月累计营业额',value:'193.69',unit:'万元',note:'截至 9.26 · 完成目标 74.5%'},
+      {label:WEEK+'营业额',value:'50.66',unit:'万元',note:'截至 9.26 · 日均 8.44 万'},
+      {label:'在院人数',value:'34',unit:'人',note:'9.26 日终时点'},
+      {label:WEEK+'入院',value:'17',unit:'人',note:'9.21—9.26 已发生'},
+      {label:WEEK+'出院',value:'10',unit:'人',note:'初次 9＋多次 1'},
+      {label:'物理治疗',value:'582',unit:'人次',note:'9.20—9.26 项目口径'}
     ],
-    target:{actual:178.00,goal:260,amountRate:68.5,timeRate:83.3,gap:14.9,days:5,remaining:82.00,requiredDaily:16.40,currentDaily:6.99,dailyGap:9.41},
+    target:{actual:193.69,goal:260,amountRate:74.5,timeRate:86.7,gap:12.2,days:4,remaining:66.31,requiredDaily:16.58,currentDaily:8.44,dailyGap:8.14},
     alerts:[
-      {tone:'red',icon:'↘',tag:'高风险',title:'营收速度不足',copy:'截至9月25日时间进度83.3%，金额完成68.5%，剩余5天日均需16.40万元。'},
-      {tone:'orange',icon:'↗',tag:'改善信号',title:'营业额连续5日上升',copy:'从9月21日5.33万元升至9月25日10.12万元，但仍低于达标所需日均。'},
-      {tone:'purple',icon:'＋',tag:'患者池增长',title:'本周净增4人',copy:'入院13人、出院9人，9月25日日终在院31人。'},
-      {tone:'blue',icon:'…',tag:'数据待补',title:'周末两天尚未更新',copy:'9月26—27日显示待更新，不以0计入营业额或患者流动。'}
+      {tone:'red',icon:'↘',tag:'高风险',title:'营收速度不足',copy:'截至'+MDFt().dateCN+'时间进度'+MDFt().tim+'%，金额完成'+MDFt().amt+'%，剩余'+MDFt().remain+'天日均需'+MDFt().need+'万元。'},
+      {tone:'orange',icon:'↗',tag:'改善信号',title:'营业额连续5日上升',copy:'从9月21日5.33万元升至9月26日15.69万元，但仍低于达标所需日均。'},
+      {tone:'purple',icon:'＋',tag:'患者池增长',title:'本周净增7人',copy:'入院17人、出院10人，9月26日日终在院34人。'},
+      {tone:'blue',icon:'…',tag:'数据待补',title:'9月27日尚未更新',copy:'9月27日显示待更新，不以 0 计入营业额或患者流动。'}
     ],
     daily:[
-      {d:'9.21',v:5.329033},{d:'9.22',v:5.530381},{d:'9.23',v:6.245896},{d:'9.24',v:7.746587},{d:'9.25',v:10.118749},{d:'9.26',v:null},{d:'9.27',v:null}
+      {d:'9.21',v:5.329033},{d:'9.22',v:5.530381},{d:'9.23',v:6.245896},{d:'9.24',v:7.746587},{d:'9.25',v:10.118749},{d:'9.26',v:15.687707},{d:'9.27',v:null}
     ],
     weeks:[
-      {label:'9.1—9.6',value:37.88},{label:'9.7—9.13',value:56.00},{label:'9.14—9.20',value:49.15},{label:'9.21—9.27',value:34.97,current:true}
+      {label:'9.1—9.6',value:37.88},{label:'9.7—9.13',value:56.00},{label:'9.14—9.20',value:49.15},{label:'9.21—9.27',value:50.66,current:true}
     ],
     funnel:[
-      {label:'门诊',value:'141人次'},{label:'入院',value:'13人'},{label:'出院',value:'9人'},{label:'在院',value:'31人'}
+      {label:'门诊',value:'209人次'},{label:'入院',value:'17人'},{label:'出院',value:'10人'},{label:'在院',value:'34人'}
     ],
     departments:[
-      {key:'doctor',cls:'doctor',icon:'医',name:'医生组',desc:'住院规模与管床贡献',metric:'31 人',note:'在院 · 9.25 时点',foot:'本周入院 13 · 出院 9'},
+      {key:'doctor',cls:'doctor',icon:'医',name:'医生组',desc:'住院规模与管床贡献',metric:'34 人',note:'在院 · 9.26 时点',foot:'本周入院 17 · 出院 10'},
       {key:'nursing',cls:'nursing',icon:'护',name:'护理组',desc:'治疗执行与服务兑现',metric:'94.1%',note:'物理治疗完成率（项目口径）',foot:'应做 488 · 未做 29'},
       {key:'psychology',cls:'psychology',icon:'心',name:'心理咨询组',desc:'咨询承接与收入结构',metric:'47 人次',note:WEEK+'患者接触',foot:'上周同期 37（+27.0%）'},
       {key:'service',cls:'service',icon:'客',name:'客服服务部',desc:'随访、到院及付费跟踪',metric:'52 条',note:WEEK+'回访台账',foot:'到院 18 · 34.6%'},
-      {key:'marketing',cls:'marketing',icon:'营',name:'营销组',desc:'管家、工娱与渠道归集',metric:'34.97万',note:WEEK+'营业额',foot:'入院 13 · 出院 9'}
+      {key:'marketing',cls:'marketing',icon:'营',name:'营销组',desc:'管家、工娱与渠道归集',metric:'50.66万',note:WEEK+'营业额',foot:'入院 17 · 出院 10'}
     ],
     ranks:{
       doctor:[['康言','医生组','出院费用 19.64 万（8 人次）','出院结帐明细 9.1—9.24','动态试算'],['王建宁','医生组','出院费用 15.98 万（9 人次）','出院结帐明细 9.1—9.24','动态试算'],['曾凯','医生组','出院费用 15.84 万（11 人次，人次第 1）','出院结帐明细 9.1—9.24','动态试算'],['王建','医生组','出院费用 12.74 万（7 人次）','出院结帐明细 9.1—9.24','动态试算'],['赵郁莹','医生组','出院费用 11.17 万（6 人次）','出院结帐明细 9.1—9.24','动态试算']],
@@ -125,8 +138,8 @@
       '<section class="md-alerts" aria-label="重点经营问题">'+alerts()+'</section>'+
       '<div class="md-section-head"><div><h2>营业与转化分析</h2><p>从逐日收入、周度趋势到跨部门服务兑现</p></div><button class="md-more" data-md-panel="analysis" type="button">查看完整分析</button></div>'+
       '<section class="md-analysis-grid">'+
-        '<article class="md-card md-chart-card md-click" tabindex="0" role="button" data-md-panel="daily"><header class="md-chart-top"><div><h3>'+WEEK+'逐日营业额</h3><p>单位：万元 · 截至 '+(lastDateMd()||'—')+'，本周剩余天数待更新</p></div><span class="md-chart-badge">日均 6.99 万</span></header><div class="md-bars">'+bars()+'</div><p class="md-chart-note">截至9月25日累计34.97万元；9月25日单日10.12万元，为本周当前高点。</p></article>'+
-        '<div class="md-side-stack"><article class="md-card md-week-card md-click" tabindex="0" role="button" data-md-panel="weeks"><header class="md-card-title"><div><h3>9月四周营业对比</h3><p>'+WEEK+'为进行中数据</p></div><b style="color:#15976c">月累计 178.00 万</b></header><div class="md-week-list">'+weeks()+'</div></article><article class="md-card md-funnel md-click" tabindex="0" role="button" data-md-panel="funnel"><header class="md-card-title"><div><h3>'+WEEK+'经营流量</h3><p>门诊、入院、出院为同期数量，不直接计算转化率</p></div><span class="md-severity" style="color:#d57e1c">截至9.25</span></header><div class="md-funnel-steps">'+funnel()+'</div><p class="md-funnel-foot">本周入院13人、出院9人，患者池净增4人；9月25日日终在院31人。</p></article></div>'+
+        '<article class="md-card md-chart-card md-click" tabindex="0" role="button" data-md-panel="daily"><header class="md-chart-top"><div><h3>'+WEEK+'逐日营业额</h3><p>单位：万元 · 截至 '+(lastDateMd()||'—')+'，本周剩余天数待更新</p></div><span class="md-chart-badge">日均 '+MDFt().avg+' 万</span></header><div class="md-bars">'+bars()+'</div><p class="md-chart-note">截至'+MDFt().dateCN+'累计'+MDFt().total+'万元；本周期内单日高点见柱状图。</p></article>'+
+        '<div class="md-side-stack"><article class="md-card md-week-card md-click" tabindex="0" role="button" data-md-panel="weeks"><header class="md-card-title"><div><h3>9月四周营业对比</h3><p>'+WEEK+'为进行中数据</p></div><b style="color:#15976c">月累计 '+MDFt().total+' 万</b></header><div class="md-week-list">'+weeks()+'</div></article><article class="md-card md-funnel md-click" tabindex="0" role="button" data-md-panel="funnel"><header class="md-card-title"><div><h3>'+WEEK+'经营流量</h3><p>门诊、入院、出院为同期数量，不直接计算转化率</p></div><span class="md-severity" style="color:#d57e1c">截至'+MDFt().date+'</span></header><div class="md-funnel-steps">'+funnel()+'</div><p class="md-funnel-foot">本周入院17人、出院10人，患者池净增7人；9月26日日终在院34人。</p></article></div>'+
       '</section>'+
       '<div class="md-section-head"><div><h2>部门经营</h2><p>点击任一部门，查看完整数据、趋势、排名与行动建议</p></div></div><section class="md-departments">'+departments()+'</section>'+
       '<div class="md-section-head"><div><h2>月累计动态排名</h2><p>新数据进入后自动重算；月末核验后才形成正式排名</p></div><button class="md-more" data-md-panel="rankrule" type="button">查看排名规则</button></div>'+
@@ -138,8 +151,8 @@
   function drawerMarkup(){return '<div class="md-drawer-backdrop" id="mdDrawerBackdrop"></div><aside class="md-drawer" id="mdDrawer" role="dialog" aria-modal="true" aria-labelledby="mdDrawerTitle"><header class="md-drawer-head"><div><h2 id="mdDrawerTitle">经营详情</h2><p id="mdDrawerSub">'+data.meta.updated+'</p></div><button class="md-drawer-close" type="button" aria-label="关闭">×</button></header><div class="md-drawer-body" id="mdDrawerBody"></div></aside><button class="md-fab-update" id="mdUpdateButton" type="button">＋ 更新数据</button>';}
   function detail(type){
     if(type==='target')return ['9月营收目标与预测','<div class="md-detail-grid"><div class="md-detail-kpi"><span>累计营业额</span><b>'+data.target.actual+' 万</b></div><div class="md-detail-kpi"><span>目标完成</span><b>'+data.target.amountRate+'%</b></div><div class="md-detail-kpi"><span>剩余金额</span><b>'+data.target.remaining+' 万</b></div><div class="md-detail-kpi"><span>所需日均</span><b>'+data.target.requiredDaily+' 万</b></div></div><h3>经营判断</h3><p>金额进度落后时间进度 '+data.target.gap+' 个百分点。后续即使恢复上周日均，也难以自然完成目标，需要明确新增收入来源与患者转化动作。</p>'];
-    if(type==='daily'||type==='weeks'||type==='analysis')return ['营业趋势分析','<div class="md-detail-list"><div><b>月度进度：</b>截至9月25日累计177.997848万元，完成260万元目标的68.5%。</div><div><b>'+WEEK+'：</b>截至9月25日34.97万元，日均6.99万元。</div><div><b>收入结构：</b>门诊18.13万元、住院16.84万元，分别占51.8%与48.2%。</div><div><b>行动：</b>9月剩余5天仍需82.00万元，日均需16.40万元。</div></div>'];
-    if(type==='funnel')return [WEEK+'经营流量','<div class="md-detail-list"><div><b>门诊：</b>截至9月25日初诊20人次、复诊121人次，合计141人次。</div><div><b>住院流入：</b>本周入院13人。</div><div><b>住院流出：</b>出院初次8人、出院多次1人，合计9人。</div><div><b>患者池：</b>本周净增4人，9月25日日终在院31人。门诊与入院不是患者级匹配数据，不计算门诊转入院率。</div></div>'];
+    if(type==='daily'||type==='weeks'||type==='analysis')return ['营业趋势分析','<div class="md-detail-list"><div><b>月度进度：</b>截至'+MDFt().dateCN+'累计'+MDFt().total+'万元，完成260万元目标的'+MDFt().amt+'%。</div><div><b>'+WEEK+'：</b>日均'+MDFt().avg+'万元。</div><div><b>收入结构：</b>门诊与住院两端拆分见下方结构图。</div><div><b>行动：</b>9月剩余'+MDFt().remain+'天仍需'+MDFt().remainWan+'万元，日均需'+MDFt().need+'万元。</div></div>'];
+    if(type==='funnel')return [WEEK+'经营流量','<div class="md-detail-list"><div><b>门诊：</b>截至9月26日初诊25人次、复诊184人次，合计209人次。</div><div><b>住院流入：</b>本周入院17人。</div><div><b>住院流出：</b>出院初次9人、出院多次1人，合计10人。</div><div><b>患者池：</b>本周净增7人，9月26日日终在院34人。门诊与入院不是患者级匹配数据，不计算门诊转入院率。</div></div>'];
     if(type==='rankrule'||type==='governance')return ['排名数据治理决策','<div class="md-detail-list"><div><b>月内：</b>每月 1 日重置，新数据通过核验后自动重算，名次仅作动态试算。</div><div><b>准入：</b>完整率 ≥95%、按时率 ≥90%、关键冲突率 ≤2%，否则不进入正式榜。</div><div><b>缺失：</b>未填显示“待补”，冲突显示“待核”，不按 0 分处理。</div><div><b>月末：</b>次月 1 日复核，次月 2 日 12:00 锁定；更正必须留痕并保留原快照。</div></div><button class="md-drawer-action" type="button" onclick="document.getElementById(\'rankGovernance\')?.scrollIntoView()">查看完整治理规则</button>'];
     if(type.indexOf('alert-')===0){var a=data.alerts[+type.split('-')[1]];return [a.title,'<div class="md-detail-kpi"><span>风险等级</span><b>'+esc(a.tag)+'</b></div><h3>问题判断</h3><p>'+esc(a.copy)+'</p><h3>建议动作</h3><div class="md-detail-list"><div>明确唯一数据源、负责人和更新时间。</div><div>把发现的问题转为可核验的患者级或业务级清单。</div><div>次日更新状态，完成后保留处理证据。</div></div>'];}
     if(type.indexOf('kpi-')===0){var k=data.kpis[+type.split('-')[1]];return [k.label,'<div class="md-detail-grid"><div class="md-detail-kpi"><span>当前数值</span><b>'+esc(k.value)+' '+esc(k.unit)+'</b></div><div class="md-detail-kpi"><span>统计说明</span><b style="font-size:13px">'+esc(k.note)+'</b></div></div><h3>更新规则</h3><p>此卡片由统一数据对象驱动；导入并核验新数据后，数值、图表和相关分析同步刷新。</p>'];}

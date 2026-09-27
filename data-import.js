@@ -16,11 +16,30 @@
 
   var MONTH_TARGET = 260;             // 9 月营收目标（万元）
   var MONTH_DAYS = 30;                // 9 月天数（时间进度分母）
-  var MONTH_FROM = '2026-09-01', MONTH_TO = '2026-09-30';
-  var WEEK_START = '2026-09-21', WEEK_END = '2026-09-27';   // 本周
-  var LW_START = '2026-09-14', LW_END = '2026-09-20';      // 上周完整周
-  var SOURCE_CUTOFF = '2026-09-26';   // 其他数据源（客服/心理/管家/团体）的共同截止日
-  var TODAY = '2026-09-26';           // 抓取日
+
+  /* ⭐ 写入数据后重算「数据窗口」。
+     为什么必须有这一步：上面那批常量是**求值一次就固定**的。用户在页面打开期间拖入
+     新一天的数据时，若不自增窗口，新数据会落在 [WEEK_START, WEEK_END] 之外，
+     面板仍然显示旧数字 → 用户再次误判为「没留存」。
+     这里把「本周 / 上周 / 当月 / 截止日」整体重新对齐到「包含最新数据的那一周」，
+     并向后延长区间以覆盖到最新数据日。窗口只会前进、不会回退。 */
+  function refreshWindow() {
+    var last = _probeLastDay(TODAY);
+    var a = new Date(+last.slice(0, 4), +last.slice(5, 7) - 1, +last.slice(8));
+    var mon = _monOf(a), sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6);
+    var lwm = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() - 7);
+    var lws = new Date(lwm.getFullYear(), lwm.getMonth(), lwm.getDate() + 6);
+    var ws = _d2s(mon), we = _d2s(sun);
+    if (ws > WEEK_START) {              // 只在数据推进到更晚的周时前移
+      WEEK_START = ws; WEEK_END = we;
+      LW_START = _d2s(lwm); LW_END = _d2s(lws);
+    }
+    if (last > WEEK_END) WEEK_END = last;   // 同一周内的新数据：把区间向右延到最新数据日
+    var mp = last.slice(0, 7) + '-01';
+    if (mp > MONTH_FROM) { MONTH_FROM = mp; MONTH_TO = _d2s(new Date(+last.slice(0, 4), +last.slice(5, 7), 0)); }
+    if (last > SOURCE_CUTOFF) SOURCE_CUTOFF = last;
+    return last;
+  }
   var DOW = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
   /* ============================ 种子数据 ============================
@@ -34,11 +53,11 @@
      ================================================================ */
   var SEED = {
     '2026-09-01': [8329.46, 13695.01, 4, 13, 28, 2, 0],
-    '2026-09-02': [16747.27, 62605.00, 3, 15, 27, 1, 2],
+    '2026-09-02': [16747.27, 62605.0, 3, 15, 27, 1, 2],
     '2026-09-03': [4710.35, 35411.99, 0, 14, 25, 0, 2],
-    '2026-09-04': [31464.50, 40703.93, 8, 24, 29, 6, 2],
-    '2026-09-05': [15041.96, 39769.70, 4, 30, 31, 2, 0],
-    '2026-09-06': [140116.70, 43682.69, 9, 92, 30, 3, 4],
+    '2026-09-04': [31464.5, 40703.93, 8, 24, 29, 6, 2],
+    '2026-09-05': [15041.96, 39769.7, 4, 30, 31, 2, 0],
+    '2026-09-06': [140116.7, 43682.69, 9, 92, 30, 3, 4],
     '2026-09-07': [20267.31, 39148.42, 3, 16, 30, 4, 4],
     '2026-09-08': [21632.61, 36448.39, 3, 20, 30, 1, 1],
     '2026-09-09': [17044.52, 41666.05, 3, 12, 29, 1, 2],
@@ -48,17 +67,65 @@
     '2026-09-13': [133002.16, 31013.81, 11, 108, 27, 4, 7],
     '2026-09-14': [20100.68, 15521.66, 3, 14, 24, 1, 4],
     '2026-09-15': [34846.27, 43388.86, 8, 10, 25, 1, 0],
-    '2026-09-16': [13958.85, 28288.75, 2, 13, 25, 1, 1],
+    '2026-09-16': [13958.85, 28288.75, 2, 13, 25, 0, 1],
     '2026-09-17': [34398.72, 28935.61, 7, 13, 26, 1, 0],
-    '2026-09-18': [40570.20, 32821.31, 3, 26, 25, 2, 3],
+    '2026-09-18': [40570.2, 32821.31, 3, 26, 25, 2, 3],
     '2026-09-19': [99908.85, 37754.86, 7, 79, 28, 5, 2],
     '2026-09-20': [27228.16, 33779.66, 6, 17, 27, 2, 3],
     '2026-09-21': [22568.92, 30721.41, 3, 17, 26, 1, 2],
     '2026-09-22': [25087.04, 30216.77, 6, 13, 26, 2, 2],
     '2026-09-23': [25904.97, 36553.99, 2, 7, 28, 3, 1],
     '2026-09-24': [38082.09, 39383.78, 6, 33, 30, 4, 2],
-    '2026-09-25': [69642.38, 31545.11, 3, 51, 31, 3, 2]
+    '2026-09-25': [69642.38, 31545.11, 3, 51, 31, 3, 2],
+    '2026-09-26': [111055.54, 45821.53, 5, 63, 34, 4, 1]
   };
+
+
+  /* ⚠ 周区间不再写死，改为**初始化时按真实日期推导**。
+     起因：原先 WEEK_START/WEEK_END/TODAY 都是固定字符串（9.21—9.27 / TODAY=9.26）。
+     过了这个区间之后，用户拖入 9.28、9.29 的日报时，数据其实**已经写进 localStorage**，
+     但落在 [WEEK_START, WEEK_END] 之外 → 小结与 Hero 的「本周」不含它 →
+     用户看到「图拖了、数字没变」= 误判为「数据没留存」。
+
+     ⚠ 关键设计选择：**「本周」以「已有数据的最后一天」所在周为准，而不是以当天为准。**
+     理由：营收日报/护理日报都是隔天甚至隔几天才补的，数据日很少正好等于当天。
+     若按当天算，今天（9.28，周一）的「本周」会变成 9.28—10.04，
+     反而让刚补进来的 9.27 落在区间外、又看不到 → 同一个错觉换个方向再犯一次。
+     所以：取 SEED 与覆盖层里最晚的那一天所在周；没有任何数据时才退回「当天所在周」。
+
+     字符串比较（YYYY-MM-DD）天然有序，既有逻辑不变；
+     MONTH_FROM/MONTH_TO 也按真实当月推导，避免跨月时把新月份数据当脏数据清掉。 */
+  function _d2s(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function _monOf(d) { var w = d.getDay(); return new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((w + 6) % 7)); }  // 所在周的周一
+  /* 探测数据最后一天：优先覆盖层，其次种子。读 localStorage 失败时安全退回当天。 */
+  function _probeLastDay(fallback) {
+    var best = null;
+    var probe = function (obj) {
+      if (!obj || typeof obj !== 'object') return;
+      for (var k in obj) {
+        if (!Object.prototype.hasOwnProperty.call(obj, k)) continue;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(k)) continue;
+        if (best === null || k > best) best = k;
+      }
+    };
+    try { probe(JSON.parse(localStorage.getItem(LS_DAILY) || 'null')); } catch (e) { }
+    try { probe(SEED); } catch (e) { }
+    return best || fallback;
+  }
+  var _now = new Date();
+  var _todayS = _d2s(_now);
+  var _anchorS = _probeLastDay(_todayS);          // 数据锚点日（本周归属以它为准）
+  var _anchor = new Date(+_anchorS.slice(0, 4), +_anchorS.slice(5, 7) - 1, +_anchorS.slice(8));
+  var _mon = _monOf(_anchor);                     // 锚点所在周的周一
+  var _sun = new Date(_mon.getFullYear(), _mon.getMonth(), _mon.getDate() + 6);
+  var _lwm = new Date(_mon.getFullYear(), _mon.getMonth(), _mon.getDate() - 7);
+  var _lws = new Date(_lwm.getFullYear(), _lwm.getMonth(), _lwm.getDate() + 6);
+  var MONTH_FROM = _d2s(new Date(_now.getFullYear(), _now.getMonth(), 1));
+  var MONTH_TO = _d2s(new Date(_now.getFullYear(), _now.getMonth() + 1, 0));  // 当月最后一天
+  var WEEK_START = _d2s(_mon), WEEK_END = _d2s(_sun);      // 本周（周一—周日）＝数据锚点所在周
+  var LW_START = _d2s(_lwm), LW_END = _d2s(_lws);          // 上周完整周
+  var TODAY = _todayS;                                     // 今日（真实当天）
+  var SOURCE_CUTOFF = TODAY;   // 其他数据源（客服/心理/管家/团体）的共同截止日
   /* 字段下标（供渲染与校验共用） */
   var F_OUT = 0, F_INP = 1, F_FIRST = 2, F_AGAIN = 3, F_INHOS = 4, F_ADMIT = 5, F_DISCH = 6;
 
@@ -71,6 +138,8 @@
   function dateObj(s) { var p = String(s).split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
   function shiftDay(s, n) { var d = dateObj(s); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); }
   function enumerate(a, b) { var out = [], c = a, guard = 0; while (c <= b && guard++ < 400) { out.push(c); c = shiftDay(c, 1); } return out; }
+  /* 取某月相对偏移后的「YYYY-MM」前缀（-1 = 上月，+1 = 下月），用于数据保留窗口 */
+  function shiftMonth(s, n) { var p = String(s).split('-'); var d = new Date(+p[0], (+p[1] - 1) + n, 1); return d.getFullYear() + '-' + p2(d.getMonth() + 1); }
   function dowOf(s) { return DOW[dateObj(s).getDay()]; }
   /* 编辑表里显示短日期（9.23），内部仍按标准日期处理；用户也可直接输入 9.23 */
   function shortDate(v) { var n = normDate(v); return n ? ((+n.slice(5, 7)) + '.' + (+n.slice(8))) : (v || ''); }
@@ -253,30 +322,75 @@
   function rowsFromTable(table) {
     if (!table || table.length < 2) return [];
     var hi = -1, i;
-    for (i = 0; i < Math.min(table.length, 8); i++) {
-      var j = table[i].join('|');
-      if (/日期|时间|date/i.test(j) && /门诊|在院|住院|合计|收入/.test(j)) { hi = i; break; }
+    /* ⚠ 表头行判定要防「说明句误判」：
+       业务表首行常有一段说明（如「环比：正数=收入增加…」），它含「收入」二字，
+       用 /日期/ + /收入/ 的宽松判定会把它当成表头 → 后续列映射全错。
+       判据收紧为：
+         ① 必须含日期关键词；
+         ② 必须含收入关键词；
+         ③ 该行**不含中文冒号/分号**（说明句特征：「环比：」「说明；」）；
+         ④ 表头行的「短单元格」占比要高（列名都是短词，说明句是长文本）。
+       先按收紧条件扫前 8 行；找不到再放宽（兼容极简两列表）。 */
+    var looksLikeNote = function (s) { return /[：；]/.test(s) || s.length > 120; };
+    var hasDate = function (s) { return /日期|时间|date/i.test(s); };
+    var hasMoney = function (s) { return /门诊|在院|住院|合计|收入/.test(s); };
+    for (i = 0; i < Math.min(table.length, 12); i++) {
+      var cells = table[i].map(function (c) { return String(c == null ? '' : c).trim(); });
+      var nonEmpty = cells.filter(function (c) { return c !== ''; });
+      if (!nonEmpty.length) continue;
+      var j = nonEmpty.join('|');
+      if (!hasDate(j) || !hasMoney(j)) continue;
+      if (looksLikeNote(j)) continue;                       // 说明句 → 不是表头
+      var shortRatio = nonEmpty.filter(function (c) { return c.length <= 8; }).length / nonEmpty.length;
+      if (shortRatio < 0.6 && nonEmpty.length > 3) continue; // 长文本为主 → 不是表头
+      hi = i; break;
+    }
+    if (hi < 0) {                                            // 放宽：只要求日期 + 收入
+      for (i = 0; i < Math.min(table.length, 8); i++) {
+        var j2 = table[i].join('|');
+        if (hasDate(j2) && hasMoney(j2) && !looksLikeNote(j2)) { hi = i; break; }
+      }
     }
     var col = { date: -1, out: -1, inp: -1, total: -1 };
+    /* ⚠ 列名匹配要比「先到先得」更聪明：
+       业务表里常见「门诊收入 / 门诊环比」「在院收入 / 在院环比」并列，
+       而「环比」列在「收入」列**之前**，用 /门诊/ 会先把环比列抢走。
+       故分两轮：第一轮只认「收入」类精确列名，第二轮才放宽。
+       同时显式排除「环比 / 占比 / 同比 / 差额 / 累计」等派生列。 */
     if (hi >= 0) {
-      table[hi].forEach(function (c, idx) {
-        var t = String(c).replace(/\s/g, '');
-        if (col.date < 0 && /日期|时间|date/i.test(t)) col.date = idx;
-        if (col.out < 0 && /门诊/.test(t)) col.out = idx;
-        if (col.inp < 0 && /(在院|住院)/.test(t)) col.inp = idx;
-        if (col.total < 0 && /(合计|总计|当日收入|营收合计)/.test(t)) col.total = idx;
-      });
+      var BAD = /环比|占比|同比|差额|校验|累计|增减|增幅|比率|百分比|人数|人次/;
+      var pick = function (re, key) {
+        if (col[key] >= 0) return;
+        table[hi].forEach(function (c, idx) {
+          if (col[key] >= 0) return;
+          var t = String(c).replace(/\s/g, '');
+          if (!t || BAD.test(t)) return;
+          if (re.test(t)) col[key] = idx;
+        });
+      };
+      /* 第一轮：精确列名 */
+      pick(/(门诊|门|outpatient).{0,4}收入|^门诊$/, 'out');
+      pick(/(在院|住院|病房).{0,4}收入|^在院$/, 'inp');
+      pick(/(当日|今日).{0,4}(收入)?合计|^合计$|^总计$|营业(收入)?合计/, 'total');
+      pick(/^(日期|时间|date|统计日期)$/i, 'date');
+      /* 第二轮：放宽，但仍排除派生列 */
+      pick(/门诊/, 'out');
+      pick(/(在院|住院)/, 'inp');
+      pick(/(合计|总计|当日收入|营收合计)/, 'total');
+      pick(/日期|时间|date/i, 'date');
     }
     if (col.date < 0) col.date = 0;
     /* ⚠ 兜底列映射会「猜列」：表头认不出营收关键词时，把第 2 列当门诊收入、第 3 列当在院收入。
        这会让「日期 + 应做/实做」「日期 + 各项考核分」这类**非营收表**（如护理日表、质控表）
        被静默写成营收覆盖层，污染 Hero 与财务模块，而且界面还报「成功」。
-       故加一道「表头不像营收日报就不猜列」的闸：认不出营收表头时，只有当该行**看不出是别的业务表**
-       才允许兜底；只要表头出现护理 / 质控 / 治疗 / 排名 / 考核 / 应做 / 实做 等字样，一律放弃解析。 */
+       故加一道「表头不像营收日报就不猜列」的闸：认不出营收表头时，
+       只有该行看不出是别的业务表才允许兜底。
+       ⚠ 注意这份黑名单只能放**明确与营收无关**的词；不要放「治疗 / 入院 / 出院 / 检查」这类
+       营收表本身也会出现的字段（否则会把正常营收表一起拦掉）。 */
     var headTxt = hi >= 0 ? table[hi].join('|') : table.slice(0, 8).map(function (r) { return r.join('|'); }).join('|');
-    var NOT_REVENUE = /护理|质控|考核|治疗|应做|实做|完成率|排名|绩效|心理咨询|回访|对接|转住院|工娱|约束|在岗|分管患者|入院人数|出院人数/;
+    var NOT_REVENUE = /护理|质控|考核|应做|实做|完成率|排名|绩效|心理咨询|回访台账|管家对接|转住院|工娱|约束执行|在岗|分管患者|护士姓名/;
     if (NOT_REVENUE.test(headTxt)) return [];          // 表头自证是非营收表 → 不解析
-    if (col.out < 0 && col.inp < 0 && col.total < 0) { col.out = 1; col.inp = 2; }
+    if (col.out < 0 && col.inp < 0 && col.total < 0) { /* 表头完全没有收入列 → 不猜列，交由上层提示 */ return []; }
 
     var rows = [];
     table.forEach(function (row, ri) {
@@ -288,8 +402,16 @@
       var o = col.out >= 0 ? toNum(row[col.out]) : null;
       var p = col.inp >= 0 ? toNum(row[col.inp]) : null;
       var t = col.total >= 0 ? toNum(row[col.total]) : null;
+
       if (o == null && p == null && t == null) return;
-      rows.push({ date: d, out: o, inp: p, total: t, raw: joined.slice(0, 70) });
+      /* ⚠ 必须标注 verified：上层 handleFiles() 只把 r.verified === true 的行填进编辑区，
+         否则表格/CSV 通道解析出的行会因为缺这个字段而**只带出日期、丢掉全部金额**
+         （现象：拖入 xlsx 后识别到 26 行，但金额列全是空的）。
+         表格数据的自洽判据与图片一致：门诊 + 在院 = 当日合计（两者都有值时）。 */
+      var verified = false;
+      if (o != null && p != null && t != null) verified = Math.abs((o + p) - t) < 0.02;
+      else if (o != null || p != null) verified = true;   // 只有一列金额也算可用（上层可核对）
+      rows.push({ date: d, out: o, inp: p, total: t, raw: joined.slice(0, 70), verified: verified });
     });
     return rows;
   }
@@ -343,22 +465,29 @@
       .replace(/&apos;/g, "'").replace(/&#(\d+);/g, function (_, d) { return String.fromCharCode(+d); })
       .replace(/&amp;/g, '&');
   }
+  /* ⚠ xlsx 的 XML 有两种写法：Excel 通常是**无前缀**的 <row>/<c>/<v>，
+     而 WPS / 金山导出的是**带命名空间前缀**的 <x:row>/<x:c>/<x:v>。
+     原先的正则只认无前缀版 → 拖入 WPS 导出的 xlsx 时**一个单元格都匹配不到**，
+     静默返回 0 行（用户看到「未识别到数据行」）。
+     这里统一加可选前缀 (?:[A-Za-z_][\w.-]*:)? 两种都能解析。 */
+  var NS = '(?:[A-Za-z_][\\w.-]*:)?';
   function parseShared(xml) {
     if (!xml) return [];
-    var out = [], re = /<si\b[^>]*>([\s\S]*?)<\/si>/g, m;
+    var out = [], re = new RegExp('<' + NS + 'si\\b[^>]*>([\\s\\S]*?)</' + NS + 'si>', 'g'), m;
     while ((m = re.exec(xml))) {
-      var txt = '', tr = /<t\b[^>]*>([\s\S]*?)<\/t>/g, t;
+      var txt = '', tr = new RegExp('<' + NS + 't\\b[^>]*>([\\s\\S]*?)</' + NS + 't>', 'g'), t;
       while ((t = tr.exec(m[1]))) txt += decodeXML(t[1]);
       out.push(txt);
     }
     return out;
   }
   function parseSheetXML(xml, shared) {
-    var table = [], re = /<row\b([^>]*)>([\s\S]*?)<\/row>/g, m;
+    var table = [], re = new RegExp('<' + NS + 'row\\b([^>]*)>([\\s\\S]*?)</' + NS + 'row>', 'g'), m;
+    var crefTpl = '<' + NS + 'c\\b([^>]*?)(?:\\/>|>([\\s\\S]*?)</' + NS + 'c>)';
     while ((m = re.exec(xml))) {
       var rAttr = m[1], row = [];
       var ri = rAttr.match(/\br="(\d+)"/);
-      var cref = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g, c;
+      var cref = new RegExp(crefTpl, 'g'), c;
       while ((c = cref.exec(m[2]))) {
         var attr = c[1] || '', inner = c[2] || '';
         var refM = attr.match(/\br="([A-Za-z]+\d+)"/);
@@ -367,11 +496,11 @@
         var type = tm ? tm[1] : 'n';
         var val = '';
         if (type === 'inlineStr') {
-          var ir = /<t\b[^>]*>([\s\S]*?)<\/t>/g, it, acc = '';
+          var ir = new RegExp('<' + NS + 't\\b[^>]*>([\\s\\S]*?)</' + NS + 't>', 'g'), it, acc = '';
           while ((it = ir.exec(inner))) acc += decodeXML(it[1]);
           val = acc;
         } else {
-          var vr = inner.match(/<v>([\s\S]*?)<\/v>/);
+          var vr = inner.match(new RegExp('<' + NS + 'v>([\\s\\S]*?)</' + NS + 'v>'));
           var raw = vr ? decodeXML(vr[1]) : '';
           if (type === 's') { var idx = parseInt(raw, 10); val = shared[idx] != null ? shared[idx] : ''; }
           else val = raw;
@@ -384,20 +513,34 @@
     table.sort(function (a, b) { return a.r - b.r; });
     return table.map(function (x) { return x.cells; });
   }
+  /* ⚠ 要点：不能只看第一个 sheet。业务方给的汇总文件常把「月度汇总」放在 sheet1，
+     而真正的逐日数据在 O:P:R 列或干脆在别的 sheet 里。
+     策略：按 sheet1..sheetN **逐个尝试**，返回第一个能解析出数据行的结果；
+     全都解析不出时才回退第一个 sheet（让上层给出「未识别到数据行」的提示）。 */
   function parseXLSX(buf) {
     var zip = zipIndex(buf);
     return zipRead(zip, 'xl/sharedStrings.xml').then(function (shared) {
-      return zipRead(zip, 'xl/workbook.xml').then(function (wb) {
-        var first = 'xl/worksheets/sheet1.xml', m = wb && wb.match(/<sheet\b[^>]*r:id="rId(\d+)"/);
-        if (m) first = 'xl/worksheets/sheet' + m[1] + '.xml';
-        return zipRead(zip, first).then(function (sx) {
-          if (!sx) return zipRead(zip, 'xl/worksheets/sheet1.xml').then(function (fallback) {
-            if (!fallback) throw new Error('xlsx 内未找到工作表数据');
-            return rowsFromTable(parseSheetXML(fallback, parseShared(shared)));
-          });
-          return rowsFromTable(parseSheetXML(sx, parseShared(shared)));
-        });
+      var sh = parseShared(shared);
+      var names = Object.keys(zip.entries).filter(function (n) {
+        return /^xl\/worksheets\/sheet\d+\.xml$/i.test(n);
+      }).sort(function (a, b) {
+        var na = +a.replace(/\D/g, ''), nb = +b.replace(/\D/g, '');
+        return na - nb;
       });
+      if (!names.length) throw new Error('xlsx 内未找到工作表数据');
+      var i = 0, firstResult = null;
+      function tryNext() {
+        if (i >= names.length) return firstResult || [];
+        var nm = names[i++];
+        return zipRead(zip, nm).then(function (sx) {
+          if (!sx) return tryNext();
+          var rows = rowsFromTable(parseSheetXML(sx, sh));
+          if (rows.length) return rows;            // 找到有数据的 sheet，直接用
+          if (firstResult == null) firstResult = rows;
+          return tryNext();
+        });
+      }
+      return tryNext();
     });
   }
 
@@ -453,7 +596,7 @@
         if (r[k] != null) rec[k] = r[k];
       });
       if (o == null && p == null) { rec.status = 'invalid'; rec.notes.push('缺少门诊/在院金额'); }
-      else if (rec.date < MONTH_FROM || rec.date > MONTH_TO) { rec.status = 'invalid'; rec.notes.push('不在 9 月区间'); }
+      else if (rec.date < MONTH_FROM || rec.date > MONTH_TO) { rec.status = 'invalid'; rec.notes.push('不在当月区间（' + MONTH_FROM.slice(5) + '—' + MONTH_TO.slice(5) + '）'); }
       else {
         var cur = daily[rec.date];
         if (!cur) { rec.status = 'new'; }
@@ -497,9 +640,9 @@
     $$('.ov-live').forEach(function (e) { e.textContent = '每日 09:00 抓取 · 数据更新至 9.' + (+s.globalCut.slice(8)); });
     setText('.mkt-filter small', ''); // 由下方重建（含 ● 图标）
     $$('.mkt-filter small').forEach(function (e) {
-      e.innerHTML = '<b>●</b> 数据更新至 ' + fmtDot(TODAY) + '　·　本周 9月21日—9月27日（进行中，各源数据至 ' + cutTxt + '，营收至 ' + revTxt + '）';
+      e.innerHTML = '<b>●</b> 数据更新至 ' + fmtDot(TODAY) + '　·　本周 ' + fmtCN(WEEK_START) + '—' + fmtCN(WEEK_END) + '（进行中，各源数据至 ' + cutTxt + '，营收至 ' + revTxt + '）';
     });
-    setText('.dc-scope', '本周 9.21—9.27 · 数据截至 ' + (s.globalCut ? (+s.globalCut.slice(5, 7)) + '.' + (+s.globalCut.slice(8)) : '—') + '（营收 ' + (s.revCut ? (+s.revCut.slice(5, 7)) + '.' + (+s.revCut.slice(8)) : '—') + '）');
+    setText('.dc-scope', '本周 ' + shortRange(enumerate(WEEK_START, WEEK_END)) + ' · 数据截至 ' + (s.globalCut ? (+s.globalCut.slice(5, 7)) + '.' + (+s.globalCut.slice(8)) : '—') + '（营收 ' + (s.revCut ? (+s.revCut.slice(5, 7)) + '.' + (+s.revCut.slice(8)) : '—') + '）');
     setText('#sheetSub', '数据更新至 ' + TODAY.split('-')[0] + '年' + (+TODAY.slice(5, 7)) + '月' + (+TODAY.slice(8)) + '日 · 独立部门经营模块');
 
     /* ---- Hero ---- */
@@ -539,6 +682,12 @@
       var b = box.querySelector('b');
       if (b) b.textContent = gapVals[i];
     });
+
+    /* ---- 经营问题总览 #decisionCore ----
+       该区块由 business-analysis.js 负责渲染（它是 owner）。这里**不直接改它的 DOM**
+       （逐条正则改写既脆弱又容易漏），而是派发一个专用事件让 owner 自己重绘 ——
+       这样结构与文案都不受外部影响，只有数字跟着数据走。 */
+    try { window.dispatchEvent(new CustomEvent('ops:core-refresh', { detail: s })); } catch (e) { }
 
     /* ---- 营收速度缺口柱 ---- */
     var bars = $$('.gap-bars .gap-bar');
@@ -1913,9 +2062,24 @@
     });
     saveDaily(daily);
     writeJSON(LS_META, { updatedAt: new Date().toISOString(), files: files.map(function (f) { return f.name; }), rows: touched });
+    refreshWindow();   // 新数据可能推进了「本周」，先对齐窗口再重绘
+
+    /* 只保留「当月 + 上月 + 下月」的日记（防止历史脏数据无限堆积）。
+       ⚠ 两个旧问题：① 原先写死 '2026-09-'，跨月后新月份数据会被当成脏数据；
+                     ② 原先只 delete 内存副本、没有 saveDaily 回写，等于没清，还会误导后人。
+       现在按 MONTH_FROM 推导月份前缀，并在清理后重新落盘。 */
+    /* ⚠ MONTH_FROM 是完整日期（'2026-09-01'），而比较用的是 d.slice(0,7)（'2026-09'）。
+       若直接放进 keepPrefix，'2026-09' === '2026-09-01' 恒不成立 →
+       **当月数据会被整批当成历史脏数据删掉**（实测 dropped=26，落库后立刻清空）。
+       必须统一取月份前缀。 */
+    var mPrefix = MONTH_FROM.slice(0, 7);
+    var keepPrefix = [mPrefix, shiftMonth(MONTH_FROM, -1), shiftMonth(MONTH_FROM, 1)];
+    var dropped = 0;
     Object.keys(daily).forEach(function (d) {
-      if (!(d.startsWith('2026-09-') && d <= MONTH_TO)) delete daily[d];
+      var ok = keepPrefix.some(function (p) { return d.slice(0, 7) === p; });
+      if (!ok) { delete daily[d]; dropped++; }
     });
+    if (dropped) saveDaily(daily);
     renderRevenue();
     var afterCut = summary(daily).revCut;
     close();
@@ -2005,8 +2169,15 @@
       });
       saveDaily(daily);
       writeJSON(LS_META, { updatedAt: new Date().toISOString(), files: [(meta && meta.source) || 'september-revenue-data'], rows: rows.length });
+      refreshWindow();   // 新数据可能推进了「本周」，先对齐窗口再重绘
       renderRevenue();
       refreshMeta();
+      /* ⚠ 必须与 applyImport 一样派发 ops:revenue-updated：
+         否则「从外部模块拖入」这条路只重绘了营销面板自己，
+         问题地图、医生部门卡、财务经营分析、9月指挥中心与营销报告
+         （后两者经 september-revenue-data.js 转发的 september-revenue-updated）
+         全都收不到通知 → 表现为「图拖进去了、数字也进库了，但面板没变／刷新后又变回去」。 */
+      try { window.dispatchEvent(new CustomEvent('ops:revenue-updated', { detail: summary(loadDaily()) })); } catch (e) { }
     },
     reset: function () { resetDaily(); renderRevenue(); refreshMeta(); },
     open: open
