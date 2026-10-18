@@ -6,7 +6,7 @@
 - 环比＝上一自然周（10.05—10.11）的**同天数前 N 日**，缺日不补、不跳。
 - 缺失写 null，不写 0；涉及两源不一致的进 conflicts，不静默抹平。
 """
-import json, os, sys
+import json, os, re, sys
 from datetime import date, datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -248,6 +248,79 @@ def main(db_path=None, out=None, write=True):
     # 管床对接（当前在院绑定人数，按表内未填出院日期计）
     bound = q1(c, "SELECT COUNT(*) FROM fact WHERE metric_id='psych.patient_bind' AND business_date<=?",
                (as_of,))
+
+    # ── 周个人统计（组长自动汇总表）与日报逐条汇总并存 ─────────
+    # ⚠ 两者口径不同：周个人统计是表内公式（按人×日去重），日报汇总是逐条累加。
+    #   实测周表漏算赵芳 10-18 那条（落在每日简报表末尾第 1005 行），
+    #   所以「门诊咨询」差 1、「填报天数」差 1；其余 5 项完全一致。差额在对账里明示、不互相覆盖。
+    WK_COLS = [("report_days", "填报天数"), ("ward_days", "参加查房"), ("first", "首次对接"),
+               ("emotion", "情绪支持"), ("inpatient", "住院咨询"), ("outpatient", "门诊咨询"),
+               ("family", "家庭咨询"), ("parent", "家长访谈"), ("group_attend", "团体参与")]
+    psy_staff_week = []
+    for nm, _fid in c.execute("SELECT dim_value, MIN(id) FROM fact "
+                              "WHERE metric_id='psych.week.report_days' "
+                              "GROUP BY dim_value ORDER BY MIN(id)"):
+        row = {"name": nm}
+        for f, _lab in WK_COLS:
+            v = q1(c, "SELECT value FROM fact WHERE metric_id=? AND dim_value=?",
+                   (f"psych.week.{f}", nm))
+            row[f] = int(v) if v is not None else None
+        row["rate"] = q1(c, "SELECT value FROM fact WHERE metric_id='psych.week.rate' AND dim_value=?",
+                         (nm,))
+        psy_staff_week.append(row)
+    psy_week_sum = {f: sum((x[f] or 0) for x in psy_staff_week) for f, _ in WK_COLS}
+    psy_ward_attend = int(s(c, "psych.ward_attend", p_start.isoformat(), psy_end) or 0)
+
+    psy_recon = []
+    for lab, dv, wv in [("填报天数", pw["report"], psy_week_sum["report_days"]),
+                        ("参加查房", psy_ward_attend, psy_week_sum["ward_days"]),
+                        ("首次对接", pw["first"], psy_week_sum["first"]),
+                        ("情绪支持", pw["emotion"], psy_week_sum["emotion"]),
+                        ("住院咨询", pw["inpatient"], psy_week_sum["inpatient"]),
+                        ("门诊咨询", pw["outpatient"], psy_week_sum["outpatient"]),
+                        ("家庭咨询", pw["family"], psy_week_sum["family"]),
+                        ("家长访谈", pw["parent"], psy_week_sum["parent"])]:
+        psy_recon.append({"label": lab, "daily": dv, "weekly": wv, "gap": dv - wv})
+
+    # 本周新增对接（行数 / 去重患者数 / 按管床分组）。患者姓名不进快照，只出计数。
+    def _pd(s):
+        t = str(s or "").strip()
+        m = re.match(r"^(\d{4})(\d{2})(\d{2})\D*$", t)
+        if m:
+            return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+        m = re.match(r"^(\d{4,5})[.\-/](\d{1,2})[.\-/](\d{1,2})", t)
+        if m:
+            y = m.group(1)
+            y = y if len(y) == 4 else "20" + y[-2:]
+            return f"{y}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
+        return None
+
+    bound_rows, bound_people, bound_by = 0, set(), {}
+    try:
+        rp = c.execute("SELECT rows_json FROM pull WHERE source_id='psych_v4' "
+                       "AND sheet_name='管床心理师患者对接表' "
+                       "ORDER BY pulled_at DESC LIMIT 1").fetchone()
+        # pull.rows_json 有的源存 {"rows":[...]}，有的直接存二维数组，两种都要吃
+        _raw = json.loads(rp[0]) if rp else []
+        _rows = _raw.get("rows") if isinstance(_raw, dict) else _raw
+        for r in (_rows or [])[1:]:
+            if len(r) < 4 or not str(r[2] or "").strip():
+                continue
+            d = _pd(r[3])
+            if not d or not (p_start.isoformat() <= d <= psy_end):
+                continue
+            if not d.startswith("2026-"):
+                d = "2026-" + d[5:]
+            bound_rows += 1
+            bound_people.add(str(r[2]).strip())
+            who = str(r[0] or "").strip() or "未指派"
+            b = bound_by.setdefault(who, {"rows": 0, "people": set()})
+            b["rows"] += 1
+            b["people"].add(str(r[2]).strip())
+    except Exception:
+        pass
+    bound_by = [{"name": k, "rows": v["rows"], "people": len(v["people"])}
+                for k, v in sorted(bound_by.items(), key=lambda x: -x[1]["rows"])]
 
     # ── 客服 / 导诊 ────────────────────────────────────────────
     def svc(a, b):
@@ -667,6 +740,8 @@ def main(db_path=None, out=None, write=True):
         "daily": daily,
         "departments": dept_report,
         "psych": {"week": pw, "prevSameDays": pw_prev, "staff": psy_staff,
+                  "staffWeek": psy_staff_week, "weekSum": psy_week_sum, "recon": psy_recon,
+                  "boundWeek": {"rows": bound_rows, "people": len(bound_people), "byStaff": bound_by},
                   "boundPatients": int(bound or 0),
                   "daily": {k: int(v) for k, v in psy_day.items()}},
         "service": {"week": sw, "prevSameDays": sw_prev, "staff": svc_staff, "staffArrived": svc_arr,

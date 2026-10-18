@@ -70,9 +70,15 @@ dept_cards = {
         "note": (f"《特别行动小组汇报表》心理咨询组本周表头：个体咨询 <b>{dep['psychology']['individual']}</b> 人、"
                  f"团辅 <b>{dep['psychology']['groupSessions']}</b> 场、总人数 <b>{dep['psychology']['people']}</b> 人、"
                  f"总收入 <b>{dep['psychology']['revenueYuan']}</b> 元。"
-                 f"另：V4「咨询师每日简报」逐条汇总接触 {psy['week']['contact']}、咨询 {psy['week']['consult']}、"
-                 f"团体 {psy['week']['groupSessions']} 场 / {psy['week']['groupPeople']} 人次（数据至 {DT}）——"
-                 f"<b>部门卡取汇报表口径，明细模块保留日报口径，两者不互算</b>。"),
+                 f"V4「咨询师每日简报」逐条汇总（至 {DT}）：患者接触 <b>{psy['week']['contact']}</b>、"
+                 f"咨询工作量 <b>{psy['week']['consult']}</b>（住院 {psy['week']['inpatient']} ＋ 门诊 "
+                 f"{psy['week']['outpatient']} ＋ 家庭 {psy['week']['family']}）、家长访谈 {psy['week']['parent']}、"
+                 f"团体 {psy['week']['groupSessions']} 场 / {psy['week']['groupPeople']} 人次；"
+                 f"管床本周新增 <b>{psy.get('boundWeek', {}).get('rows', 0)} 行 / "
+                 f"{psy.get('boundWeek', {}).get('people', 0)} 人</b>，累计在管 {psy.get('boundPatients', 0)} 人。"
+                 f"<b>部门卡取汇报表口径</b>；{dep['psychology']['individual']} 人 vs 咨询 "
+                 f"{psy['week']['inpatient'] + psy['week']['outpatient']} 人次不是矛盾——前者按患者人数、后者按人次"
+                 f"（差额为门诊复诊），<b>两者不互算</b>。"),
     },
     "service": {
         "m1": ("到院人数（接待）", dep["service"]["arrived"], "人次"),
@@ -166,6 +172,97 @@ def render_kpis():
              f'{m["monthRevenue"]["amountProgress"]}%（时间 {m["monthRevenue"]["timeProgress"]}%）', "flat"),
     ]
     return "".join(tiles)
+
+
+def patch_dept_daily_psych(html, snap):
+    """抽屉「数据变化」页的心理块（deptDaily.psychology）按快照重写。
+
+    ⛔ 原块整段是 10.1—10.7 的历史硬编码（接触 65 / 咨询 39 / 四人排名 / 累计 356-198 /
+       「应填未填 2 处」），在本周语境下会与部门卡的 40 人同屏矛盾，且那些旧账早已过期。
+       改为按 data/snapshot.json 生成：汇报表表头五数 + V4 五人周明细 + 对接表本周新增 + 对账差额。
+    """
+    p = snap["psych"]
+    w = p["week"]
+    dp = snap["departments"]["psychology"]
+    sw = p.get("staffWeek") or []
+    bw = p.get("boundWeek") or {}
+    rc = p.get("recon") or []
+    ws = p.get("weekSum") or {}
+
+    rows = [[x["name"], str(x["emotion"] or 0), str(x["inpatient"] or 0),
+             str(x["outpatient"] or 0), str(x["parent"] or 0),
+             str(x["report_days"] or 0), f'{int(x["rate"] or 0)}%'] for x in sw]
+    sumr = ["5 人合计", str(ws.get("emotion", 0)), str(ws.get("inpatient", 0)),
+            str(ws.get("outpatient", 0)), str(ws.get("parent", 0)),
+            str(ws.get("report_days", 0)), f'{round(sum((x["rate"] or 0) for x in sw) / max(1, len(sw)))}%']
+
+    by = bw.get("byStaff") or []
+    by_txt = "、".join(f'{x["name"]} {x["rows"]} 行 / {x["people"]} 人' for x in by) or "—"
+    gaps = [r for r in rc if r["gap"]]
+    gap_txt = "、".join(f'{r["label"]} {r["gap"]:+d}' for r in gaps) or "无"
+
+    obj = {
+        "range": f"本期 10.12—10.18（V4 管理表 · 日报逐条汇总，7 天）",
+        "metrics": [
+            ["个体咨询（表头）", f'{dp["individual"]} 人'],
+            ["团辅场次", f'{dp["groupSessions"]} 场'],
+            ["总收入", f'{dp["revenueYuan"]} 元'],
+            ["患者接触（V4）", f'{w["contact"]} 人次'],
+            ["咨询工作量（V4）", f'{w["consult"]} 人次'],
+        ],
+        "list": {
+            "title": "咨询师个人周工作统计（本期 10.12—10.18 · 组长自动汇总表）",
+            "sub": "源：V4「周个人统计」，组长只调周起始日、数值由《咨询师每日简报》公式汇出",
+            "cols": ["咨询师", "情绪支持", "住院咨询", "门诊咨询", "家长访谈", "填报天", "完整率"],
+            "gt": "1.15fr .8fr .8fr .8fr .8fr .92fr 1fr",
+            "num": [1, 2, 3, 4, 5, 6],
+            "warn": [],
+            "rows": rows,
+            "sum": sumr,
+            "note": "⚠ <b>周个人统计与日报逐条汇总有 1 天差</b>：" + gap_txt +
+                    "。差额全部来自<b>赵芳 10-18 那条日报</b>——该行落在每日简报表末尾第 1005 行，"
+                    "超出表内公式的汇总区域，所以周表少算 1 天填报、1 天查房、1 次门诊。"
+                    f"其余 5 项两侧完全一致（首次对接 {w['first']}、情绪支持 {w['emotion']}、"
+                    f"住院咨询 {w['inpatient']}、家庭咨询 {w['family']}、家长访谈 {w['parent']}）。",
+        },
+        "note": "<b>本周心理科两套口径并存，不要相加：</b>"
+                f"①《特别行动小组汇报表》心理咨询组表头——个体咨询 <b>{dp['individual']} 人</b>、"
+                f"团辅 <b>{dp['groupSessions']} 场</b>、总人数 <b>{dp['people']} 人</b>、"
+                f"总收入 <b>{dp['revenueYuan']} 元</b>；"
+                f"② V4 管理表日报逐条——患者接触 <b>{w['contact']}</b> 人次、"
+                f"咨询工作量 <b>{w['consult']}</b> 人次（住院 {w['inpatient']} ＋ 门诊 {w['outpatient']} ＋ "
+                f"家庭 {w['family']}）、家长访谈 {w['parent']} 人次、"
+                f"团体 {w['groupSessions']} 场 {w['groupPeople']} 人。"
+                f"<b>{dp['individual']} 与 {w['inpatient'] + w['outpatient']} 不是矛盾：</b>"
+                f"表头「个体咨询人数」按<b>患者人数</b>计，V4「住院 {w['inpatient']} 人 ＋ 门诊 {w['outpatient']} 人次」"
+                f"按<b>人次</b>计，差额正好是门诊复诊造成的重复计数。<br>"
+                f"<b>管床对接：本周新增 {bw.get('rows', 0)} 行 / {bw.get('people', 0)} 个患者</b>"
+                f"（{by_txt}），累计在管 <b>{p.get('boundPatients', 0)}</b> 人。"
+                "陈鹏 2 行只有 1 人——胡峻源 10-14、10-15 重复登记。"
+                "<br><b>⚠ 对账差额：</b>" + gap_txt + "，原因见上表注释；不做四舍五入、不互相覆盖。",
+        "diag": "<div class=\"diagnosis-item tone-risk\"><b>本周判断 · 工作量真实，但日报完整率全线偏低</b>"
+                f"<p>5 名咨询师本周情绪支持 <b>{w['emotion']}</b> 人次、住院咨询 <b>{w['inpatient']}</b> 人次、"
+                f"门诊咨询 <b>{w['outpatient']}</b> 人次、家长访谈 <b>{w['parent']}</b> 人次；"
+                f"冯浩鹏一人贡献情绪支持 {next((x['emotion'] for x in sw if x['name'] == '冯浩鹏'), 0)} 人次、"
+                f"住院咨询 {next((x['inpatient'] for x in sw if x['name'] == '冯浩鹏'), 0)} 人次，是本周主力。"
+                "但 5 人日报完整率 <b>0%—57%</b>，汇总状态<b>全部「有待补」</b>，"
+                "赵芳、王沛然为 0%——数据可用性比工作量更值得关注。</p></div>"
+                "<div class=\"diagnosis-item tone-orange\"><b>已修的两处数据缺陷</b>"
+                "<p>① 王沛然 10-14 同日填了「正常班」「测评值班」两条，后一条全空，"
+                "原实现按「人＋日」覆盖导致情绪支持、住院咨询各少 2；已改为同日取最大值合并。"
+                "② 每天简报表里有 1 条没写姓名（10-17），原先会挂到空维度上；已跳过并单独记账。</p></div>"
+                "<div class=\"diagnosis-item tone-risk\"><b>未纳入的个人</b>"
+                "<p><b>苏欣然</b>本周管床 2 名患者（杨亦雯 10-12、张琪谕 10-16），"
+                "但不在「周个人统计」的 5 人名册里，也没有日报——她的工作量目前<b>不进任何汇总</b>，"
+                "建议要么补进名册、要么在对接表注明不参与统计。</p></div>",
+    }
+    body = json.dumps(obj, ensure_ascii=False).replace('"', "'")
+    # 与 nursing 同理：键名允许可选引号，避免第二次跑锚不到
+    m = re.search(r"psychology:\{\s*['\"]?range['\"]?\s*:[\s\S]*?\n      service:\{", html)
+    if not m:
+        print("  ⚠ deptDaily.psychology 锚点未命中，抽屉心理块未更新")
+        return html
+    return html[:m.start()] + "psychology:" + body + ",\n      service:{" + html[m.end():]
 
 
 def patch_dept_daily_nursing(html, dep):
@@ -338,8 +435,13 @@ def main():
         "psychology": [f"{MARK} 本期（{LBL} · 汇报表口径）", dep["psychology"]["individual"], dep["psychology"]["individual"], "人",
                        f"汇报表心理咨询组表头：个体咨询 <b>{dep['psychology']['individual']}</b> 人、团辅 <b>{dep['psychology']['groupSessions']}</b> 场、"
                        f"总人数 {dep['psychology']['people']} 人、总收入 <b>{dep['psychology']['revenueYuan']}</b> 元。"
-                       f"另据 V4 日报逐条（至 {DT}）：接触 {psy['week']['contact']}、咨询 {psy['week']['consult']}、"
-                       f"团体 {psy['week']['groupSessions']} 场 {psy['week']['groupPeople']} 人——两口径并存、不互算。",
+                       f"V4 日报逐条（至 {DT}）：接触 {psy['week']['contact']}、咨询 {psy['week']['consult']}、"
+                       f"家长访谈 {psy['week']['parent']}、团体 {psy['week']['groupSessions']} 场 {psy['week']['groupPeople']} 人。"
+                       f"管床本周新增 <b>{psy.get('boundWeek', {}).get('rows', 0)} 行 / {psy.get('boundWeek', {}).get('people', 0)} 个患者</b>，"
+                       f"累计在管 <b>{psy.get('boundPatients', 0)}</b> 人。"
+                       f"<b>对账</b>：周个人统计 5 人 vs 日报逐条，差额 "
+                       + ("、".join(f"{r['label']} {r['gap']:+d}" for r in (psy.get('recon') or []) if r.get('gap')) or "无")
+                       + "——均因赵芳 10-18 那条日报落在简报表末尾、周表公式未覆盖。",
                        "汇报表本周", f"本期 {LBL}"],
         "service": [f"{MARK} 本期（{LBL} · 汇报表口径）", None, dep["service"]["arrived"], "人次",
                     f"汇报表客服服务部表头：到院 <b>{dep['service']['arrived']}</b> 人次（导医接待）、义诊 <b>{dep['service']['charity']}</b> 人；"
@@ -378,6 +480,8 @@ def main():
 
     # 4c) 抽屉「数据变化」页：deptDaily.nursing 整块按快照重写
     html = patch_dept_daily_nursing(html, dep)
+    # 4d) 抽屉「数据变化」页：deptDaily.psychology 整块按快照重写（原为 10.1—10.7 的硬编码）
+    html = patch_dept_daily_psych(html, SNAP)
 
     # 5) 页脚口径
     foot_pat = re.compile(r'(<div class="kpi-foot"><i></i><span>)部门数据：.*?(</span></div>)', re.S)

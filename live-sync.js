@@ -253,6 +253,8 @@
         note: '本期 ' + lab + ' · 个体咨询',
         foot: '团辅 ' + (dpPsy.groupSessions != null ? dpPsy.groupSessions : '—') + ' 场 · 总收入 '
               + (dpPsy.revenueYuan != null ? (dpPsy.revenueYuan / 10000).toFixed(2) + ' 万' : '—')
+              /* 补 V4 接触人次作对照：表头按人数、V4 按人次，两个数字并列但不相加 */
+              + ((s.psych && s.psych.week) ? ' · V4 接触 ' + s.psych.week.contact : '')
       },
       nursing: {
         metric: num(dpNur.physioPeople, ' 人次'),

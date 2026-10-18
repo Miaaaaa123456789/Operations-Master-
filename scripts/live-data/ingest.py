@@ -42,6 +42,18 @@ METRICS = [
     ("psych.group_attendee", "团体参与人次", "人次", "day", "psych_visits", "参加人数求和"),
     ("psych.patient_bind", "新增管床对接", "人", "day", "psych_v4", "对接日期计数"),
     ("psych.ward_round", "团队查房覆盖", "%", "day", "psych_v4", "实际/应查"),
+    ("psych.ward_attend", "日报内参加统一查房", "天", "day", "psych_v4", "「是否参加」=是 计 1"),
+    # 周个人统计（组长自动汇总表）逐人周值。用 psych.week.* 前缀与日粒度指标隔离。
+    ("psych.week.report_days", "周个人统计-填报天数", "天", "week", "psych_v4", "表内公式"),
+    ("psych.week.ward_days", "周个人统计-参加查房天数", "天", "week", "psych_v4", "表内公式"),
+    ("psych.week.first", "周个人统计-首次对接", "人次", "week", "psych_v4", "表内公式"),
+    ("psych.week.emotion", "周个人统计-情绪支持", "人次", "week", "psych_v4", "表内公式"),
+    ("psych.week.inpatient", "周个人统计-住院咨询", "人次", "week", "psych_v4", "表内公式"),
+    ("psych.week.outpatient", "周个人统计-门诊咨询", "人次", "week", "psych_v4", "表内公式"),
+    ("psych.week.family", "周个人统计-家庭咨询", "人次", "week", "psych_v4", "表内公式"),
+    ("psych.week.parent", "周个人统计-家长访谈", "人次", "week", "psych_v4", "表内公式"),
+    ("psych.week.group_attend", "周个人统计-团体治疗参与", "人次", "week", "psych_v4", "表内公式"),
+    ("psych.week.rate", "周个人统计-日报完整率", "%", "week", "psych_v4", "表内公式"),
     ("butler.contact", "管家有效对接", "条", "day", "butler_contacts", "逐条计数"),
     ("butler.admit", "管家转住院", "人", "day", "butler_contacts", "住院列非空"),
     ("service.followup", "回访条数", "条", "day", "service_followups", "逐条计数"),
@@ -92,9 +104,20 @@ def norm_date(s):
     s = (s or "").strip()
     if not s:
         return None
-    m = re.match(r"^(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})", s)
+    # ⚠ 2026-10-19 补：对接表把日期写成「20261014」（漏写分隔符），
+    #   原正则要求必须带 [.-/] → 返回 None → 该患者整个被丢弃
+    #   （何阳 20261014、董佳欣 20261002。），累计绑定因此少 1 人。
+    m8 = re.match(r"^(\d{4})(\d{2})(\d{2})\D*$", s)
+    if m8:
+        y, mo, d = int(m8.group(1)), int(m8.group(2)), int(m8.group(3))
+        if 1900 < y < 2100 and 1 <= mo <= 12 and 1 <= d <= 31:
+            return f"{y:04d}-{mo:02d}-{d:02d}"
+    # 源表还有多打一位的年份：20026.9.27 → 2026-09-27（取末两位当年）
+    m = re.match(r"^(\d{4,5})[.\-/](\d{1,2})[.\-/](\d{1,2})", s)
     if m:
-        y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        ys = m.group(1)
+        y = int(ys) if len(ys) == 4 else 2000 + int(ys[-2:])
+        mo, d = int(m.group(2)), int(m.group(3))
         if 1900 < y < 2100 and 1 <= mo <= 12 and 1 <= d <= 31:
             if y == 2020 and mo == 9:      # 源表手误：2020-09-20 实为 2026-09-20
                 y = 2026
@@ -404,24 +427,68 @@ def ingest_sheet(c, source, sheet_name, rows, pulled_at):
             if "初" in kind:
                 add_fact(c, "arrival.new", d, 1, source, sheet_name, ref, "channel", cell(i, 6) or "未填")
 
+    elif source == "psych_v4" and sheet_name == "周个人统计":
+        # 组长维护的自动汇总表（表头在第 6 行起，5 名咨询师）。
+        # ⚠ 它是公式汇总，实测漏算了赵芳 10-18 那条（该行落在每日简报表末尾第 1005 行），
+        #   与「按日报逐条汇总」天然差 1 天。两套并存、互不覆盖，差额在对账结构里明示。
+        fmap = {"report_days": 1, "ward_days": 2, "first": 3, "emotion": 4,
+                "inpatient": 5, "outpatient": 6, "family": 7, "parent": 8,
+                "group_attend": 14, "rate": 19}
+        wk = dept_weeks(c)[3]
+        for i in range(6, len(rows)):
+            r = rows[i]
+            name = str((r[0] if len(r) > 0 else "") or "").strip()
+            if not name:
+                continue
+            for f, ci in fmap.items():
+                v = num(r[ci]) if len(r) > ci else None
+                add_week_fact(c, f"psych.week.{f}", wk, v, source, sheet_name,
+                              hkey("psw", name, f), "staff", name,
+                              unit="%" if f == "rate" else None)
+
     elif source == "psych_v4" and sheet_name == "咨询师每日简报":
         cols = {"psych.first_contact": 6, "psych.emotion_support": 7, "psych.inpatient_consult": 8,
                 "psych.outpatient_consult": 9, "psych.family_consult": 10, "psych.parent_interview": 11}
+        # ⛔ 2026-10-19 修：原实现逐行直接写，row_ref=hkey(日期,姓名)。同一人同一天填了
+        #   两条（王沛然 10-14 既有「正常班」又有「测评值班」）时，第二条 INSERT OR REPLACE
+        #   会把第一条的有值行覆盖成空 → 情绪支持、住院咨询各少 2（快照 47/23，真值 49/25）。
+        #    合并规则：按 (日期,姓名) 聚合，数值列逐项取 max（拆班次互补、重复填报也不被空值吞）。
+        merged = {}
         for i in range(4, len(rows)):
             d = norm_date(cell(i, 0))
             if not d:
                 continue
-            staff = re.sub(r"^(咨询师|治疗师|组长)[（(]", "", cell(i, 1)).rstrip("）)")
+            if not d.startswith("2026-"):
+                # 源表手误：2006-10-07 / 2016-10-13 实为 2026 同月同日
+                # （本表 2026-08-31 才开始填，不存在更早的真实数据）
+                d = "2026-" + d[5:]
+            staff = re.sub(r"^(咨询师|治疗师|组长)[（(]", "", cell(i, 1)).rstrip("）)").strip()
+            if not staff:
+                continue          # 10-17 有一条日报没写姓名，不能挂到空维度上
+            cur = merged.setdefault((d, staff), {"vals": {}, "ward": 0})
+            for mid, ci in cols.items():
+                v = num(cell(i, ci))
+                if v is None:
+                    continue
+                old = cur["vals"].get(mid)
+                cur["vals"][mid] = v if old is None else max(old, v)
+            if "是" in str(cell(i, 3) or ""):
+                cur["ward"] = 1
+        for (d, staff), agg in merged.items():
             ref = hkey(d, staff)
             add_fact(c, "psych.report", d, 1, source, sheet_name, ref, "staff", staff)
-            for mid, ci in cols.items():
-                add_fact(c, mid, d, num(cell(i, ci)), source, sheet_name, ref, "staff", staff)
+            add_fact(c, "psych.ward_attend", d, agg["ward"], source, sheet_name,
+                     hkey(d, staff, "ward"), "staff", staff)
+            for mid, v in agg["vals"].items():
+                add_fact(c, mid, d, v, source, sheet_name, ref, "staff", staff)
 
     elif source == "psych_v4" and sheet_name == "管床心理师患者对接表":
         for i in range(1, len(rows)):
             d = norm_date(cell(i, 3))
             if not d or not cell(i, 2):
                 continue
+            if not d.startswith("2026-"):
+                d = "2026-" + d[5:]      # 同表年份笔误
             add_fact(c, "psych.patient_bind", d, 1, source, sheet_name,
                      hkey(d, cell(i, 0), cell(i, 2)), "staff", cell(i, 0))
 
