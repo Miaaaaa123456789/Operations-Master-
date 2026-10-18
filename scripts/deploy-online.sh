@@ -179,7 +179,21 @@ PYEOF
     "$AUTO/replaceCloudStudioConfig" --max-time 90
   sleep 6
   echo -n "[4/5] 沙箱服务自检："
-  sbx_exec 'curl -sS -o /dev/null -w "页面 HTTP %{http_code} · " --max-time 10 http://127.0.0.1:3000/index.html; curl -sS --max-time 10 http://127.0.0.1:3000/api/health; echo'
+  HEALTH=$(sbx_exec 'curl -sS -o /dev/null -w "页面 %{http_code} · " --max-time 10 http://127.0.0.1:3000/index.html; curl -sS --max-time 10 http://127.0.0.1:3000/api/health' 2>&1)
+  echo "$HEALTH"
+  # ⛔ 兜底：server.py 起不来（缺文件 / Python 版本 / 端口占用）时，线上会整站打不开。
+  #    检测不到 API 就立刻退回纯静态启动 —— 页面照常能看，只是跨设备同步暂时不可用，
+  #    比白屏强得多。退回后本次仍算「发布成功但服务降级」，不静默。
+  if echo "$HEALTH" | grep -q '"ok"'; then
+    echo "      API 就绪 ✓"
+  else
+    echo "      ⚠ API 未就绪 → 回退纯静态启动，避免整站打不开"
+    curl -sS -o /dev/null -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+      -d '{"app":[{"name":"app","port":3000,"cmd":"PORT=3000 python3 -m http.server 3000 --bind 0.0.0.0 --directory /workspace 2> /workspace/.sites-app.log"}],"restart":true}' \
+      "$AUTO/replaceCloudStudioConfig" --max-time 90
+    sleep 4
+    sbx_exec 'curl -sS -o /dev/null -w "      回退后页面 HTTP %{http_code}\n" --max-time 10 http://127.0.0.1:3000/index.html'
+  fi
 
   # ── 4. 发布 ────────────────────────────────────────────────────
   "$NODE" scripts/_deploy.mjs release "$APP_ID" "$DEPLOY_CONV" "$SANDBOX" "$SHARE_LINK" "${WB_SESSION:-2404f039-ed52-4a4f-9ad0-bc968f5ed60f}" 2>&1 | sed 's/^/      /'
