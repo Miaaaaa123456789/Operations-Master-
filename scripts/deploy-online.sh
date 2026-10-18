@@ -174,8 +174,9 @@ PYEOF
   #      前端会静默退化成「只存本机」，跨设备同步又回到原样。
   #   server.py 首次启动会从 db/deploy-seed.sqlite 生 db/runtime.sqlite；
   #   之后的发布不覆盖 runtime.sqlite，所以用户导入的数据跨发布保留。
+  #   OPS_WRITE_TOKEN：公网写入口令。前端首次点「确认更新」会要求输入，之后记本机。
   curl -sS -o /dev/null -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-    -d '{"app":[{"name":"app","port":3000,"cmd":"cd /workspace && PORT=3000 python3 server.py 2> /workspace/.sites-app.log"}],"restart":true}' \
+    -d '{"app":[{"name":"app","port":3000,"cmd":"cd /workspace && PORT=3000 OPS_WRITE_TOKEN=ops-2618 python3 server.py 2> /workspace/.sites-app.log"}],"restart":true}' \
     "$AUTO/replaceCloudStudioConfig" --max-time 90
   sleep 6
   echo -n "[4/5] 沙箱服务自检："

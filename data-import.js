@@ -384,19 +384,42 @@
   }
 
   /* 把导入写进服务端。成功才算「已同步」，失败必须让用户看见，不能静默降级。 */
-  function pushToServer(rows, names) {
-    if (!window.fetch) return Promise.resolve({ ok: false, reason: '当前浏览器不支持网络提交' });
+  var LS_TOKEN = 'ops.write.token';   // 写入口令：只在首次输入，之后记在本机
+  function writeToken() { try { return localStorage.getItem(LS_TOKEN) || ''; } catch (e) { return ''; } }
+
+  function sendImport(rows, names, token) {
+    var headers = { 'Content-Type': 'application/json' };
+    if (token) headers['X-Ops-Token'] = token;
     return fetch('/api/imports', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: headers,
       body: JSON.stringify({ rows: rows, files: names || [], client: 'web' })
-    }).then(function (r) {
-      return r.json().catch(function () { return {}; }).then(function (j) {
-        if (r.ok && j && j.ok) return { ok: true, summary: j };
-        return { ok: false, reason: (j && j.error) || ('HTTP ' + r.status) };
+    });
+  }
+
+  function pushToServer(rows, names) {
+    if (!window.fetch) return Promise.resolve({ ok: false, reason: '当前浏览器不支持网络提交' });
+    var attempt = function (token) {
+      return sendImport(rows, names, token).then(function (r) {
+        // 401＝服务端设了口令而本机没有/不对，交给下面弹一次输入
+        if (r.status === 401) return { ok: false, needToken: true, reason: '需要写入口令' };
+        return r.json().catch(function () { return {}; }).then(function (j) {
+          if (r.ok && j && j.ok) return { ok: true, summary: j };
+          return { ok: false, reason: (j && j.error) || ('HTTP ' + r.status) };
+        });
+      }).catch(function (e) {
+        return { ok: false, reason: '网络不通（' + ((e && e.message) || e) + '）' };
       });
-    }).catch(function (e) {
-      return { ok: false, reason: '网络不通（' + ((e && e.message) || e) + '）' };
+    };
+    return attempt(writeToken()).then(function (res) {
+      if (!res.needToken) return res;
+      var t = window.prompt('请输入看板写入口令（只需输一次，之后本机记住）');
+      if (!t) return { ok: false, reason: '已取消：未输入写入口令' };
+      return attempt(t.trim()).then(function (r2) {
+        if (r2.ok) { try { localStorage.setItem(LS_TOKEN, t.trim()); } catch (e) { } }
+        else if (r2.needToken) return { ok: false, reason: '写入口令不正确' };
+        return r2;
+      });
     });
   }
   /* ⭐⭐⭐ 2026-10-09：落盘**必须回读自检**，否则「存不住」会被当成「已保存」。
