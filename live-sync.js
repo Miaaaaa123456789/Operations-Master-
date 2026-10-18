@@ -256,9 +256,15 @@
       },
       nursing: {
         metric: num(dpNur.physioPeople, ' 人次'),
-        note: '本期 ' + lab + ' · 物理治疗（含住院＋门诊）',
-        foot: '工娱 ' + (dpNur.recreationSessions != null ? dpNur.recreationSessions : '—') + ' 场 · '
-              + (dpNur.recreationPeople != null ? dpNur.recreationPeople : '—') + ' 人次'
+        note: '本期 ' + lab + ' · 物理治疗（含住院＋门诊）'
+              + (dpNur.recreationSessions != null
+                 ? ' · 工娱 ' + dpNur.recreationSessions + ' 场/' + dpNur.recreationPeople + ' 人次' : ''),
+        /* 六项治疗完成率来自护理部周报（业主 2026-10-19 转达），向下取整口径 */
+        foot: dpNur.treatSummary
+          ? ('6 项治疗 ' + dpNur.treatSummary.done + '/' + dpNur.treatSummary.due
+             + ' · ' + dpNur.treatSummary.rate + '%')
+          : ('工娱 ' + (dpNur.recreationSessions != null ? dpNur.recreationSessions : '—') + ' 场 · '
+             + (dpNur.recreationPeople != null ? dpNur.recreationPeople : '—') + ' 人次')
       },
       service: {
         metric: num(dpSvc.arrived, ' 人次'),
@@ -298,9 +304,10 @@
     /* 顺序必须与 index.html DEPT_CARD 的 m1 / m2 一致 */
     var spec = {
       doctor: [[dD.discharge, '人'], [dD.physioWan, '万']],
+      /* nursing 第二项标签已由 patch_page 改成「6 项治疗完成率」，
+         这里必须跟着写率值；仍写工娱 5/62 会出现「标签说完成率、数字是场次」（实测踩过） */
       nursing: [[dN.physioPeople, '人次'],
-                [dN.recreationSessions != null && dN.recreationPeople != null
-                  ? dN.recreationSessions + '/' + dN.recreationPeople : null, '']],
+                [(dN.treatSummary ? dN.treatSummary.rate : null), '%']],
       psychology: [[dP.individual, '人'], [dP.groupSessions, '场']],
       service: [[dS.arrived, '人次'], [dS.charity, '人']],
       marketing: [[bt.contact, '条'], [bt.rate, '%']]
@@ -661,6 +668,9 @@
       ['本期出院', m.weekDischarge.value, '人', pct(m.weekDischarge.deltaPct)],
       ['物理治疗费', m.weekPhysio ? m.weekPhysio.value : null, '万元', m.weekPhysio ? pct(m.weekPhysio.deltaPct) : null],
       ['在院人数', m.wardCount.value, '人', null],
+      ['护理 6 项治疗完成率',
+        dpNur.treatSummary ? dpNur.treatSummary.rate : null, '%',
+        dpNur.treatSummary ? (dpNur.treatSummary.done + '/' + dpNur.treatSummary.due) : null],
       ['心理', dpPsy.individual != null ? dpPsy.individual : (p.week ? p.week.contact : null), '人', null],
       ['客服', dpSvc.arrived != null ? dpSvc.arrived : (sv.week ? sv.week.followup : null), '人次', null],
       ['管家', bt.week ? bt.week.contact : null, '条', bt.week ? pct(Math.round((bt.week.contact - bt.prevSameDays.contact) / Math.max(1, bt.prevSameDays.contact) * 1000) / 10) : null],
@@ -695,6 +705,15 @@
     // 暴露给页面既有渲染器（如 month-dashboard 的「勾稽」卡）读取 conflicts / status
     window.OPS_LIVE_SNAPSHOT = s;
     ensureTicker();
+    /* ⛔ 必须先派发、后打补丁。
+       october-board（月累计卡）与 final-enhancements（侧栏营收进度）要用汇报表口径重算，
+       但 month-dashboard.js:553 收到这个事件会 data=clone(baseData) 后 rerender()，
+       把五张部门卡整块按它自己的静态 baseData 重画 —— 若补丁跑在派发之前，会被整块盖回旧值
+       （实测：KPI 磁贴对、部门卡全是 495/24、80 人次、37 条这些静态数）。
+       所以顺序固定为：派发 → 等月面板同步重绘完 → 再补卡。 */
+    try {
+      window.dispatchEvent(new CustomEvent('september-revenue-updated', { detail: { source: 'ops-live' } }));
+    } catch (e) { }
     // 每一步独立兜底：任一模块数据形状异常，不阻断其余模块刷新
     [['ticker', function () { renderTicker(s); }],
      ['badge', function () { ensureLiveBadge(s); }],
@@ -712,12 +731,6 @@
     ].forEach(function (step) {
       try { step[1](); } catch (e) { console.warn('[ops-live] ' + step[0] + ' 失败：' + (e && e.message)); }
     });
-    /* ⛔ october-board（「10 月经营」月累计卡）与 final-enhancements（侧栏营收目标进度）
-       都在自己的 boot 里用营收日报算月累计，比快照先跑完 → 会停在台账口径（139.78 万 / 53.8%）。
-       它们都监听这个既有事件，快照到达后推一次，让它们改用汇报表口径重绘。 */
-    try {
-      window.dispatchEvent(new CustomEvent('september-revenue-updated', { detail: { source: 'ops-live' } }));
-    } catch (e) { }
   }
 
   function load(force) {
@@ -748,17 +761,17 @@
     ensureToggle();
     load(true);
     /* ⛔ 月面板是后挂载的：它 render 时用的还是旧数据，会把刚补好的部门卡盖回去。
-       挂载完成后补两次（幂等写入，不会重复叠加），否则首屏要等 30 秒轮询才正确。 */
-    [1200, 3000].forEach(function (ms) {
+       而它收到 september-revenue-updated 会整块重绘 → 所以这里也必须是「先派发、后补卡」，
+       否则每次重放都会把部门卡还原成静态数（实测踩过）。 */
+    [1200, 3000, 6000].forEach(function (ms) {
       setTimeout(function () {
         if (!STATE.snap) return;
-        try { patchMdDepartments(STATE.snap); } catch (e) { }
-        try { patchLegacyDeptGrid(STATE.snap); } catch (e) { }
-        try { patchKpiTiles(STATE.snap); } catch (e) { }
-        /* 月面板后挂载完成后再推一次，覆盖它用自己的数据算出的月累计 */
         try {
           window.dispatchEvent(new CustomEvent('september-revenue-updated', { detail: { source: 'ops-live-boot' } }));
         } catch (e) { }
+        try { patchMdDepartments(STATE.snap); } catch (e) { }
+        try { patchLegacyDeptGrid(STATE.snap); } catch (e) { }
+        try { patchKpiTiles(STATE.snap); } catch (e) { }
       }, ms);
     });
     setInterval(function () { load(false); }, 30000);

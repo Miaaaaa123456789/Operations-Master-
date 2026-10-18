@@ -23,6 +23,9 @@ SOURCES = {
     "butler_contacts": ("患者有效对接表", "https://www.kdocs.cn/l/ctlu8ktnEwi8", "contact_event_per_staff"),
     "service_followups": ("医院客服与导诊部管理规范及配套表格", "https://www.kdocs.cn/l/cuOhExpV6n29", "followup_event"),
     "arrival_register": ("10月到院登记表", "https://www.kdocs.cn/l/cp4lRRCVcqVa", "arrival_event"),
+    # 护理部每周单独发一份 docx（质控分 + 物理治疗逐日表），不在 kdocs 上，走本地文件通道
+    "nursing_weekly": ("护理部周报（治疗完成情况）", "local:质控分及物理治疗数据.docx", "week"),
+    "nursing_treat_daily": ("护理部物理治疗逐日表", "local:质控分及物理治疗数据.docx", "day"),
 }
 
 METRICS = [
@@ -68,6 +71,19 @@ METRICS = [
     ("dept.marketing.admit", "营销中心本周入院", "人", "week", "action_report", "表头本周入院人数"),
     ("dept.marketing.outpatient", "营销中心本周门诊", "人次", "week", "action_report", "表头本周门诊人数"),
     ("dept.marketing.revenue", "营销中心本周总收入", "万元", "week", "action_report", "表头总收入"),
+    # 护理部 6 项治疗：应做/实做分开存，完成率由 build_snapshot 按「向下取整」算，不存冗余值
+    ("nursing.treat.ac_current.due", "经颅交流电应做", "人次", "week", "nursing_weekly", "周报应做人次"),
+    ("nursing.treat.ac_current.done", "经颅交流电实做", "人次", "week", "nursing_weekly", "周报实做人次"),
+    ("nursing.treat.tms.due", "经颅磁治疗应做", "人次", "week", "nursing_weekly", "周报应做人次"),
+    ("nursing.treat.tms.done", "经颅磁治疗实做", "人次", "week", "nursing_weekly", "周报实做人次"),
+    ("nursing.treat.brain_func.due", "脑功能治疗应做", "人次", "week", "nursing_weekly", "周报应做人次"),
+    ("nursing.treat.brain_func.done", "脑功能治疗实做", "人次", "week", "nursing_weekly", "周报实做人次"),
+    ("nursing.treat.music_relax.due", "音乐放松治疗应做", "人次", "week", "nursing_weekly", "周报应做人次"),
+    ("nursing.treat.music_relax.done", "音乐放松治疗实做", "人次", "week", "nursing_weekly", "周报实做人次"),
+    ("nursing.treat.insomnia.due", "失眠治疗仪应做", "人次", "week", "nursing_weekly", "周报应做人次"),
+    ("nursing.treat.insomnia.done", "失眠治疗仪实做", "人次", "week", "nursing_weekly", "周报实做人次"),
+    ("nursing.treat.group_biofeedback.due", "团体生物反馈应做", "人次", "week", "nursing_weekly", "周报应做人次"),
+    ("nursing.treat.group_biofeedback.done", "团体生物反馈实做", "人次", "week", "nursing_weekly", "周报实做人次"),
 ]
 
 
@@ -302,6 +318,72 @@ def ingest_dept(c, sheet, rows):
                           "action_report", sheet, ref, "staff", name, unit)
 
 
+def ingest_nursing_treat(c):
+    """护理部 6 项治疗：周合计（权威）+ docx 逐日明细（可追溯）。
+
+    两个数据源刻意分开存：
+      - 周合计 → source='nursing_weekly'，dim_key='' ，business_date=周末日；
+      - 逐日   → source='nursing_treat_daily'，dim_key='daily'、dim_value=日期。
+    带 dim_key='daily' 的行**不会**被「按周求和」类查询命中，所以两套并存也不会翻倍；
+    反过来，谁要逐日图就显式按 dim_key='daily' 取。
+
+    为什么周合计不以 docx 为准：docx 只到 10.17，而护理部报的本周含 10.18，
+    六项的差额正好是 10.18 一天（28/27、20/18、28/27、10/10、6/2、2/1），
+    拿 6 天和当周值会把完成率算低，所以周值用护理部报的数，逐日只作明细展示。
+    """
+    wp = os.path.join(ROOT, "data", "nursing-treat-week.json")
+    dp = os.path.join(ROOT, "data", "raw-nursing", "treat-daily.json")
+    if not os.path.exists(wp):
+        print("  ⚠ 缺 data/nursing-treat-week.json，护理治疗未入库")
+        return
+
+    w = json.load(open(wp, encoding="utf-8"))
+    a = date.fromisoformat(w["period_start"])
+    b = date.fromisoformat(w["period_end"])
+    # 重抓先清旧事实，避免条目增减后残留
+    c.execute("DELETE FROM fact WHERE source_id IN ('nursing_weekly','nursing_treat_daily')")
+
+    c.execute(
+        """INSERT OR REPLACE INTO pull(source_id,sheet_id,sheet_name,pulled_at,row_count,sha256,rows_json)
+           VALUES(?,?,?,?,?,?,?)""",
+        ("nursing_weekly", "week", "治疗完成情况",
+         datetime.now(CN).isoformat(timespec="seconds"), len(w["items"]),
+         hashlib.sha256(json.dumps(w, ensure_ascii=False, sort_keys=True).encode()).hexdigest(),
+         json.dumps(w, ensure_ascii=False)))
+    for it in w["items"]:
+        k = it["key"]
+        add_week_fact(c, f"nursing.treat.{k}.due", (a, b), it.get("due"),
+                      "nursing_weekly", "治疗完成情况", hkey("nw", k, "due"), unit="人次")
+        add_week_fact(c, f"nursing.treat.{k}.done", (a, b), it.get("done"),
+                      "nursing_weekly", "治疗完成情况", hkey("nw", k, "done"), unit="人次")
+
+    n_daily = 0
+    if os.path.exists(dp):
+        d = json.load(open(dp, encoding="utf-8"))
+        for r in d.get("daily", []):
+            for field, suffix in (("due", "due"), ("done", "done")):
+                add_fact(c, f"nursing.treat.{r['key']}.{suffix}", r["date"], r.get(field),
+                         "nursing_treat_daily", "物理治疗完成数据汇报",
+                         hkey("nd", r["date"], r["key"], suffix),
+                         dim_key="daily", dim_value=r["date"], unit="人次")
+            n_daily += 1
+        c.execute(
+            """INSERT OR REPLACE INTO pull(source_id,sheet_id,sheet_name,pulled_at,row_count,sha256,rows_json)
+               VALUES(?,?,?,?,?,?,?)""",
+            ("nursing_treat_daily", "daily", "物理治疗完成数据汇报",
+             datetime.now(CN).isoformat(timespec="seconds"), n_daily,
+             hashlib.sha256(json.dumps(d, ensure_ascii=False, sort_keys=True).encode()).hexdigest(),
+             json.dumps(d, ensure_ascii=False)))
+
+    now = datetime.now(CN).isoformat(timespec="seconds")
+    c.execute("UPDATE source SET last_pull_at=?, data_through=? WHERE id='nursing_weekly'",
+              (now, b.isoformat()))
+    if os.path.exists(dp):
+        c.execute("UPDATE source SET last_pull_at=?, data_through=? WHERE id='nursing_treat_daily'",
+                  (now, json.load(open(dp, encoding="utf-8"))["last_date"]))
+    print(f"  护理治疗：周合计 {len(w['items'])} 项（{a}~{b}）· 逐日明细 {n_daily} 行")
+
+
 def ingest_sheet(c, source, sheet_name, rows, pulled_at):
     """按来源把二维表拆成事实。行号写进 row_ref 便于回溯。"""
     def cell(r, i):
@@ -433,6 +515,8 @@ def main():
                          ELSE data_through END
                      WHERE id=?""",
                   (datetime.now(CN).isoformat(timespec="seconds"), dt, dt, dt, src))
+    # kdocs 之外的本地文件源（护理部周报）单独走一遍
+    ingest_nursing_treat(c)
     c.commit()
     print(f"工作表 {total_pull} 张为新内容（其余未变化未重复入库）")
     for r in c.execute("SELECT id,last_pull_at,data_through FROM source ORDER BY id"):

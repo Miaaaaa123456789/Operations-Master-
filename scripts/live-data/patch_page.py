@@ -50,13 +50,17 @@ dept_cards = {
     },
     "nursing": {
         "m1": ("物理治疗人数", dep["nursing"]["physioPeople"], "人次"),
-        "m2": ("工娱（场/人次）", f"{dep['nursing']['recreationSessions']}/{dep['nursing']['recreationPeople']}", ""),
+        "m2": ("6 项治疗完成率", f"{dep['nursing']['treatSummary']['rate']}",
+               f"% · {dep['nursing']['treatSummary']['done']}/{dep['nursing']['treatSummary']['due']}"),
         "trend": None,
         "axis": None,
         "note": (f"《特别行动小组汇报表》护理组本周表头：物理治疗 <b>{dep['nursing']['physioPeople']} 人次</b>（含住院＋门诊）、"
                  f"工娱 <b>{dep['nursing']['recreationSessions']} 场 / {dep['nursing']['recreationPeople']} 人次</b>。"
-                 f"⚠ 本周源表只给总量、<b>未给六项完成率</b>，故卡上不再显示完成率，也不与上周率值直接比较；"
-                 f"完整率值见抽屉内既有周报口径（9.20—9.26：1177/1278 = 92.1%）。"),
+                 f"六项治疗本周应做 <b>{dep['nursing']['treatSummary']['due']}</b>、实做 "
+                 f"<b>{dep['nursing']['treatSummary']['done']}</b>，合计完成率 "
+                 f"<b>{dep['nursing']['treatSummary']['rate']}%</b>（护理部口径向下取整）；"
+                 f"最低为{dep['nursing']['treatSummary']['worst']['label']}"
+                 f" {dep['nursing']['treatSummary']['worst']['rate']}%。逐项见抽屉。"),
     },
     "psychology": {
         "m1": ("个体咨询", dep["psychology"]["individual"], "人"),
@@ -152,6 +156,9 @@ def render_kpis():
         tile("doctor", "物理治疗费", m["weekPhysio"]["value"], "万元", pct(m["weekPhysio"]["deltaPct"]),
              dcls(m["weekPhysio"]["deltaPct"])),
         tile("doctor", "在院人数（时点）", m["wardCount"]["value"], "人"),
+        tile("nursing", f"护理 6 项治疗完成率",
+             dep["nursing"]["treatSummary"]["rate"], "%",
+             f'{dep["nursing"]["treatSummary"]["done"]}/{dep["nursing"]["treatSummary"]["due"]}', "flat"),
         tile("psychology", "心理 个体咨询", dep["psychology"]["individual"], "人"),
         tile("service", "客服 到院接待", dep["service"]["arrived"], "人次"),
         tile("marketing", "管家 有效对接", but_cur, "条", pct(but_d), dcls(but_d)),
@@ -159,6 +166,73 @@ def render_kpis():
              f'{m["monthRevenue"]["amountProgress"]}%（时间 {m["monthRevenue"]["timeProgress"]}%）', "flat"),
     ]
     return "".join(tiles)
+
+
+def patch_dept_daily_nursing(html, dep):
+    """抽屉「数据变化」页的护理块（deptDaily.nursing）按快照重写。
+
+    这块是 index.html 里**另一处**写死的周报文案，原先停在 10.5—10.11 / 83.2%，
+    与部门卡的 93% 同屏矛盾（业主截图里就能同时看到）。改为按 data/snapshot.json 生成，
+    六项逐条列出应做/实做/未做/完成率，并保留「向下取整」与「10.18 未进逐日」两个口径说明。
+    """
+    n = dep["nursing"]
+    ts = n["treatSummary"]
+    worst = ts["worst"]
+    rows = [[t["label"], str(t["due"]), str(t["done"]), f'{t["rate"]}%']
+            for t in n["treat"]]
+    obj = {
+        "range": "本期 10.12—10.18（护理部周报 · 项目口径，7 天）",
+        "metrics": [
+            ["6 项治疗完成率", f'{ts["rate"]}%'],
+            ["应做 / 实做", f'{ts["due"]} / {ts["done"]}'],
+            ["未做", f'{ts["missed"]} 人次'],
+            ["最低项目", f'{worst["label"]} {worst["rate"]}%'],
+            ["达标项目", "0 / %d 项" % ts["items"]],
+        ],
+        "list": {
+            "title": "物理治疗 6 项完成情况（本期 10.12—10.18 · 护理部周报）",
+            "sub": "源：护理部本周报送的应做 / 实做人次；逐日明细见《质控分及物理治疗数据》",
+            "cols": ["治疗项目", "应做", "实做", "完成率"],
+            # 4 列与抽屉既有列模板一致；加第 5 列「未做」会被挤到换行/压行（实测两轮）
+            "gt": "1.7fr 1fr 1fr 1fr",
+            "num": [1, 2, 3],
+            "warn": [0, 0, 3],
+            "rows": rows,
+            "sum": ["6 项合计", str(ts["due"]), str(ts["done"]), f'{ts["rate"]}%'],
+            "note": "⚠ 完成率按护理部口径<b>向下取整</b>（71/75=94.67%、21/26=80.77%、11/14=78.57% 均不进位），"
+                    "所以与按比值四舍五入的结果最多差 1 个百分点。"
+                    "各项未做（应做−实做）：" +
+                    "、".join(f"{t['label']} {t['missed']}" for t in n["treat"]) +
+                    f"，合计 <b>{ts['missed']}</b> 人次。"
+                    "本周 6 项<b>无一项达到 100%</b>；随附 docx 的逐日表只到 10.17，"
+                    "本周 10.18 仅进周合计、未进逐日，故逐日加总会比周合计少 "
+                    f"<b>{ts['due'] - sum((t['dailyDue'] or 0) for t in n['treat'])}</b> 人次应做。",
+        },
+        "note": f"<b>本周（10.12—10.18）6 项治疗应做 {ts['due']} 人次、实做 {ts['done']} 人次，"
+                f"合计完成率 {ts['rate']}%</b>（护理部口径向下取整），未做 {ts['missed']} 人次。"
+                f"分项看：经颅交流电 {n['treat'][0]['done']}/{n['treat'][0]['due']}（{n['treat'][0]['rate']}%）为完成量最大项；"
+                f"<b>{worst['label']} {worst['done']}/{worst['due']}（{worst['rate']}%）最低</b>；"
+                f"失眠治疗仪治疗 {n['treat'][4]['done']}/{n['treat'][4]['due']}（{n['treat'][4]['rate']}%）缺口 5 人次，"
+                "相对缺口最大。"
+                "<b>⚠ 两个口径不要混读</b>：① 部门卡上的 484 人次是《特别行动小组汇报表》的物理治疗总人次，"
+                "与本表 656 应做不是同一口径；② docx 逐日表只到 10.17，10.18 的数据只在周合计里。",
+        "diag": "<div class=\"diagnosis-item tone-risk\"><b>本周判断 · 整体 93%，但两项明显掉队</b>"
+                f"<p>6 项合计 {ts['done']}/{ts['due']}＝<b>{ts['rate']}%</b>，未做 <b>{ts['missed']} 人次</b>。"
+                f"其中<b>{worst['label']}</b>只有 <b>{worst['rate']}%</b>（{worst['done']}/{worst['due']}），"
+                f"<b>失眠治疗仪</b> <b>{n['treat'][4]['rate']}%</b>（{n['treat'][4]['done']}/{n['treat'][4]['due']}，缺口 5 人次），"
+                "两项构成主要拖累；经颅交流电、脑功能、音乐放松三项均在 94% 以上，属正常波动。</p></div>"
+                "<div class=\"diagnosis-item tone-orange\"><b>口径提醒</b>"
+                "<p>完成率按护理部口径<b>向下取整</b>，71/75 记 94%、21/26 记 80%，"
+                "不做四舍五入；若与其他系统比对出现 1 个百分点差，先看是否这一条。</p></div>",
+    }
+    body = json.dumps(obj, ensure_ascii=False).replace('"', "'")
+    # 兼容两种写法：首次替换前是 `nursing:{range:'…'}`，替换后变成 `nursing:{'range': '…'}`（键带引号），
+    # 所以键名要允许可选引号，否则第二次跑就锚不到、静默不更新（实测踩过）
+    m = re.search(r"nursing:\{\s*['\"]?range['\"]?\s*:[\s\S]*?\},\n      psychology:", html)
+    if not m:
+        print("  ⚠ deptDaily.nursing 锚点未命中，抽屉护理块未更新")
+        return html
+    return html[:m.start()] + "nursing:" + body + ",\n      psychology:" + html[m.end():]
 
 
 def js_str(s):
@@ -194,7 +268,11 @@ def main():
     orig_len = len(html)
 
     # 1) 整块替换 DEPT_CARD
-    blk = re.search(r"    const DEPT_CARD=\{.*?\n    \};\n", html, re.S)
+    # ⛔ 必须把紧邻的「本段由…生成」注释一起吃掉：build_card_js() 会重新生成这条注释，
+    #    若正则从 const 开始，旧注释留着、新注释又插一条，每跑一次文件就长 76 字节（实测踩过）。
+    blk = re.search(
+        r"(?:[ \t]*/\* ⚠ 本段由[^\n]*\*/\n)?[ \t]*const DEPT_CARD=\{.*?\n[ \t]*\};\n",
+        html, re.S)
     if not blk:
         raise SystemExit("未定位到 DEPT_CARD 块")
     html = html[:blk.start()] + build_card_js() + "\n" + html[blk.end():]
@@ -242,9 +320,20 @@ def main():
                    f"{dep['doctor']['recon']['discharge']['gap']} 出（{'、'.join(dep['doctor']['recon']['blankRows']) or '—'} 未填）。"
                    f"⚠ 营收日报台账至 {DT} 为 {m['weekRevenue'].get('ledgerValue')} 万（{N-1} 天，未含 10.18），仅作核对、不参与展示。",
                    f"上期 {PS}—{PW}", f"本期 {LBL}"],
-        "nursing": [f"{MARK} 本期（{LBL}）", None, dep["nursing"]["physioPeople"], "人次",
-                    f"汇报表护理组表头：物理治疗 <b>{dep['nursing']['physioPeople']} 人次</b>、工娱 <b>{dep['nursing']['recreationSessions']} 场 / {dep['nursing']['recreationPeople']} 人次</b>。"
-                    f"⚠ 本周源表未给六项完成率，率值暂缺、不与上周 92.1% 直接比较",
+        "nursing": [f"{MARK} 本期（{LBL} · 护理部周报）", None, dep["nursing"]["physioPeople"], "人次",
+                    f"汇报表护理组表头：物理治疗 <b>{dep['nursing']['physioPeople']} 人次</b>、"
+                    f"工娱 <b>{dep['nursing']['recreationSessions']} 场 / {dep['nursing']['recreationPeople']} 人次</b>。"
+                    f"<br>六项治疗本周："
+                    + "；".join(f"{t['label']} <b>{t['done']}/{t['due']}</b>（{t['rate']}%，未做 {t['missed']}）"
+                                for t in dep["nursing"]["treat"])
+                    + f"。<br>合计 <b>{dep['nursing']['treatSummary']['done']}/"
+                      f"{dep['nursing']['treatSummary']['due']}</b>＝"
+                      f"<b>{dep['nursing']['treatSummary']['rate']}%</b>，"
+                      f"缺口 {dep['nursing']['treatSummary']['missed']} 人次；"
+                      f"最低为{dep['nursing']['treatSummary']['worst']['label']}"
+                      f" {dep['nursing']['treatSummary']['worst']['rate']}%。"
+                      f"<br>⚠ 完成率按护理部口径<b>向下取整</b>（71/75、21/26 均不进位）；"
+                      f"docx 逐日表只到 {DT}，本周 10.18 仅进周合计、未进逐日。",
                     "上周 92.1%（9.20—9.26）", f"本期 {LBL}"],
         "psychology": [f"{MARK} 本期（{LBL} · 汇报表口径）", dep["psychology"]["individual"], dep["psychology"]["individual"], "人",
                        f"汇报表心理咨询组表头：个体咨询 <b>{dep['psychology']['individual']}</b> 人、团辅 <b>{dep['psychology']['groupSessions']}</b> 场、"
@@ -286,6 +375,9 @@ def main():
         html = html[:st] + render_kpis() + "</div>" + html[en:]
     except ValueError as e:
         print(f"  ⚠ kpiGrid 未替换：{e}")
+
+    # 4c) 抽屉「数据变化」页：deptDaily.nursing 整块按快照重写
+    html = patch_dept_daily_nursing(html, dep)
 
     # 5) 页脚口径
     foot_pat = re.compile(r'(<div class="kpi-foot"><i></i><span>)部门数据：.*?(</span></div>)', re.S)

@@ -312,6 +312,60 @@ def main(db_path=None, out=None, write=True):
                       "revenueWan": dfact("dept.marketing.revenue", wk_end)},
     }
 
+    # ── 护理部 6 项治疗完成情况（周合计为准 + 逐日明细对账）──────
+    # 护理部口径的完成率是**向下取整**，不是四舍五入：
+    # 71/75=94.67→94、21/26=80.77→80、11/14=78.57→78。用 round() 会有 3 项差 1 个点。
+    NURSE_TREATS = [
+        ("ac_current", "经颅交流电"),
+        ("tms", "经颅磁治疗"),
+        ("brain_func", "脑功能治疗"),
+        ("music_relax", "音乐放松治疗"),
+        ("insomnia", "失眠治疗仪治疗"),
+        ("group_biofeedback", "团体生物反馈"),
+    ]
+
+    def nw_fact(k, f):
+        return q1(c, "SELECT value FROM fact WHERE source_id='nursing_weekly' AND metric_id=? "
+                     "AND business_date=? AND dim_key=''", (f"nursing.treat.{k}.{f}", wk_end))
+
+    def nd_sum(k, f):
+        # 逐日只在 dim_key='daily' 上取，避免和周合计相加翻倍
+        return q1(c, "SELECT SUM(value) FROM fact WHERE source_id='nursing_treat_daily' AND metric_id=? "
+                     "AND dim_key='daily' AND business_date BETWEEN ? AND ?",
+                  (f"nursing.treat.{k}.{f}", p_start.isoformat(), wk_end))
+
+    treat_rows, n_due, n_done = [], 0, 0
+    for k, lab in NURSE_TREATS:
+        due, done = nw_fact(k, "due"), nw_fact(k, "done")
+        d_due, d_done = nd_sum(k, "due"), nd_sum(k, "done")
+        rate = int(done / due * 100) if (due and done is not None) else None
+        treat_rows.append({
+            "key": k, "label": lab,
+            "due": iv(due), "done": iv(done), "missed": iv(due - done) if due is not None and done is not None else None,
+            "rate": rate,
+            "dailyDue": iv(d_due), "dailyDone": iv(d_done),
+            "dailyRate": (int(d_done / d_due * 100) if (d_due and d_done is not None) else None),
+        })
+        if due is not None:
+            n_due += due
+        if done is not None:
+            n_done += done
+
+    dept_report["nursing"]["treat"] = treat_rows
+    dept_report["nursing"]["treatSummary"] = {
+        "due": iv(n_due), "done": iv(n_done),
+        "missed": iv(n_due - n_done),
+        "rate": int(n_done / n_due * 100) if n_due else None,
+        "items": len(treat_rows),
+        "worst": min((t for t in treat_rows if t["rate"] is not None),
+                     key=lambda t: t["rate"], default=None),
+        "rateRule": "floor",
+        "source": "nursing_weekly",
+        "dailyThrough": rev_through,
+        "note": "完成率按护理部口径向下取整。逐日明细只到 " + rev_through +
+                "，本周 10.18 当天未进逐日表，故六项「周合计−逐日加总」的差额即 10.18 一天。",
+    }
+
     # 医生组个人明细：加总与表头对不上的地方原样保留，不替对方补数，也不拉平
     staff = []
     for name, _first_id in c.execute("SELECT dim_value, MIN(id) FROM fact WHERE source_id='action_report' "
@@ -383,6 +437,13 @@ def main(db_path=None, out=None, write=True):
                              authority="action_report", ledgerValue=int(vis_new + vis_ret),
                              ledgerThrough=rev_through,
                              deltaPct=delta(week_visits, week_visits_p)),
+        "nurseTreatRate": metric("nurseTreatRate", "护理治疗完成率",
+                                 dept_report["nursing"]["treatSummary"]["rate"], "%",
+                                 authority="nursing_weekly",
+                                 due=dept_report["nursing"]["treatSummary"]["due"],
+                                 done=dept_report["nursing"]["treatSummary"]["done"],
+                                 missed=dept_report["nursing"]["treatSummary"]["missed"],
+                                 note="护理部 6 项治疗加权完成率，按科室口径向下取整"),
         "weekAdmit": metric("weekAdmit", "本期入院", int(adm), "人", deltaPct=delta(adm, adm_p),
                             authority="action_report"),
         "weekDischarge": metric("weekDischarge", "本期出院", int(dis), "人", deltaPct=delta(dis, dis_p),
@@ -409,6 +470,7 @@ def main(db_path=None, out=None, write=True):
         "weekDischarge": ["action_report", "revenue_daily_report"],
         "wardCount": ["revenue_daily_report"],
         "netPool": ["action_report"],
+        "nurseTreatRate": ["nursing_weekly", "nursing_treat_daily"],
     }
     fetched_at = q1(c, "SELECT MAX(last_pull_at) FROM source") or pulled_at()
     published_at = datetime.now(CN).isoformat(timespec="seconds")
@@ -441,6 +503,13 @@ def main(db_path=None, out=None, write=True):
                  f"{delta(week_total, prev_total):+.1f}%。"},
         {"id": "physio", "metricIds": ["weekPhysio"], "numbersOnly": True,
          "text": f"物理治疗费 {d_phy if d_phy is not None else '—'} 万，占本周总收入 {pct(d_phy, d_rev) if d_phy and d_rev else '—'}%。"},
+        {"id": "nursing_treat", "metricIds": ["nurseTreatRate"], "numbersOnly": True,
+         "text": f"护理六项治疗应做 {dept_report['nursing']['treatSummary']['due']} 人次、实做 "
+                 f"{dept_report['nursing']['treatSummary']['done']} 人次，合计完成 "
+                 f"{dept_report['nursing']['treatSummary']['rate']}%（护理部口径向下取整）；"
+                 f"最低为{dept_report['nursing']['treatSummary']['worst']['label']} "
+                 f"{dept_report['nursing']['treatSummary']['worst']['rate']}%，"
+                 f"缺口集中在失眠治疗仪与团体生物反馈。"},
         {"id": "visit", "metricIds": ["weekVisits"], "numbersOnly": True,
          "text": f"门诊 {int(week_visits)} 人次，较上期 {int(week_visits_p)} 人次 {delta(week_visits, week_visits_p):+.1f}%；"
                  f"到院登记同日 {arr_w} 人次（含陪同，两者不合并）。"},
@@ -518,6 +587,19 @@ def main(db_path=None, out=None, write=True):
                                 f"上期同 {days_recorded} 天 {sw_prev['workload']} 分，缺日不补、不直接比。"
                                 " 汇报表未设置导医工作量栏，该项不存在「汇报表口径」可覆盖，"
                                 "故仅登记为覆盖缺口，不与汇报表冲突。"})
+    _ts = dept_report["nursing"]["treatSummary"]
+    _gapD = _ts["due"] - sum(t["dailyDue"] or 0 for t in dept_report["nursing"]["treat"])
+    _gapN = _ts["done"] - sum(t["dailyDone"] or 0 for t in dept_report["nursing"]["treat"])
+    if _gapD or _gapN:
+        conflicts.append({"id": "nursing_treat_1018", "label": "护理治疗周合计比逐日多 10.18 一天",
+                          "severity": "info", "winner": "nursing_weekly",
+                          "source_a": "nursing_weekly", "source_b": "nursing_treat_daily",
+                          "value_a": _ts["done"], "value_b": _ts["done"] - _gapN,
+                          "detail": f"护理部周报 6 项合计应做 {_ts['due']}、实做 {_ts['done']}"
+                                    f"（{(p_start.month)}.{p_start.day}–{p_end.month}.{p_end.day}，含 10.18）；"
+                                    f"随附 docx 的逐日表只到 {rev_through}，6 天合计应做 {_ts['due'] - _gapD}、"
+                                    f"实做 {_ts['done'] - _gapN}。差额 {_gapD}/{_gapN} 即 10.18 单日，"
+                                    "属逐日表未覆盖，不是两套数打架；周值取护理部报表，逐日仅作明细。"})
 
     # ── 来源状态 ──────────────────────────────────────────────
     src_rows = list(c.execute("SELECT id,name,url,status,data_through,last_pull_at FROM source ORDER BY id"))
@@ -537,7 +619,9 @@ def main(db_path=None, out=None, write=True):
                               "psych_visits": "仅用前三 sheet（新-排班 / 课程排班 / 团体治疗登记）",
                               "butler_contacts": "各管家分表；未填报记 null",
                               "service_followups": "回访台账逐条 + 导诊记录 + 日工作量",
-                              "arrival_register": "当月到院登记逐条"}.get(sid, "")})
+                              "arrival_register": "当月到院登记逐条",
+                              "nursing_weekly": "护理部周报：6 项治疗应做/实做，完成率按科室口径向下取整",
+                              "nursing_treat_daily": "随周报的 docx 逐日表，仅到 10.17，只作明细不作周值"}.get(sid, "")})
 
     coverage = {"recordedDays": len(daily), "monthDays": month_days,
                 "pct": round(len(daily) / month_days * 100, 1)}
@@ -557,6 +641,8 @@ def main(db_path=None, out=None, write=True):
         # 也不能拿「营收的 6 天」去和其他源「7 天」做环比（见前方 fam_* 注释）。
         "watermarks": {
             "dept": {"dataThrough": wk_end, "days": 7, "authority": "action_report"},
+            "nursing": {"dataThrough": wk_end, "days": 7, "authority": "nursing_weekly",
+                        "dailyThrough": rev_through},
             "revenue": {"dataThrough": rev_through,
                         "days": len([d for d in rev_days if p_start.isoformat() <= d <= p_end.isoformat()])},
             "psych": {"dataThrough": psy_end, "days": psy_n},

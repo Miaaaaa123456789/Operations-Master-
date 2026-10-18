@@ -1,0 +1,17 @@
+{
+ "period_start": "2026-10-12",
+ "period_end": "2026-10-18",
+ "reported_by": "护理部",
+ "reported_at": "2026-10-19",
+ "entry": "业主 2026-10-19 转达护理部本周数据",
+ "rate_rule": "完成率按护理部口径向下取整（int(done/due*100)），不是四舍五入：71/75=94.67→94、21/26=80.77→80、11/14=78.57→78",
+ "items": [
+  {"key": "ac_current",        "label": "经颅交流电",   "due": 221, "done": 211, "rate": 95},
+  {"key": "tms",               "label": "经颅磁治疗",   "due": 161, "done": 149, "rate": 92},
+  {"key": "brain_func",        "label": "脑功能治疗",   "due": 159, "done": 150, "rate": 94},
+  {"key": "music_relax",       "label": "音乐放松治疗", "due": 75,  "done": 71,  "rate": 94},
+  {"key": "insomnia",          "label": "失眠治疗仪治疗", "due": 26, "done": 21,  "rate": 80},
+  {"key": "group_biofeedback", "label": "团体生物反馈", "due": 14,  "done": 11,  "rate": 78}
+ ],
+ "note": "6 项合计应做 656 人次、实做 613 人次，整体完成率 93%（613/656=93.45%）。逐日明细见 data/raw-nursing/treat-daily.json（docx 只到 10.17）。"
+}
