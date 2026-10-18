@@ -1,0 +1,14 @@
+# 本地事实库与原始表（含患者姓名/电话，属受控数据，禁止入库/外发）
+db/*.sqlite
+db/*.sqlite-journal
+db/*.sqlite-wal
+db/deploy-seed.sqlite
+data/raw-kdocs/
+# 运行时快照由 build_snapshot.py 生成，含真实员工/患者姓名，不随代码入库
+data/snapshot.json
+__pycache__/
+*.pyc
+
+# 站点打包与临时产物
+/tmp/
+*.bak-*

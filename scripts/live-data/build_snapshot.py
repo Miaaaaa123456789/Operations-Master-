@@ -83,15 +83,44 @@ def main(db_path=None, out=None, write=True):
     rev_days = [r[0] for r in c.execute(
         "SELECT DISTINCT business_date FROM fact WHERE source_id='revenue_daily_report' "
         "AND business_date<=? ORDER BY 1", (as_of,))]
-    data_through = rev_days[-1]
-    dt = date.fromisoformat(data_through)
+    rev_through = rev_days[-1]          # 营收日报次日发布：2026-10-17
+    data_through = rev_through          # 展示口径稍后被部门汇报表覆盖
+    dt = date.fromisoformat(rev_through)
 
     # 自然周（周一至周日）
     p_start = as_of_date = dt - timedelta(days=dt.weekday())
     p_end = p_start + timedelta(days=6)
     prev_start = p_start - timedelta(days=7)
     prev_end = p_start - timedelta(days=1)
+    month_start = dt.replace(day=1)
     days_recorded = len([d for d in rev_days if p_start.isoformat() <= d <= p_end.isoformat()])
+    cmp_end = prev_start + timedelta(days=days_recorded - 1)
+
+    # ── 部门汇报表（周口径，2026-10-19 业主指定：冲突一律以本表为准）──────
+    # 汇报表按自然周自填、含当天，故它是本周唯一「7 天完整」的来源；
+    # 营收日报次日发布，本周只到 10.17（6 天）——两者不是谁算错，是截止日不同。
+    wk_end = p_end.isoformat()
+    prev_wk_end = prev_end.isoformat()
+
+    def dfact(metric, day):
+        return q1(c, "SELECT value FROM fact WHERE source_id='action_report' AND metric_id=? "
+                     "AND business_date=?", (metric, day))
+
+    d_rev = dfact("dept.doctor.revenue", wk_end)
+    d_rev_p = dfact("dept.doctor.revenue", prev_wk_end)
+    d_adm = dfact("dept.doctor.admit", wk_end)
+    d_adm_p = dfact("dept.doctor.admit", prev_wk_end)
+    d_dis = dfact("dept.doctor.discharge", wk_end)
+    d_dis_p = dfact("dept.doctor.discharge", prev_wk_end)
+    d_opd = dfact("dept.doctor.outpatient", wk_end)
+    d_opd_p = dfact("dept.doctor.outpatient", prev_wk_end)
+    d_phy = dfact("dept.doctor.physio", wk_end)
+    d_month = sum(x for x in (r[0] for r in c.execute(
+        "SELECT value FROM fact WHERE source_id='action_report' AND metric_id='dept.doctor.revenue' "
+        "AND business_date BETWEEN ? AND ?", (month_start.isoformat(), wk_end))) if x is not None) or None
+    # 汇报表覆盖到 10.18：展示口径以它为准（营收日报仍保留在 revenueDataThrough 里）
+    dept_through = wk_end if d_rev is not None else rev_through
+    days_recorded = 7 if d_rev is not None else days_recorded
     cmp_end = prev_start + timedelta(days=days_recorded - 1)
 
     # ⛔ 2026-10-18 修（重要口径）：各源的截止日**本来就不一样**——
@@ -121,43 +150,51 @@ def main(db_path=None, out=None, write=True):
     psy_n, svc_n, but_n, arr_n = (fam_days(x) for x in (psy_end, svc_end, but_end, arr_end))
 
     # ── 营收口径 ────────────────────────────────────────────────
-    month_start = dt.replace(day=1)
-    out_m = s(c, "revenue.outpatient", month_start.isoformat(), data_through) or 0
-    in_m = s(c, "revenue.inpatient", month_start.isoformat(), data_through) or 0
-    month_total = out_m + in_m
+    # ledger_* 是营收日报逐日台账（可勾稽，但本周只到 10.17）；
+    # 对外数字按业主指令取汇报表（d_*），台账原值一并留在快照里供核对。
+    out_m = s(c, "revenue.outpatient", month_start.isoformat(), rev_through) or 0
+    in_m = s(c, "revenue.inpatient", month_start.isoformat(), rev_through) or 0
+    ledger_month = out_m + in_m
 
-    out_w = s(c, "revenue.outpatient", p_start.isoformat(), data_through) or 0
-    in_w = s(c, "revenue.inpatient", p_start.isoformat(), data_through) or 0
-    week_total = out_w + in_w
+    out_w = s(c, "revenue.outpatient", p_start.isoformat(), rev_through) or 0
+    in_w = s(c, "revenue.inpatient", p_start.isoformat(), rev_through) or 0
+    ledger_week = out_w + in_w
     out_p = s(c, "revenue.outpatient", prev_start.isoformat(), cmp_end.isoformat()) or 0
     in_p = s(c, "revenue.inpatient", prev_start.isoformat(), cmp_end.isoformat()) or 0
-    prev_total = out_p + in_p
+    ledger_prev = out_p + in_p
 
-    vis_new = s(c, "visit.new", p_start.isoformat(), data_through) or 0
-    vis_ret = s(c, "visit.return", p_start.isoformat(), data_through) or 0
+    month_total = d_month * 10000 if d_month is not None else ledger_month
+    week_total = d_rev * 10000 if d_rev is not None else ledger_week
+    prev_total = d_rev_p * 10000 if d_rev_p is not None else ledger_prev
+
+    vis_new = s(c, "visit.new", p_start.isoformat(), rev_through) or 0
+    vis_ret = s(c, "visit.return", p_start.isoformat(), rev_through) or 0
     vis_prev = (s(c, "visit.new", prev_start.isoformat(), cmp_end.isoformat()) or 0) + \
                (s(c, "visit.return", prev_start.isoformat(), cmp_end.isoformat()) or 0)
-    adm = s(c, "admit", p_start.isoformat(), data_through) or 0
-    dis = s(c, "discharge", p_start.isoformat(), data_through) or 0
-    adm_p = s(c, "admit", prev_start.isoformat(), cmp_end.isoformat()) or 0
-    dis_p = s(c, "discharge", prev_start.isoformat(), cmp_end.isoformat()) or 0
+    adm = d_adm if d_adm is not None else (s(c, "admit", p_start.isoformat(), rev_through) or 0)
+    dis = d_dis if d_dis is not None else (s(c, "discharge", p_start.isoformat(), rev_through) or 0)
+    adm_p = d_adm_p if d_adm_p is not None else (s(c, "admit", prev_start.isoformat(), cmp_end.isoformat()) or 0)
+    dis_p = d_dis_p if d_dis_p is not None else (s(c, "discharge", prev_start.isoformat(), cmp_end.isoformat()) or 0)
+    week_visits = d_opd if d_opd is not None else (vis_new + vis_ret)
+    week_visits_p = d_opd_p if d_opd_p is not None else vis_prev
     ward = q1(c, "SELECT value FROM fact WHERE metric_id='ward.count' AND business_date=?",
-              (data_through,))
+              (rev_through,))
     # 在院人数是「时点值」，不是当日发生额：手工补录当天只填了门诊/在院金额时，
     # 该日的 ward.count 会是 NULL——此时回退到最近一个有值的时点，而不是让 KPI 直接变空。
     if ward is None:
         ward = q1(c, "SELECT value FROM fact WHERE metric_id='ward.count' AND business_date<=? "
-                     "ORDER BY business_date DESC LIMIT 1", (data_through,))
+                     "ORDER BY business_date DESC LIMIT 1", (rev_through,))
     ward_prev = q1(c, "SELECT value FROM fact WHERE metric_id='ward.count' AND business_date<=? "
                       "ORDER BY business_date DESC LIMIT 1", (cmp_end.isoformat(),))
 
     # 时间进度：按该指标 dataThrough 计算（当月自然日）
     month_days = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
     month_days = month_days.day
-    elapsed = dt.day
+    elapsed = date.fromisoformat(dept_through).day
     amount_progress = round(month_total / 10000 / TARGET_WAN * 100, 1)
     time_progress = round(elapsed / month_days * 100, 1)
     gap = round(TARGET_WAN - month_total / 10000, 2)
+    data_through = dept_through
 
     daily = []
     cum = 0.0
@@ -250,14 +287,67 @@ def main(db_path=None, out=None, write=True):
     arr_prev_daily = daily_map(c, "arrival.visit", prev_start.isoformat(),
                                fam_cmp(arr_end).isoformat())
 
-    # ── 部门汇报表（本周口径，源表自填）───────────────────────
+    # ── 部门汇报表（本周口径，源表自填；冲突裁决方）───────────
+    def iv(x):
+        """计数类：整数值不要显示成 484.0。"""
+        if x is None:
+            return None
+        return int(x) if float(x).is_integer() else x
+
     dept_report = {
-        "doctor": {"admit": 10, "outpatient": 307, "physioWan": 27, "revenueWan": 69},
-        "nursing": {"physioPeople": 484, "recreationSessions": 5, "recreationPeople": 62},
-        "psychology": {"individual": 40, "groupSessions": 4, "people": 40, "revenueYuan": 19002},
-        "service": {"followup": None, "arrived": 239, "charity": 14},
-        "marketing": {"admit": None, "outpatient": None, "revenueWan": None},
+        "doctor": {"admit": iv(d_adm), "discharge": iv(d_dis), "outpatient": iv(d_opd),
+                   "physioWan": d_phy, "revenueWan": d_rev},
+        "nursing": {"physioPeople": iv(dfact("dept.nursing.physio_people", wk_end)),
+                    "recreationSessions": iv(dfact("dept.nursing.rec_sessions", wk_end)),
+                    "recreationPeople": iv(dfact("dept.nursing.rec_people", wk_end))},
+        "psychology": {"individual": iv(dfact("dept.psych.individual", wk_end)),
+                       "groupSessions": iv(dfact("dept.psych.sessions", wk_end)),
+                       "people": iv(dfact("dept.psych.people", wk_end)),
+                       "revenueYuan": iv(dfact("dept.psych.revenue", wk_end))},
+        "service": {"followup": iv(dfact("dept.service.followup", wk_end)),
+                    "arrived": iv(dfact("dept.service.arrived", wk_end)),
+                    "charity": iv(dfact("dept.service.charity", wk_end))},
+        "marketing": {"admit": iv(dfact("dept.marketing.admit", wk_end)),
+                      "outpatient": iv(dfact("dept.marketing.outpatient", wk_end)),
+                      "revenueWan": dfact("dept.marketing.revenue", wk_end)},
     }
+
+    # 医生组个人明细：加总与表头对不上的地方原样保留，不替对方补数，也不拉平
+    staff = []
+    for name, _first_id in c.execute("SELECT dim_value, MIN(id) FROM fact WHERE source_id='action_report' "
+                                     "AND dim_key='staff' GROUP BY dim_value ORDER BY MIN(id)"):
+        staff.append({
+            "name": name,
+            "admit": q1(c, "SELECT value FROM fact WHERE metric_id='dept.doctor.staff_admit' "
+                           "AND business_date=? AND dim_value=?", (wk_end, name)),
+            "discharge": q1(c, "SELECT value FROM fact WHERE metric_id='dept.doctor.staff_discharge' "
+                               "AND business_date=? AND dim_value=?", (wk_end, name)),
+            "convert": q1(c, "SELECT value FROM fact WHERE metric_id='dept.doctor.staff_convert' "
+                             "AND business_date=? AND dim_value=?", (wk_end, name)),
+            "duodao": q1(c, "SELECT value FROM fact WHERE metric_id='dept.doctor.staff_duodao' "
+                            "AND business_date=? AND dim_value=?", (wk_end, name)),
+        })
+    sum_adm = int(sum(x["admit"] for x in staff if x["admit"] is not None))
+    sum_dis = int(sum(x["discharge"] for x in staff if x["discharge"] is not None))
+    blank = [x["name"] for x in staff
+             if x["admit"] is None and x["discharge"] is None and x["convert"] is None]
+    dept_report["doctor"]["staff"] = staff
+    dept_report["doctor"]["recon"] = {
+        "admit": {"header": int(d_adm) if d_adm is not None else None, "detail": sum_adm,
+                  "gap": (int(d_adm) - sum_adm) if d_adm is not None else None},
+        "discharge": {"header": int(d_dis) if d_dis is not None else None, "detail": sum_dis,
+                      "gap": (int(d_dis) - sum_dis) if d_dis is not None else None},
+        "blankRows": blank,
+        "note": "个人明细只覆盖科内 6 名医生，表头为全组口径；空白行按契约记 null、不记 0，也不反推。",
+    }
+    dept_report["week"] = {"start": p_start.isoformat(), "end": wk_end,
+                           "label": f"{p_start.month}.{p_start.day}—{p_end.month}.{p_end.day}",
+                           "authority": "action_report",
+                           "sourceName": "特别行动小组汇报表",
+                           "filledAt": q1(c, "SELECT MAX(last_pull_at) FROM source WHERE id='action_report'")}
+    dept_report["compareWeek"] = {"start": prev_start.isoformat(), "end": prev_wk_end,
+                                  "revenueWan": d_rev_p, "admit": d_adm_p,
+                                  "discharge": d_dis_p, "outpatient": d_opd_p}
 
     # ── 指标卡片 ──────────────────────────────────────────────
     def metric(mid, label, value, unit, **kw):
@@ -271,22 +361,34 @@ def main(db_path=None, out=None, write=True):
         "monthRevenue": {"id": "monthRevenue", "label": "10月累计营收", "value": round(month_total / 10000, 2),
                          "unit": "万元", "valueYuan": round(month_total, 2), "targetWan": TARGET_WAN,
                          "amountProgress": amount_progress, "timeProgress": time_progress,
-                         "gap": gap, "dataThrough": data_through, "status": "ok"},
+                         "gap": gap, "dataThrough": data_through, "status": "ok",
+                         "authority": "action_report", "ledgerValue": round(ledger_month / 10000, 2),
+                         "ledgerThrough": rev_through},
         "weekRevenue": metric("weekRevenue", "本期营收", round(week_total / 10000, 2), "万元",
                               valueYuan=round(week_total, 2), days=days_recorded,
                               deltaPct=delta(week_total, prev_total),
+                              authority="action_report",
+                              ledgerValue=round(ledger_week / 10000, 2), ledgerThrough=rev_through,
                               compare=f"{prev_start.isoformat()}—{cmp_end.isoformat()} 同 {days_recorded} 天"),
         "weekOutpatient": metric("weekOutpatient", "本期门诊收入", round(out_w / 10000, 2), "万元",
-                                 deltaPct=delta(out_w, out_p)),
+                                 deltaPct=delta(out_w, out_p), authority="revenue_daily_report",
+                                 note=f"营收日报台账口径，仅到 {rev_through}，未含 10.18"),
         "weekInpatient": metric("weekInpatient", "本期在院收入", round(in_w / 10000, 2), "万元",
-                                deltaPct=delta(in_w, in_p)),
-        "weekVisits": metric("weekVisits", "本期门诊人次", int(vis_new + vis_ret), "人次",
+                                deltaPct=delta(in_w, in_p), authority="revenue_daily_report",
+                                note=f"营收日报台账口径，仅到 {rev_through}，未含 10.18"),
+        "weekPhysio": metric("weekPhysio", "本期物理治疗费", d_phy, "万元", authority="action_report",
+                             deltaPct=delta(d_phy, dfact("dept.doctor.physio", prev_wk_end))),
+        "weekVisits": metric("weekVisits", "本期门诊人次", int(week_visits), "人次",
                              visitsNew=int(vis_new), visitsReturn=int(vis_ret),
-                             deltaPct=delta(vis_new + vis_ret, vis_prev)),
-        "weekAdmit": metric("weekAdmit", "本期入院", int(adm), "人", deltaPct=delta(adm, adm_p)),
-        "weekDischarge": metric("weekDischarge", "本期出院", int(dis), "人", deltaPct=delta(dis, dis_p)),
+                             authority="action_report", ledgerValue=int(vis_new + vis_ret),
+                             ledgerThrough=rev_through,
+                             deltaPct=delta(week_visits, week_visits_p)),
+        "weekAdmit": metric("weekAdmit", "本期入院", int(adm), "人", deltaPct=delta(adm, adm_p),
+                            authority="action_report"),
+        "weekDischarge": metric("weekDischarge", "本期出院", int(dis), "人", deltaPct=delta(dis, dis_p),
+                                authority="action_report"),
         "wardCount": {"id": "wardCount", "label": "在院人数", "value": int(ward) if ward is not None else None,
-                      "unit": "人", "dataThrough": data_through, "status": "ok", "pointInTime": True},
+                      "unit": "人", "dataThrough": rev_through, "status": "ok", "pointInTime": True},
         "netPool": {"id": "netPool", "label": "患者池净变化", "value": int(adm - dis), "unit": "人",
                     "dataThrough": data_through, "status": "ok"},
     }
@@ -297,24 +399,25 @@ def main(db_path=None, out=None, write=True):
     # 缺任一项，前端就只能靠文案硬编码第二份结果 —— 故在快照生成时统一补齐，
     # 不让展示层自己猜。definitionVersion 随规则改动递增，旧结论才能标"旧口径"。
     METRIC_SOURCES = {
-        "monthRevenue": ["revenue_daily_report"],
-        "weekRevenue": ["revenue_daily_report"],
+        "monthRevenue": ["action_report", "revenue_daily_report"],
+        "weekRevenue": ["action_report", "revenue_daily_report"],
         "weekOutpatient": ["revenue_daily_report"],
         "weekInpatient": ["revenue_daily_report"],
-        "weekVisits": ["revenue_daily_report"],
-        "weekAdmit": ["revenue_daily_report"],
-        "weekDischarge": ["revenue_daily_report"],
+        "weekPhysio": ["action_report"],
+        "weekVisits": ["action_report", "revenue_daily_report"],
+        "weekAdmit": ["action_report", "revenue_daily_report"],
+        "weekDischarge": ["action_report", "revenue_daily_report"],
         "wardCount": ["revenue_daily_report"],
-        "netPool": ["revenue_daily_report"],
+        "netPool": ["action_report"],
     }
     fetched_at = q1(c, "SELECT MAX(last_pull_at) FROM source") or pulled_at()
     published_at = datetime.now(CN).isoformat(timespec="seconds")
     for _mid, _mv in metrics.items():
         if _mid == "monthRevenue":
             _mv.setdefault("periodStart", month_start.isoformat())
-            _mv.setdefault("periodEnd", dt.isoformat())
-            _mv["coverage"] = {"recordedDays": len(daily), "expectedDays": month_days,
-                               "pct": round(len(daily) / month_days * 100, 1)}
+            _mv.setdefault("periodEnd", dept_through)
+            _mv["coverage"] = {"recordedDays": min(elapsed, month_days), "expectedDays": month_days,
+                               "pct": round(min(elapsed, month_days) / month_days * 100, 1)}
         else:
             _mv.setdefault("periodStart", p_start.isoformat())
             _mv.setdefault("periodEnd", p_end.isoformat())
@@ -333,17 +436,17 @@ def main(db_path=None, out=None, write=True):
     # ── 洞察（确定性，不猜测因果）──────────────────────────────
     insights = [
         {"id": "rev", "metricIds": ["weekRevenue"], "numbersOnly": True,
-         "text": f"本期（{p_start.month}.{p_start.day}–{p_end.month}.{p_end.day}，已录 {days_recorded} 天）营收 "
-                 f"{week_total/10000:.2f} 万；上期同 {days_recorded} 天 {prev_total/10000:.2f} 万，"
+         "text": f"本期（{p_start.month}.{p_start.day}–{p_end.month}.{p_end.day}，7 天）营收 "
+                 f"{week_total/10000:.2f} 万（汇报表口径）；上期 {prev_total/10000:.2f} 万，"
                  f"{delta(week_total, prev_total):+.1f}%。"},
-        {"id": "split", "metricIds": ["weekOutpatient", "weekInpatient"], "numbersOnly": True,
-         "text": f"门诊 {out_w/10000:.2f} 万、在院 {in_w/10000:.2f} 万；门诊占 {pct(out_w, week_total)}%。"},
+        {"id": "physio", "metricIds": ["weekPhysio"], "numbersOnly": True,
+         "text": f"物理治疗费 {d_phy if d_phy is not None else '—'} 万，占本周总收入 {pct(d_phy, d_rev) if d_phy and d_rev else '—'}%。"},
         {"id": "visit", "metricIds": ["weekVisits"], "numbersOnly": True,
-         "text": f"门诊 {int(vis_new+vis_ret)} 人次（初诊 {int(vis_new)} / 复诊 {int(vis_ret)}），"
-                 f"较上期同 {days_recorded} 天 {delta(vis_new+vis_ret, vis_prev):+.1f}%。"},
+         "text": f"门诊 {int(week_visits)} 人次，较上期 {int(week_visits_p)} 人次 {delta(week_visits, week_visits_p):+.1f}%；"
+                 f"到院登记同日 {arr_w} 人次（含陪同，两者不合并）。"},
         {"id": "ward", "metricIds": ["wardCount", "weekAdmit", "weekDischarge"], "numbersOnly": True,
          "text": f"入院 {int(adm)}、出院 {int(dis)}，患者池净 {int(adm-dis):+d} 人；"
-                 f"在院 {('—' if ward is None else str(int(ward)))} 人（{data_through} 时点）。"},
+                 f"在院 {('—' if ward is None else str(int(ward)))} 人（{rev_through} 时点）。"},
         {"id": "psych", "metricIds": ["psych.contact"], "numbersOnly": True,
          "text": f"心理组本期日报 {pw['report']} 条（{p_start.month}.{p_start.day}–{date.fromisoformat(psy_end).month}.{date.fromisoformat(psy_end).day}，"
                  f"{psy_n} 天）：患者接触 {pw['contact']} 人次、咨询工作量 {pw['consult']} 人次，"
@@ -358,25 +461,63 @@ def main(db_path=None, out=None, write=True):
     ]
 
     # ── 冲突 / 待核 ───────────────────────────────────────────
+    # 裁决规则（业主 2026-10-19 定）：凡与《特别行动小组汇报表》冲突，一律取汇报表。
+    # 每条都写明双方数值与胜出方，页面据此标注，不再出现「两个数互相不认」。
     conflicts = [
-        {"id": "arrival_vs_service", "label": "到院口径两源不一致", "severity": "warn",
+        {"id": "week_revenue", "label": "本周营收：汇报表 72.5 万 vs 台账 37.27 万", "severity": "warn",
+         "winner": "action_report", "source_a": "action_report", "source_b": "revenue_daily_report",
+         "value_a": d_rev, "value_b": round(ledger_week / 10000, 2),
+         "detail": f"汇报表第3周总收入 {d_rev} 万（7 天，含 10.18）；营收日报只到 {rev_through}，"
+                   f"{days_recorded - 1} 天合计 {ledger_week/10000:.2f} 万。差额不是算错：10.18 到院 {arr_daily.get(wk_end, 0)} 人次"
+                   f"（平日 17–28），当日营收尚未进入日报。按指令以汇报表为准，台账原值保留可查。"},
+        {"id": "month_revenue", "label": "10月累计：汇报表 167.70 万 vs 台账 139.78 万", "severity": "warn",
+         "winner": "action_report", "source_a": "action_report", "source_b": "revenue_daily_report",
+         "value_a": round(month_total / 10000, 2), "value_b": round(ledger_month / 10000, 2),
+         "detail": f"汇报表三周合计 26.2＋69＋72.5＝{month_total/10000:.2f} 万；台账 10.1—{rev_through} 逐日合计 "
+                   f"{ledger_month/10000:.2f} 万。差 {(month_total-ledger_month)/10000:+.2f} 万（含 10.18 未入台账，"
+                   f"及第1/2周两口径本身的差）。按指令采用汇报表，逐日图仍显示台账并标注口径。"},
+        {"id": "doctor_detail", "label": "医生组表头与其个人明细对不上", "severity": "warn",
+         "winner": "action_report", "source_a": "action_report", "source_b": "action_report",
+         "value_a": d_adm, "value_b": sum_adm,
+         "detail": f"表头入院 {int(d_adm) if d_adm is not None else '—'} 人、出院 {int(d_dis) if d_dis is not None else '—'} 人；"
+                   f"6 名医生正文加总入院 {sum_adm}、出院 {sum_dis}，缺口 {int(d_adm or 0)-sum_adm} 入 / "
+                   f"{int(d_dis or 0)-sum_dis} 出。空白行：{'、'.join(blank) or '无'}（该行未填，按契约记 null 不记 0）。"
+                   f"孙乐写的是『本周转化 5 人』，转化≠入院，不能直接累加。"},
+        {"id": "arrival_vs_service", "label": "到院人数两个口径并存", "severity": "info",
+         "winner": "action_report", "source_a": "arrival_register", "source_b": "action_report",
+         "value_a": arr_w, "value_b": dept_report["service"]["arrived"],
          "detail": f"《10月到院登记表》{p_start.month}.{p_start.day}–{date.fromisoformat(arr_end).month}.{date.fromisoformat(arr_end).day} 逐条 {arr_w} 人次；"
-                   f"《客服服务部汇报表》本周「到院人数」填 {dept_report['service']['arrived']}（其正文为导医接待人次）。"
-                   f"两者粒度不同（到院登记＝就诊患者，接待＝含陪同），按契约不合并、不取平均。"},
-        {"id": "psych_week_table_lag", "label": "心理组周统计仍停在 10.04—10.10", "severity": "warn",
-         "detail": "V4「周个人统计」手动周起始日仍为 2026-10-04（结束日 10-10），"
-                   "未随 10.12—10.18 推进；故本期心理指标一律由「咨询师每日简报」逐条汇总，周表仅作交叉核对。"},
-        {"id": "service_workload_gap", "label": "导医工作量 10.17 未填", "severity": "info",
-         "detail": f"《日工作量考核表》本周合计 {sw['workload']} 分，10.17 无记录；"
-                   f"上期同 {days_recorded} 天 {sw_prev['workload']} 分，缺日不补、不直接比。"},
+                   f"《客服服务部汇报表》本周「到院人数」{dept_report['service']['arrived']}（导医接待，含陪同）。"
+                   f"两指标含义不同，各自保留、互不加总。"},
+        {"id": "physio_no_daily", "label": "物理治疗费只有周合计", "severity": "info",
+         "winner": "action_report", "source_a": "action_report", "source_b": "",
+         "value_a": d_phy, "value_b": None,
+         "detail": f"汇报表本周物理治疗 {d_phy} 万（住院 29.8 ＋ 门诊 3.1）；营收日报未按日拆分该项，无法做逐日曲线。"},
     ]
+    if dept_report["marketing"]["revenueWan"] is None:
+        conflicts.append({"id": "marketing_blank", "label": "营销中心本周表头未填", "severity": "info",
+                          "winner": "action_report", "source_a": "action_report", "source_b": "",
+                          "value_a": None, "value_b": None,
+                          "detail": "汇报表「营销中心」表头行只写了部门名，入院/门诊/总收入三格为空，按契约记 null，"
+                                    "不拿上周数顶替。"})
+    conflicts.append({"id": "psych_week_table_lag", "label": "心理组周统计仍停在 10.04—10.10", "severity": "warn",
+                      "winner": "action_report", "source_a": "psych_v4", "source_b": "action_report",
+                      "value_a": pw["contact"], "value_b": dept_report["psychology"]["individual"],
+                      "detail": "V4「周个人统计」手动周起始日仍是 2026-10-04，未随本期推进；"
+                                "部门卡按汇报表填 40 人，心理明细模块按日报逐条汇总（接触 "
+                                f"{pw['contact']}、咨询 {pw['consult']}），两者不互算。"})
     if missing_butler:
         conflicts.append({"id": "butler_missing", "label": "管家表本周未填报", "severity": "info",
+                          "winner": "butler_contacts", "source_a": "butler_contacts", "source_b": "",
+                          "value_a": None, "value_b": None,
                           "detail": f"《患者有效对接表》中 {'、'.join(missing_butler)} 本周无记录（按契约记 null，不按 0 降榜）。"})
-    cum_src = q1(c, "SELECT 1") and None
-    if abs(round(month_total, 2) - round(sum(x["total"] for x in daily), 2)) > 0.5:
-        conflicts.append({"id": "month_cum", "label": "当月累计与逐日加总不一致", "severity": "warn",
-                          "detail": "按契约以逐日事实为准。"})
+    conflicts.append({"id": "service_workload_gap", "label": "导医工作量 10.17 未填（汇报表无此栏）", "severity": "info",
+                      "winner": "none", "source_a": "service_followups", "source_b": "",
+                      "value_a": sw["workload"], "value_b": None,
+                      "detail": f"《日工作量考核表》本周合计 {sw['workload']} 分，10.17 无记录；"
+                                f"上期同 {days_recorded} 天 {sw_prev['workload']} 分，缺日不补、不直接比。"
+                                " 汇报表未设置导医工作量栏，该项不存在「汇报表口径」可覆盖，"
+                                "故仅登记为覆盖缺口，不与汇报表冲突。"})
 
     # ── 来源状态 ──────────────────────────────────────────────
     src_rows = list(c.execute("SELECT id,name,url,status,data_through,last_pull_at FROM source ORDER BY id"))
@@ -409,11 +550,15 @@ def main(db_path=None, out=None, write=True):
         "generatedAt": datetime.now(CN).isoformat(timespec="seconds"),
         "period": {"start": p_start.isoformat(), "end": p_end.isoformat(),
                    "label": f"{p_start.month}.{p_start.day}–{p_end.month}.{p_end.day}",
-                   "daysRecorded": days_recorded, "dataThrough": data_through},
+                   "daysRecorded": days_recorded, "dataThrough": data_through,
+                   "revenueDataThrough": rev_through,
+                   "authority": "action_report"},
         # 每族各自的截止日与已录天数：不能用一个源的时间冒充全部数据截至，
         # 也不能拿「营收的 6 天」去和其他源「7 天」做环比（见前方 fam_* 注释）。
         "watermarks": {
-            "revenue": {"dataThrough": data_through, "days": days_recorded},
+            "dept": {"dataThrough": wk_end, "days": 7, "authority": "action_report"},
+            "revenue": {"dataThrough": rev_through,
+                        "days": len([d for d in rev_days if p_start.isoformat() <= d <= p_end.isoformat()])},
             "psych": {"dataThrough": psy_end, "days": psy_n},
             "service": {"dataThrough": svc_end, "days": svc_n},
             "butler": {"dataThrough": but_end, "days": but_n},
@@ -427,6 +572,8 @@ def main(db_path=None, out=None, write=True):
         "settings": {"periodWeeks": 1, "periodAnchor": p_start.isoformat(),
                      "periodType": "natural_week",
                      "periodDecision": "业主 2026-10-18 指定：本期为自然周 10.12–10.18",
+                     "authority": "action_report",
+                     "authorityNote": "业主 2026-10-19 指定：与《特别行动小组汇报表》冲突的数据一律以该表为准",
                      "contractBaseline": {"periodWeeks": 2, "periodAnchor": "2026-10-05",
                                           "range": "2026-10-05—2026-10-18", "note": "契约默认两周窗，本轮不采用"}},
         "timezone": "Asia/Shanghai",

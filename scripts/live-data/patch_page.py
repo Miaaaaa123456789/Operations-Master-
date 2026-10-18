@@ -1,0 +1,316 @@
+#!/usr/bin/env python3
+"""按 data/snapshot.json 刷新 index.html 的静态兜底数据（部门卡 / 部门摘要 / 页脚口径）。
+
+原则：
+- 只改「数值与口径说明」，不动 DOM 结构、不动历史对比正文；
+- 每次写入新的一行「本期」指标，保留原有历史行；
+- 同一行重复执行不会叠加（用 marker 检测）。
+"""
+import json, os, re, sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+HTML = os.path.join(ROOT, "index.html")
+SNAP = json.load(open(os.path.join(ROOT, "data", "snapshot.json"), encoding="utf-8"))
+MARK = "[[AUTO-DEPT]]"
+
+P = SNAP["period"]
+LBL = P["label"]
+DT = P["dataThrough"][5:].replace("-", ".")
+N = P["daysRecorded"]
+PW = SNAP["previousPeriod"]["compareSameDaysEnd"][5:].replace("-", ".")
+PS = SNAP["previousPeriod"]["start"][5:].replace("-", ".")
+
+
+def sgn(v):
+    if v is None:
+        return "—"
+    return ("+" if v > 0 else "−" if v < 0 else "") + f"{abs(v):.1f}"
+
+
+m = SNAP["metrics"]
+psy = SNAP["psych"]
+svc = SNAP["service"]
+but = SNAP["butler"]
+dep = SNAP["departments"]
+
+dept_cards = {
+    "doctor": {
+        "m1": ("本期出院", dep["doctor"]["discharge"], "人"),
+        "m2": ("物理治疗费", dep["doctor"]["physioWan"], "万"),
+        "trend": [1, 2, 2, 3, 2, 2],
+        "axis": "d1012",
+        "note": (f"{LBL}（7 天，含 10.18）《特别行动小组汇报表》医生组表头：入院 <b>{dep['doctor']['admit']}</b> 人、"
+                 f"出院 <b>{dep['doctor']['discharge']}</b> 人、门诊 <b>{dep['doctor']['outpatient']}</b> 人次、"
+                 f"物理治疗 <b>{dep['doctor']['physioWan']}</b> 万、总收入 <b>{dep['doctor']['revenueWan']}</b> 万。"
+                 f"本月三周：26.2 → 69 → 72.5 万。"
+                 f"⚠ 表头是全组口径，个人明细 6 人加总入院 {dep['doctor']['recon']['admit']['detail']}、"
+                 f"出院 {dep['doctor']['recon']['discharge']['detail']}，差 "
+                 f"{dep['doctor']['recon']['admit']['gap']} 入 / {dep['doctor']['recon']['discharge']['gap']} 出，"
+                 f"全部落在未填的 {'、'.join(dep['doctor']['recon']['blankRows']) or '—'} 一行，按契约记 null 不反推。"),
+    },
+    "nursing": {
+        "m1": ("物理治疗人数", dep["nursing"]["physioPeople"], "人次"),
+        "m2": ("工娱（场/人次）", f"{dep['nursing']['recreationSessions']}/{dep['nursing']['recreationPeople']}", ""),
+        "trend": None,
+        "axis": None,
+        "note": (f"《特别行动小组汇报表》护理组本周表头：物理治疗 <b>{dep['nursing']['physioPeople']} 人次</b>（含住院＋门诊）、"
+                 f"工娱 <b>{dep['nursing']['recreationSessions']} 场 / {dep['nursing']['recreationPeople']} 人次</b>。"
+                 f"⚠ 本周源表只给总量、<b>未给六项完成率</b>，故卡上不再显示完成率，也不与上周率值直接比较；"
+                 f"完整率值见抽屉内既有周报口径（9.20—9.26：1177/1278 = 92.1%）。"),
+    },
+    "psychology": {
+        "m1": ("个体咨询", dep["psychology"]["individual"], "人"),
+        "m2": ("团辅场次", dep["psychology"]["groupSessions"], "场"),
+        "trend": [10, 31, 15],
+        "axis": "dpsum",
+        "note": (f"《特别行动小组汇报表》心理咨询组本周表头：个体咨询 <b>{dep['psychology']['individual']}</b> 人、"
+                 f"团辅 <b>{dep['psychology']['groupSessions']}</b> 场、总人数 <b>{dep['psychology']['people']}</b> 人、"
+                 f"总收入 <b>{dep['psychology']['revenueYuan']}</b> 元。"
+                 f"另：V4「咨询师每日简报」逐条汇总接触 {psy['week']['contact']}、咨询 {psy['week']['consult']}、"
+                 f"团体 {psy['week']['groupSessions']} 场 / {psy['week']['groupPeople']} 人次（数据至 {DT}）——"
+                 f"<b>部门卡取汇报表口径，明细模块保留日报口径，两者不互算</b>。"),
+    },
+    "service": {
+        "m1": ("到院人数（接待）", dep["service"]["arrived"], "人次"),
+        "m2": ("义诊", dep["service"]["charity"], "人"),
+        "trend": [1, 5, 16, 4, 2, 2],
+        "axis": "d1012",
+        "note": (f"《特别行动小组汇报表》客服服务部本周表头：到院 <b>{dep['service']['arrived']}</b> 人次（导医接待，含陪同）、"
+                 f"义诊 <b>{dep['service']['charity']}</b> 人；「随访人数」一栏<b>未填</b>（记 null，不拿台账数顶替）。"
+                 f"另有台账口径（数据至 {DT}）：回访 <b>{svc['week']['followup']}</b> 条、标记到院 {svc['week']['arrived']} 人"
+                 f"（{svc['week']['rate']}%）、导诊主动服务 {svc['week']['guide']} 条。"
+                 f"⚠ 到院登记逐条 {SNAP['arrival']['week']} 人次为「就诊患者」口径，与接待人次不同，各自保留、不加总。"),
+    },
+    "marketing": {
+        "m1": ("管家对接", but["week"]["contact"], "条"),
+        "m2": ("转住院率", but["week"]["rate"], "%"),
+        "trend": [v for _, v in but["staff"]],
+        "axis": "dbutler",
+        "note": (f"{LBL}（数据至 {DT}）《患者有效对接表》各管家分表逐条：有效对接 <b>{but['week']['contact']}</b> 条、"
+                 f"转住院 <b>{but['week']['admit']}</b> 人（<b>{but['week']['rate']}%</b>）——"
+                 + " · ".join(f"{k} {v}" for k, v in but["staff"]) +
+                 f"。上期同 {N} 天 {but['prevSameDays']['contact']} 条 / {but['prevSameDays']['admit']} 人（{but['prevSameDays']['rate']}%）。"
+                 f"⚠ {'、'.join(but['missingStaff']) or '—'} 本周无记录，按契约记 null、<b>不按 0 降榜</b>。"
+                 f"营销中心表头的入院/门诊/总收入<b>本周未填</b>，故不显示、也不拿其他源代替。"),
+    },
+}
+
+
+
+def find_div_end(html, start):
+    """从 <div ...> 的起点找到配对的 </div> 结束位置（含）。"""
+    i = start
+    depth = 0
+    while i < len(html):
+        nxt_open = html.find("<div", i)
+        nxt_close = html.find("</div>", i)
+        if nxt_close == -1:
+            raise ValueError("div 未闭合")
+        if nxt_open != -1 and nxt_open < nxt_close:
+            depth += 1
+            i = nxt_open + 4
+        else:
+            depth -= 1
+            i = nxt_close + 6
+            if depth == 0:
+                return i
+    raise ValueError("div 未闭合")
+
+
+def render_kpis():
+    def tile(dept, label, value, unit, delta=None, cls=""):
+        d = f'<span class="kpi-delta {cls}">{delta}</span>' if delta else ""
+        onclick = f' onclick="openDeptV2(\'{dept}\')"' if dept else ""
+        return (f'<div class="kpi-tile"{onclick}><label>{label}</label>'
+                f'<strong>{value}<em>{unit}</em></strong>{d}</div>')
+
+    def dcls(v):
+        return "up" if (v or 0) > 0 else "down" if (v or 0) < 0 else ""
+
+    arr_prev = SNAP["arrival"]["prevSameDays"]
+    arr_cur = SNAP["arrival"]["week"]
+    arr_delta = round((arr_cur - arr_prev) / arr_prev * 100, 1) if arr_prev else None
+    psy_prev, psy_cur = psy["prevSameDays"]["contact"], psy["week"]["contact"]
+    psy_d = round((psy_cur - psy_prev) / psy_prev * 100, 1) if psy_prev else None
+    svc_prev, svc_cur = svc["prevSameDays"]["followup"], svc["week"]["followup"]
+    svc_d = round((svc_cur - svc_prev) / svc_prev * 100, 1) if svc_prev else None
+    but_prev, but_cur = but["prevSameDays"]["contact"], but["week"]["contact"]
+    but_d = round((but_cur - but_prev) / but_prev * 100, 1) if but_prev else None
+
+    def pct(v):
+        return None if v is None else (("+" if v > 0 else "−" if v < 0 else "") + f"{abs(v):.1f}%")
+
+    tiles = [
+        tile("doctor", f"本期营收（{LBL} · {N} 天）", m["weekRevenue"]["value"], "万元",
+             pct(m["weekRevenue"]["deltaPct"]), dcls(m["weekRevenue"]["deltaPct"])),
+        tile("doctor", "门诊人次（汇报表）", m["weekVisits"]["value"], "人次",
+             pct(m["weekVisits"]["deltaPct"]), dcls(m["weekVisits"]["deltaPct"])),
+        tile("doctor", "本期入院", m["weekAdmit"]["value"], "人", pct(m["weekAdmit"]["deltaPct"]),
+             dcls(m["weekAdmit"]["deltaPct"])),
+        tile("doctor", "本期出院", m["weekDischarge"]["value"], "人", pct(m["weekDischarge"]["deltaPct"]),
+             dcls(m["weekDischarge"]["deltaPct"])),
+        tile("doctor", "物理治疗费", m["weekPhysio"]["value"], "万元", pct(m["weekPhysio"]["deltaPct"]),
+             dcls(m["weekPhysio"]["deltaPct"])),
+        tile("doctor", "在院人数（时点）", m["wardCount"]["value"], "人"),
+        tile("psychology", "心理 个体咨询", dep["psychology"]["individual"], "人"),
+        tile("service", "客服 到院接待", dep["service"]["arrived"], "人次"),
+        tile("marketing", "管家 有效对接", but_cur, "条", pct(but_d), dcls(but_d)),
+        tile("", "10 月累计 / 目标", f'{m["monthRevenue"]["value"]}', f'万 / {m["monthRevenue"]["targetWan"]} 万',
+             f'{m["monthRevenue"]["amountProgress"]}%（时间 {m["monthRevenue"]["timeProgress"]}%）', "flat"),
+    ]
+    return "".join(tiles)
+
+
+def js_str(s):
+    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def build_card_js():
+    out = ["    /* ⚠ 本段由 scripts/live-data/patch_page.py 依 data/snapshot.json 生成，勿手改 */",
+           "    const DEPT_CARD={"]
+    keys = ["doctor", "nursing", "psychology", "service", "marketing"]
+    rows = []
+    for k in keys:
+        c = dept_cards[k]
+        m1lab, m1v, m1u = c["m1"]
+        m2lab, m2v, m2u = c["m2"]
+        trend = "null" if c["trend"] is None else "[" + ",".join(str(x) for x in c["trend"]) + "]"
+        axis = "null" if c["axis"] is None else js_str(c["axis"])
+        rows.append(
+            f"      {k}:{{m1:{{label:{js_str(m1lab)},value:{js_str(str(m1v))},unit:{js_str(m1u)}}},"
+            f"m2:{{label:{js_str(m2lab)},value:{js_str(str(m2v))},unit:{js_str(m2u)}}},\n"
+            f"        trend:{trend},axis:{axis},\n"
+            f"        note:{js_str(c['note'])}"
+            f"{',pct:true' if m2u == '%' else ''}}}"
+        )
+    out.append(",\n".join(rows))
+    out.append("    };")
+    return "\n".join(out)
+
+
+def main():
+    dry = "--dry-run" in sys.argv
+    html = open(HTML, encoding="utf-8").read()
+    orig_len = len(html)
+
+    # 1) 整块替换 DEPT_CARD
+    blk = re.search(r"    const DEPT_CARD=\{.*?\n    \};\n", html, re.S)
+    if not blk:
+        raise SystemExit("未定位到 DEPT_CARD 块")
+    html = html[:blk.start()] + build_card_js() + "\n" + html[blk.end():]
+
+    # 2) 补 DEPT_AXIS 轴标
+    axis_map = {
+        # 逐日：入院/出院/接触/回访（10.12—10.17）
+        "d1012": ["10.12", "10.13", "10.14", "10.15", "10.16", "10.17"],
+        "dpsum": ["首次", "情绪", "住院"],
+    }
+    add = []
+    for k, v in axis_map.items():
+        if f"{k}:[" not in html:
+            add.append(f"      {k}:[" + ",".join(js_str(x) for x in v) + "]")
+    if add:
+        html = html.replace("      d6pt:['交','磁','脑','松','失','馈']",
+                            "      d6pt:['交','磁','脑','松','失','馈'],\n" + ",\n".join(add), 1)
+
+    # 3) 部门摘要（卡片名下的 delta / status / summary）与抽屉首行
+    summ = {
+        "doctor": ("本期出院", sgn(m["weekDischarge"]["deltaPct"]) + "%", "高优先级", "high"),
+        "nursing": ("物理治疗人数", "总量口径", "待补率值", ""),
+        "psychology": ("患者接触", sgn(round((psy["week"]["contact"] - psy["prevSameDays"]["contact"]) /
+                                            max(1, psy["prevSameDays"]["contact"]) * 100, 1)) + "%", "需关注", ""),
+        "service": ("回访台账", sgn(round((svc["week"]["followup"] - svc["prevSameDays"]["followup"]) /
+                                         max(1, svc["prevSameDays"]["followup"]) * 100, 1)) + "%", "待并轨", ""),
+        "marketing": ("管家对接", sgn(round((but["week"]["contact"] - but["prevSameDays"]["contact"]) /
+                                          max(1, but["prevSameDays"]["contact"]) * 100, 1)) + "%", "待并轨", ""),
+    }
+    for k, (summary, delta, status, cls) in summ.items():
+        pat = re.compile(r"(" + k + r":\{name:'[^']*',icon:'[^']*',status:')[^']*('[,]statusClass:')[^']*(')"
+                         r"([^,]*),summary:'[^']*',delta:'[^']*'")
+        new = r"\g<1>" + status + r"\g<2>" + cls + r"\g<3>\g<4>,summary:'" + summary + "',delta:'" + delta + "'"
+        html, n = pat.subn(new, html, count=1)
+        if n == 0:
+            print(f"  ⚠ {k} 摘要未替换（锚点不匹配）")
+
+    # 4) 每部门抽屉补一行「本期」，保留历史行；marker 去重
+    rows = {
+        "doctor": [f"{MARK} 本期（{LBL} · 汇报表口径 7 天）", None, dep["doctor"]["discharge"], "人",
+                   f"《特别行动小组汇报表》医生组：入院 <b>{dep['doctor']['admit']}</b>、出院 <b>{dep['doctor']['discharge']}</b>、"
+                   f"门诊 <b>{dep['doctor']['outpatient']}</b> 人次、物理治疗 <b>{dep['doctor']['physioWan']}</b> 万、"
+                   f"总收入 <b>{dep['doctor']['revenueWan']}</b> 万。个人明细 6 人加总入院 {dep['doctor']['recon']['admit']['detail']}、"
+                   f"出院 {dep['doctor']['recon']['discharge']['detail']}，差 {dep['doctor']['recon']['admit']['gap']} 入 / "
+                   f"{dep['doctor']['recon']['discharge']['gap']} 出（{'、'.join(dep['doctor']['recon']['blankRows']) or '—'} 未填）。"
+                   f"⚠ 营收日报台账至 {DT} 为 {m['weekRevenue'].get('ledgerValue')} 万（{N-1} 天，未含 10.18），仅作核对、不参与展示。",
+                   f"上期 {PS}—{PW}", f"本期 {LBL}"],
+        "nursing": [f"{MARK} 本期（{LBL}）", None, dep["nursing"]["physioPeople"], "人次",
+                    f"汇报表护理组表头：物理治疗 <b>{dep['nursing']['physioPeople']} 人次</b>、工娱 <b>{dep['nursing']['recreationSessions']} 场 / {dep['nursing']['recreationPeople']} 人次</b>。"
+                    f"⚠ 本周源表未给六项完成率，率值暂缺、不与上周 92.1% 直接比较",
+                    "上周 92.1%（9.20—9.26）", f"本期 {LBL}"],
+        "psychology": [f"{MARK} 本期（{LBL} · 汇报表口径）", dep["psychology"]["individual"], dep["psychology"]["individual"], "人",
+                       f"汇报表心理咨询组表头：个体咨询 <b>{dep['psychology']['individual']}</b> 人、团辅 <b>{dep['psychology']['groupSessions']}</b> 场、"
+                       f"总人数 {dep['psychology']['people']} 人、总收入 <b>{dep['psychology']['revenueYuan']}</b> 元。"
+                       f"另据 V4 日报逐条（至 {DT}）：接触 {psy['week']['contact']}、咨询 {psy['week']['consult']}、"
+                       f"团体 {psy['week']['groupSessions']} 场 {psy['week']['groupPeople']} 人——两口径并存、不互算。",
+                       "汇报表本周", f"本期 {LBL}"],
+        "service": [f"{MARK} 本期（{LBL} · 汇报表口径）", None, dep["service"]["arrived"], "人次",
+                    f"汇报表客服服务部表头：到院 <b>{dep['service']['arrived']}</b> 人次（导医接待）、义诊 <b>{dep['service']['charity']}</b> 人；"
+                    f"「随访人数」未填，记 null。台账（至 {DT}）：回访 {svc['week']['followup']} 条、标记到院 {svc['week']['arrived']} 人"
+                    f"（{svc['week']['rate']}%）、导诊服务 {svc['week']['guide']} 条。",
+                    "汇报表本周", f"本期 {LBL}"],
+        "marketing": [f"{MARK} 本期（{LBL} · 数据至 {DT}）", but["prevSameDays"]["contact"], but["week"]["contact"], "条",
+                      f"管家对接 <b>{but['week']['contact']}</b> 条、转住院 {but['week']['admit']} 人（<b>{but['week']['rate']}%</b>）；"
+                      + " · ".join(f"{k} {v}" for k, v in but["staff"]) +
+                      f"。上期同 {N} 天 {but['prevSameDays']['contact']} 条 / {but['prevSameDays']['admit']} 人（{but['prevSameDays']['rate']}%）。"
+                      f"⚠ {'、'.join(but['missingStaff'])} 未填报，记 null 不降榜",
+                      f"上期同 {N} 天", f"本期 {LBL}"],
+    }
+    # ⛔ 旧版逻辑是「检测到 MARK 就全部跳过」，结果口径改了、抽屉里还留着上一版的数。
+    #    改为：先删掉旧自动行，再按当前快照重新注入五条，保证不叠加也不过期。
+    if MARK in html:
+        html, _n = re.subn(r"\['\[\[AUTO-DEPT\]\][\s\S]*?\],", "", html)
+        print(f"  清除旧自动行 {_n} 条")
+    for k, row in rows.items():
+        anchor = re.compile(r"(" + k + r":\{name:'[^']*',icon:'[^']*',[^\[]*?metrics:\[)")
+        mm = anchor.search(html)
+        if not mm:
+            print(f"  ⚠ {k} metrics 锚点未命中")
+            continue
+        html = html[:mm.end()] + json.dumps(row, ensure_ascii=False).replace('"', "'") + "," + html[mm.end():]
+
+    # 4b) 核心指标磁贴（整块重渲染）
+    try:
+        st = html.index('id="kpiGrid">') + len('id="kpiGrid">')
+        en = find_div_end(html, st - len('id="kpiGrid">'))
+        # find_div_end 从头算起，需跳过 id 属性本身
+        en = find_div_end(html, html.rindex("<div", 0, st))
+        html = html[:st] + render_kpis() + "</div>" + html[en:]
+    except ValueError as e:
+        print(f"  ⚠ kpiGrid 未替换：{e}")
+
+    # 5) 页脚口径
+    foot_pat = re.compile(r'(<div class="kpi-foot"><i></i><span>)部门数据：.*?(</span></div>)', re.S)
+    foot = (f'部门数据：<b>{LBL}（7 天，含 10.18）</b>·'
+            f'<b>冲突裁决：以《特别行动小组汇报表》为准</b>（业主 2026-10-19 指定）——'
+            f'本周营收 {m["weekRevenue"]["value"]} 万、月累计 {m["monthRevenue"]["value"]} 万、'
+            f'入院 {m["weekAdmit"]["value"]}、出院 {m["weekDischarge"]["value"]}、门诊 {m["weekVisits"]["value"]} 人次、'
+            f'物理治疗 {m["weekPhysio"]["value"]} 万，均取汇报表医生组表头/正文；'
+            f'营收日报逐日台账（至 {DT}，合计 {m["weekRevenue"].get("ledgerValue")} 万）保留在数据核验里，供勾稽与作图，不参与展示。'
+            f'护理组/心理咨询组/客服服务部/营销中心四张卡＝汇报表各表头本周自填值；'
+            f'心理明细模块＝V4「咨询师每日简报」逐条（接触 {psy["week"]["contact"]} / 咨询 {psy["week"]["consult"]}）；'
+            f'客服台账＝标准化回访台账＋导诊记录；营销＝《患者有效对接表》各管家分表；到院＝《10月到院登记表》逐条（{SNAP["arrival"]["week"]} 人次，就诊口径）。'
+            f'<b>缺失一律记 null、不写 0</b>：营销中心表头三项未填、客服「随访人数」未填、'
+            f'医生组个人明细 {("、".join(dep["doctor"]["recon"]["blankRows"]) or "无")} 空白，均不反推。'
+            f'数据源共 {len(SNAP["sources"])} 处，逐日自动采集与重算。')
+    html, nfoot = foot_pat.subn(lambda x: x.group(1) + foot + x.group(2), html, count=1)
+    if not nfoot:
+        print("  ⚠ 页脚未替换")
+
+    if dry:
+        print(f"dry-run：长度 {orig_len} → {len(html)}（{len(html)-orig_len:+d}）")
+        return
+    open(HTML, "w", encoding="utf-8").write(html)
+    print(f"index.html 已更新：{orig_len} → {len(html)} 字节（{len(html)-orig_len:+d}）")
+
+
+if __name__ == "__main__":
+    main()
