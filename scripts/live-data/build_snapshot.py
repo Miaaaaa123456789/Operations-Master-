@@ -271,6 +271,31 @@ def main(db_path=None, out=None, write=True):
     psy_week_sum = {f: sum((x[f] or 0) for x in psy_staff_week) for f, _ in WK_COLS}
     psy_ward_attend = int(s(c, "psych.ward_attend", p_start.isoformat(), psy_end) or 0)
 
+    # ── 个人本周排名（替代月面板里 8.31—9.26 的旧榜）─────────────
+    # 口径与历史一致：加权分＝咨询量 ×2 ＋ 接触量 ×1；咨询＝住院＋门诊＋家庭，
+    # 接触＝24h 首次＋情绪支持＋住院咨询。只排本周，不累计 9 月。
+    def _staff_map(mid):
+        return {k: int(v) for k, v in s(c, mid, p_start.isoformat(), psy_end, "staff")}
+
+    _m_ip, _m_op, _m_fam = (_staff_map("psych.inpatient_consult"),
+                            _staff_map("psych.outpatient_consult"),
+                            _staff_map("psych.family_consult"))
+    _m_fc, _m_em = _staff_map("psych.first_contact"), _staff_map("psych.emotion_support")
+    _names = set(_m_ip) | set(_m_op) | set(_m_fam) | set(_m_fc) | set(_m_em)
+    _wk_rate = {x["name"]: x["rate"] for x in psy_staff_week}
+    psy_rank = []
+    for _nm in _names:
+        _ip, _op, _fa = _m_ip.get(_nm, 0), _m_op.get(_nm, 0), _m_fam.get(_nm, 0)
+        _fc, _em = _m_fc.get(_nm, 0), _m_em.get(_nm, 0)
+        _consult = _ip + _op + _fa
+        _contact = _fc + _em + _ip
+        psy_rank.append({"name": _nm, "consult": _consult, "contact": _contact,
+                         "inpatient": _ip, "outpatient": _op, "family": _fa,
+                         "emotion": _em, "first": _fc,
+                         "score": _consult * 2 + _contact,
+                         "rate": _wk_rate.get(_nm)})
+    psy_rank.sort(key=lambda x: (-x["score"], -x["consult"], -x["contact"]))
+
     psy_recon = []
     for lab, dv, wv in [("填报天数", pw["report"], psy_week_sum["report_days"]),
                         ("参加查房", psy_ward_attend, psy_week_sum["ward_days"]),
@@ -367,16 +392,35 @@ def main(db_path=None, out=None, write=True):
             return None
         return int(x) if float(x).is_integer() else x
 
+    # ⛔ 2026-10-19 业主核查：汇报表心理咨询组表头 **自 9.21 抓取值起就没滚动过**
+    #    （40 / 4 场 / 40 / 19,002 元 与《9 月报告》里 9.21—9.27 那周完全同值；
+    #      10.18 23:48 的保存与 17:06 存档逐格比对，心理组 0 变动）。
+    #    它不是本周填报值，按「缺项不拿旧值顶替」的契约应视为未填，
+    #    本周主值改用 V4 日报逐条（唯一可核的本周口径）。表头原值存档在 header 里可查、不丢。
     dept_report = {
         "doctor": {"admit": iv(d_adm), "discharge": iv(d_dis), "outpatient": iv(d_opd),
                    "physioWan": d_phy, "revenueWan": d_rev},
         "nursing": {"physioPeople": iv(dfact("dept.nursing.physio_people", wk_end)),
                     "recreationSessions": iv(dfact("dept.nursing.rec_sessions", wk_end)),
                     "recreationPeople": iv(dfact("dept.nursing.rec_people", wk_end))},
-        "psychology": {"individual": iv(dfact("dept.psych.individual", wk_end)),
+        "psychology": {
+            # —— 本周主值：V4 管理表（日报逐条 + 周个人统计 + 管床对接）——
+            "consult": pw["consult"], "contact": pw["contact"], "parent": pw["parent"],
+            "groupSessions": pw["groupSessions"], "groupPeople": pw["groupPeople"],
+            "reportDays": pw["report"],
+            "bindRows": bound_rows, "bindPeople": len(bound_people),
+            "boundPatients": int(bound or 0),
+            # 兼容字段：individual 语义＝咨询工作量（人次）、people＝患者接触（人次）
+            "individual": pw["consult"], "people": pw["contact"], "revenueYuan": None,
+            # —— 汇报表表头存档（旧值，不作为本周口径）——
+            "header": {"individual": iv(dfact("dept.psych.individual", wk_end)),
                        "groupSessions": iv(dfact("dept.psych.sessions", wk_end)),
                        "people": iv(dfact("dept.psych.people", wk_end)),
                        "revenueYuan": iv(dfact("dept.psych.revenue", wk_end))},
+            "headerStale": True,
+            "headerAsOf": "2026-09-21",
+            "headerNote": "汇报表心理组表头自 2026-09-21 抓取值起未滚动，与本周 V4 不一致，已停用为本周口径",
+        },
         "service": {"followup": iv(dfact("dept.service.followup", wk_end)),
                     "arrived": iv(dfact("dept.service.arrived", wk_end)),
                     "charity": iv(dfact("dept.service.charity", wk_end))},
@@ -592,8 +636,9 @@ def main(db_path=None, out=None, write=True):
         {"id": "psych", "metricIds": ["psych.contact"], "numbersOnly": True,
          "text": f"心理组本期日报 {pw['report']} 条（{p_start.month}.{p_start.day}–{date.fromisoformat(psy_end).month}.{date.fromisoformat(psy_end).day}，"
                  f"{psy_n} 天）：患者接触 {pw['contact']} 人次、咨询工作量 {pw['consult']} 人次，"
-                 f"团体 {pw['groupSessions']} 场 / {pw['groupPeople']} 人次；上期同 {psy_n} 天 "
-                 f"接触 {pw_prev['contact']}、咨询 {pw_prev['consult']}。"},
+                 f"团体 {pw['groupSessions']} 场 / {pw['groupPeople']} 人次，家长访谈 {pw['parent']} 人次；"
+                 f"上期同 {psy_n} 天 接触 {pw_prev['contact']}、咨询 {pw_prev['consult']}。"
+                 f"⚠ 汇报表心理组表头（40 人 / 4 场 / 19002 元）自 9.21 起未滚动，已停用为本周口径。"},
         {"id": "service", "metricIds": ["service.followup"], "numbersOnly": True,
          "text": f"客服回访 {sw['followup']} 条、标记到院 {sw['arrived']} 人（{sw['rate']}%，{svc_n} 天）；"
                  f"上期同 {svc_n} 天 {sw_prev['followup']} 条 / {sw_prev['arrived']} 人（{sw_prev['rate']}%）。"},
@@ -642,12 +687,15 @@ def main(db_path=None, out=None, write=True):
                           "value_a": None, "value_b": None,
                           "detail": "汇报表「营销中心」表头行只写了部门名，入院/门诊/总收入三格为空，按契约记 null，"
                                     "不拿上周数顶替。"})
-    conflicts.append({"id": "psych_week_table_lag", "label": "心理组周统计仍停在 10.04—10.10", "severity": "warn",
-                      "winner": "action_report", "source_a": "psych_v4", "source_b": "action_report",
-                      "value_a": pw["contact"], "value_b": dept_report["psychology"]["individual"],
-                      "detail": "V4「周个人统计」手动周起始日仍是 2026-10-04，未随本期推进；"
-                                "部门卡按汇报表填 40 人，心理明细模块按日报逐条汇总（接触 "
-                                f"{pw['contact']}、咨询 {pw['consult']}），两者不互算。"})
+    conflicts.append({"id": "psych_header_stale", "label": "汇报表心理组表头停在 9.21 旧值，未滚动到本周", "severity": "warn",
+                      "winner": "psych_v4", "source_a": "action_report", "source_b": "psych_v4",
+                      "value_a": dept_report["psychology"]["header"]["individual"],
+                      "value_b": pw["consult"],
+                      "detail": "汇报表心理咨询组表头 40 人 / 4 场 / 40 人 / 19,002 元 自 2026-09-21 抓取值起未变化"
+                                "（与《9 月报告》里 9.21—9.27 那周同值；10.18 23:48 保存与 17:06 存档逐格比对，本组 0 变动）。"
+                                f"它不是本周填报值：本周 V4 咨询 {pw['consult']} 人次、接触 {pw['contact']} 人次、"
+                                f"团体 {pw['groupSessions']} 场。按「缺项不拿旧值顶替」，该格视为未填，"
+                                "本周改用 V4 唯一可核口径；表头原值存档在 psych.header，不丢、不覆盖。"})
     if missing_butler:
         conflicts.append({"id": "butler_missing", "label": "管家表本周未填报", "severity": "info",
                           "winner": "butler_contacts", "source_a": "butler_contacts", "source_b": "",
@@ -688,7 +736,7 @@ def main(db_path=None, out=None, write=True):
                      "dataThrough": dth, "lastSuccessAt": lp,
                      "note": {"revenue_daily_report": "营收日报逐日台账（经勾稽核验）",
                               "action_report": "部门汇报表：本周口径由各部门自填，表头与正文可能不同期",
-                              "psych_v4": "V4 管理表：日报逐条汇总；周统计仍停在 10.04—10.10",
+                              "psych_v4": "V4 管理表：周个人统计（起始日 10.12）+ 日报逐条 + 管床对接；既往旧数据已清理（只留上一期起）",
                               "psych_visits": "仅用前三 sheet（新-排班 / 课程排班 / 团体治疗登记）",
                               "butler_contacts": "各管家分表；未填报记 null",
                               "service_followups": "回访台账逐条 + 导诊记录 + 日工作量",
@@ -741,6 +789,9 @@ def main(db_path=None, out=None, write=True):
         "departments": dept_report,
         "psych": {"week": pw, "prevSameDays": pw_prev, "staff": psy_staff,
                   "staffWeek": psy_staff_week, "weekSum": psy_week_sum, "recon": psy_recon,
+                  "rank": psy_rank,
+                  "header": dept_report["psychology"]["header"],
+                  "headerStale": True, "headerAsOf": "2026-09-21",
                   "boundWeek": {"rows": bound_rows, "people": len(bound_people), "byStaff": bound_by},
                   "boundPatients": int(bound or 0),
                   "daily": {k: int(v) for k, v in psy_day.items()}},

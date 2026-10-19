@@ -16,6 +16,12 @@ RAW = os.path.join(ROOT, "data", "raw-kdocs")
 DB = os.path.join(ROOT, "db", "live-data.sqlite")
 CN = timezone(timedelta(hours=8))
 
+# 心理组「既往旧数据」保留边界（业主 2026-10-19 指令：所有分析对齐本周）。
+# 只保留「上一期 + 本期」= anchor-7 起；更早的行在入库时直接丢弃。
+# 之所以不删上一期：环比（prevSameDays）必须能算，删了就没有对照。
+# 该变量在 main() 里按 settings.period_anchor 赋值，未赋值时不截断。
+PSYCH_KEEP_FROM = None
+
 SOURCES = {
     "action_report": ("特别行动小组汇报表", "https://www.kdocs.cn/l/cbwp2cvTiFyK", "department_report"),
     "psych_v4": ("心理治疗与咨询组_管理表_V4", "https://www.kdocs.cn/l/cgd3nVre7qWs", "psych_daily_report"),
@@ -199,6 +205,17 @@ def dept_weeks(c):
     w1s = w2s.replace(day=1)
     w1e = w2s - timedelta(days=1)
     return {1: (w1s, w1e), 2: (w2s, w2e), 3: (w3s, w3s + timedelta(days=6))}
+
+
+def psych_cut(c):
+    """心理组旧数据截断日＝上一期第一天（anchor-7）。
+
+    只留「上一期 + 本期」：既满足「所有分析对齐本周」，又保住环比。
+    8.31—10.04 的逐日日报、2024 年的团体登记脏日期都不再进入事实库。
+    """
+    row = c.execute("SELECT value FROM settings WHERE key='period_anchor'").fetchone()
+    anchor = date.fromisoformat(row[0]) if row else date(2026, 10, 12)
+    return (anchor - timedelta(days=7)).isoformat()
 
 
 # 表头 → (metric_id, 单位)。同一张表内表头可能重复（合并单元格），只取首个。
@@ -462,6 +479,10 @@ def ingest_sheet(c, source, sheet_name, rows, pulled_at):
                 # 源表手误：2006-10-07 / 2016-10-13 实为 2026 同月同日
                 # （本表 2026-08-31 才开始填，不存在更早的真实数据）
                 d = "2026-" + d[5:]
+            # ⚠ 截断必须在年份修正**之后**：否则 2016-10-13 这类笔误会被当成
+            #   2016 年的旧数据直接丢掉（实测上一期因此少 1 条、接触 64→60）。
+            if PSYCH_KEEP_FROM and d < PSYCH_KEEP_FROM:
+                continue          # 既往旧数据（早于上一期）不再入事实库
             staff = re.sub(r"^(咨询师|治疗师|组长)[（(]", "", cell(i, 1)).rstrip("）)").strip()
             if not staff:
                 continue          # 10-17 有一条日报没写姓名，不能挂到空维度上
@@ -497,6 +518,8 @@ def ingest_sheet(c, source, sheet_name, rows, pulled_at):
             d = norm_date(cell(i, 0))
             if not d:
                 continue
+            if PSYCH_KEEP_FROM and d < PSYCH_KEEP_FROM:
+                continue
             should, actual = num(cell(i, 2)), num(cell(i, 3))
             if should:
                 add_fact(c, "psych.ward_round", d, round(actual / should * 100, 1) if actual is not None else None,
@@ -507,6 +530,8 @@ def ingest_sheet(c, source, sheet_name, rows, pulled_at):
             d = norm_date(cell(i, 1))
             if not d:
                 continue
+            if PSYCH_KEEP_FROM and d < PSYCH_KEEP_FROM:
+                continue          # 2024 年那批年份笔误一并清掉
             ref = hkey(d, cell(i, 2)[:20], cell(i, 3))
             add_fact(c, "psych.group_session", d, 1, source, sheet_name, ref, "topic", cell(i, 2)[:20])
             add_fact(c, "psych.group_attendee", d, num(cell(i, 5)) or 0, source, sheet_name, ref, "topic", cell(i, 2)[:20])
@@ -551,8 +576,11 @@ def ingest_sheet(c, source, sheet_name, rows, pulled_at):
 
 
 def main():
+    global PSYCH_KEEP_FROM
     c = conn()
     ensure_meta(c)
+    PSYCH_KEEP_FROM = psych_cut(c)
+    print(f"心理组既往旧数据：只保留 {PSYCH_KEEP_FROM} 起（上一期 + 本期），更早的逐日流水不再入库")
     total_pull = 0
     for path in sorted(glob.glob(os.path.join(RAW, "*", "*.json"))):
         d = json.load(open(path))

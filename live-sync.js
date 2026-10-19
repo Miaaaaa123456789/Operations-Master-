@@ -77,14 +77,14 @@
       ['时间进度', m.monthRevenue.timeProgress + '%'],
       ['剩余缺口', f2(m.monthRevenue.gap) + ' 万']
     ];
-    /* ⛔ 心理 / 客服一律取汇报表（业主 2026-10-19 指定）。
-       s.psych.week 是 V4「周个人统计」，其手动周起始日仍停在 2026-10-04，
-       拿它当本期数会与部门卡的汇报表数（40 人 / 4 场）同屏打架；
-       s.service.week.arrived 是客服表口径，与汇报表「到院接待」也不是同一件事。 */
+    /* ⛔ 心理：汇报表该组表头自 2026-09-21 起未滚动（40 人 / 4 场 / 19,002 元 是 9.21—9.27 旧值），
+       已停用；本周一律取 V4 管理表（咨询 46 / 接触 84 / 团体 3 场）。
+       客服仍取汇报表「到院接待」（与台账回访是两件事，不互算）。 */
     var dp = s.departments || {}, dpP = dp.psychology || {}, dpS = dp.service || {};
-    if (dpP.individual !== undefined || dpP.groupSessions !== undefined) {
-      items.push(['心理个体咨询', (dpP.individual != null ? dpP.individual : '—') + ' 人',
-                  '团辅 ' + (dpP.groupSessions != null ? dpP.groupSessions : '—') + ' 场']);
+    if (dpP.consult !== undefined || dpP.contact !== undefined) {
+      items.push(['心理咨询', (dpP.consult != null ? dpP.consult : '—') + ' 人次',
+                  '接触 ' + (dpP.contact != null ? dpP.contact : '—') + ' · 团体 '
+                  + (dpP.groupSessions != null ? dpP.groupSessions : '—') + ' 场']);
     } else if (s.psych && s.psych.week) {
       items.push(['心理接触', s.psych.week.contact + ' 人次', '咨询 ' + s.psych.week.consult]);
       items.push(['团体', s.psych.week.groupSessions + ' 场', s.psych.week.groupPeople + ' 人次']);
@@ -201,8 +201,8 @@
                ['患者池净变化', (m.netPool.value >= 0 ? '+' : '') + m.netPool.value, '人']],
       nursing: [['物理治疗人数', d.nursing ? d.nursing.physioPeople : null, '人次'],
                 ['工娱（场/人次）', d.nursing ? d.nursing.recreationSessions + '/' + d.nursing.recreationPeople : null, '']],
-      psychology: [['患者接触', p.week ? p.week.contact : null, '人次'],
-                   ['咨询工作量', p.week ? p.week.consult : null, '人次']],
+      psychology: [['咨询工作量', p.week ? p.week.consult : null, '人次'],
+                   ['患者接触', p.week ? p.week.contact : null, '人次']],
       service: [['回访台账', sv.week ? sv.week.followup : null, '条'],
                 ['标注到院率', sv.week ? sv.week.rate : null, '%']],
       marketing: [['管家对接', bt.week ? bt.week.contact : null, '条'],
@@ -248,13 +248,12 @@
         foot: '入院 ' + (m.weekAdmit ? m.weekAdmit.value : '—') + ' · 出院 ' + (m.weekDischarge ? m.weekDischarge.value : '—')
       },
       psychology: {
-        /* 部门卡一律取汇报表（业主 2026-10-19 指定），日报明细不覆盖它 */
-        metric: num(dpPsy.individual, ' 人'),
-        note: '本期 ' + lab + ' · 个体咨询',
-        foot: '团辅 ' + (dpPsy.groupSessions != null ? dpPsy.groupSessions : '—') + ' 场 · 总收入 '
-              + (dpPsy.revenueYuan != null ? (dpPsy.revenueYuan / 10000).toFixed(2) + ' 万' : '—')
-              /* 补 V4 接触人次作对照：表头按人数、V4 按人次，两个数字并列但不相加 */
-              + ((s.psych && s.psych.week) ? ' · V4 接触 ' + s.psych.week.contact : '')
+        /* 本周唯一口径＝V4 管理表；汇报表该组表头停在 9.21 旧值，已停用 */
+        metric: num(dpPsy.contact, ' 人次'),
+        note: '本期 ' + lab + ' · 患者接触（V4）',
+        foot: '咨询 ' + (dpPsy.consult != null ? dpPsy.consult : '—') + ' 人次 · 团体 '
+              + (dpPsy.groupSessions != null ? dpPsy.groupSessions : '—') + ' 场 '
+              + (dpPsy.groupPeople != null ? dpPsy.groupPeople + ' 人' : '')
       },
       nursing: {
         metric: num(dpNur.physioPeople, ' 人次'),
@@ -310,7 +309,7 @@
          这里必须跟着写率值；仍写工娱 5/62 会出现「标签说完成率、数字是场次」（实测踩过） */
       nursing: [[dN.physioPeople, '人次'],
                 [(dN.treatSummary ? dN.treatSummary.rate : null), '%']],
-      psychology: [[dP.individual, '人'], [dP.groupSessions, '场']],
+      psychology: [[dP.consult, '人次'], [dP.contact, '人次']],
       service: [[dS.arrived, '人次'], [dS.charity, '人']],
       marketing: [[bt.contact, '条'], [bt.rate, '%']]
     };
@@ -673,7 +672,8 @@
       ['护理 6 项治疗完成率',
         dpNur.treatSummary ? dpNur.treatSummary.rate : null, '%',
         dpNur.treatSummary ? (dpNur.treatSummary.done + '/' + dpNur.treatSummary.due) : null],
-      ['心理', dpPsy.individual != null ? dpPsy.individual : (p.week ? p.week.contact : null), '人', null],
+      ['心理', dpPsy.consult != null ? dpPsy.consult : (p.week ? p.week.consult : null), '人次',
+        (dpPsy.contact != null ? '接触 ' + dpPsy.contact : null)],
       ['客服', dpSvc.arrived != null ? dpSvc.arrived : (sv.week ? sv.week.followup : null), '人次', null],
       ['管家', bt.week ? bt.week.contact : null, '条', bt.week ? pct(Math.round((bt.week.contact - bt.prevSameDays.contact) / Math.max(1, bt.prevSameDays.contact) * 1000) / 10) : null],
       ['到院登记', ar.week, '人次', (ar.prevSameDays ? pct(Math.round((ar.week - ar.prevSameDays) / Math.max(1, ar.prevSameDays) * 1000) / 10) : null)],

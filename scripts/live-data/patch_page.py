@@ -63,22 +63,20 @@ dept_cards = {
                  f" {dep['nursing']['treatSummary']['worst']['rate']}%。逐项见抽屉。"),
     },
     "psychology": {
-        "m1": ("个体咨询", dep["psychology"]["individual"], "人"),
-        "m2": ("团辅场次", dep["psychology"]["groupSessions"], "场"),
-        "trend": [10, 31, 15],
-        "axis": "dpsum",
-        "note": (f"《特别行动小组汇报表》心理咨询组本周表头：个体咨询 <b>{dep['psychology']['individual']}</b> 人、"
-                 f"团辅 <b>{dep['psychology']['groupSessions']}</b> 场、总人数 <b>{dep['psychology']['people']}</b> 人、"
-                 f"总收入 <b>{dep['psychology']['revenueYuan']}</b> 元。"
-                 f"V4「咨询师每日简报」逐条汇总（至 {DT}）：患者接触 <b>{psy['week']['contact']}</b>、"
-                 f"咨询工作量 <b>{psy['week']['consult']}</b>（住院 {psy['week']['inpatient']} ＋ 门诊 "
+        "m1": ("咨询工作量", dep["psychology"]["consult"], "人次"),
+        "m2": ("患者接触", dep["psychology"]["contact"], "人次"),
+        "trend": [psy["daily"][k] for k in sorted(psy.get("daily", {}))],
+        "axis": "dpsy7",
+        "note": (f"<b>本周心理科以 V4 管理表为唯一口径</b>（汇报表心理咨询组表头自 2026-09-21 起未滚动，"
+                 f"40 人 / 4 场 / 19,002 元是 9.21—9.27 的旧值，<b>已停用</b>，原值存档可查）。"
+                 f"V4「咨询师每日简报」逐条汇总（{LBL}，至 {DT}）：患者接触 <b>{psy['week']['contact']}</b> 人次"
+                 f"（24h 首次 {psy['week']['first']} ＋ 情绪支持 {psy['week']['emotion']} ＋ 住院 {psy['week']['inpatient']}）、"
+                 f"咨询工作量 <b>{psy['week']['consult']}</b> 人次（住院 {psy['week']['inpatient']} ＋ 门诊 "
                  f"{psy['week']['outpatient']} ＋ 家庭 {psy['week']['family']}）、家长访谈 {psy['week']['parent']}、"
                  f"团体 {psy['week']['groupSessions']} 场 / {psy['week']['groupPeople']} 人次；"
                  f"管床本周新增 <b>{psy.get('boundWeek', {}).get('rows', 0)} 行 / "
                  f"{psy.get('boundWeek', {}).get('people', 0)} 人</b>，累计在管 {psy.get('boundPatients', 0)} 人。"
-                 f"<b>部门卡取汇报表口径</b>；{dep['psychology']['individual']} 人 vs 咨询 "
-                 f"{psy['week']['inpatient'] + psy['week']['outpatient']} 人次不是矛盾——前者按患者人数、后者按人次"
-                 f"（差额为门诊复诊），<b>两者不互算</b>。"),
+                 f"周个人统计 {psy['week']['report']} 条填报，与日报逐条对账仅差 1 天（赵芳 10-18，见下表注）。"),
     },
     "service": {
         "m1": ("到院人数（接待）", dep["service"]["arrived"], "人次"),
@@ -165,7 +163,8 @@ def render_kpis():
         tile("nursing", f"护理 6 项治疗完成率",
              dep["nursing"]["treatSummary"]["rate"], "%",
              f'{dep["nursing"]["treatSummary"]["done"]}/{dep["nursing"]["treatSummary"]["due"]}', "flat"),
-        tile("psychology", "心理 个体咨询", dep["psychology"]["individual"], "人"),
+        tile("psychology", "心理 咨询工作量", dep["psychology"]["consult"], "人次",
+             f'接触 {dep["psychology"]["contact"]}', "flat"),
         tile("service", "客服 到院接待", dep["service"]["arrived"], "人次"),
         tile("marketing", "管家 有效对接", but_cur, "条", pct(but_d), dcls(but_d)),
         tile("", "10 月累计 / 目标", f'{m["monthRevenue"]["value"]}', f'万 / {m["monthRevenue"]["targetWan"]} 万',
@@ -204,11 +203,11 @@ def patch_dept_daily_psych(html, snap):
     obj = {
         "range": f"本期 10.12—10.18（V4 管理表 · 日报逐条汇总，7 天）",
         "metrics": [
-            ["个体咨询（表头）", f'{dp["individual"]} 人'],
-            ["团辅场次", f'{dp["groupSessions"]} 场'],
-            ["总收入", f'{dp["revenueYuan"]} 元'],
-            ["患者接触（V4）", f'{w["contact"]} 人次'],
-            ["咨询工作量（V4）", f'{w["consult"]} 人次'],
+            ["咨询工作量", f'{w["consult"]} 人次'],
+            ["患者接触", f'{w["contact"]} 人次'],
+            ["家长访谈", f'{w["parent"]} 人次'],
+            ["团体", f'{w["groupSessions"]} 场 / {w["groupPeople"]} 人'],
+            ["管床新增", f'{bw.get("rows", 0)} 行 / {bw.get("people", 0)} 人'],
         ],
         "list": {
             "title": "咨询师个人周工作统计（本期 10.12—10.18 · 组长自动汇总表）",
@@ -225,18 +224,16 @@ def patch_dept_daily_psych(html, snap):
                     f"其余 5 项两侧完全一致（首次对接 {w['first']}、情绪支持 {w['emotion']}、"
                     f"住院咨询 {w['inpatient']}、家庭咨询 {w['family']}、家长访谈 {w['parent']}）。",
         },
-        "note": "<b>本周心理科两套口径并存，不要相加：</b>"
-                f"①《特别行动小组汇报表》心理咨询组表头——个体咨询 <b>{dp['individual']} 人</b>、"
-                f"团辅 <b>{dp['groupSessions']} 场</b>、总人数 <b>{dp['people']} 人</b>、"
-                f"总收入 <b>{dp['revenueYuan']} 元</b>；"
-                f"② V4 管理表日报逐条——患者接触 <b>{w['contact']}</b> 人次、"
+        "note": "<b>本周心理科只有一个口径：V4 管理表（日报逐条 + 周个人统计 + 管床对接）。</b>"
+                f"患者接触 <b>{w['contact']}</b> 人次（24h 首次 {w['first']} ＋ 情绪支持 {w['emotion']} ＋ 住院 {w['inpatient']}）、"
                 f"咨询工作量 <b>{w['consult']}</b> 人次（住院 {w['inpatient']} ＋ 门诊 {w['outpatient']} ＋ "
                 f"家庭 {w['family']}）、家长访谈 {w['parent']} 人次、"
                 f"团体 {w['groupSessions']} 场 {w['groupPeople']} 人。"
-                f"<b>{dp['individual']} 与 {w['inpatient'] + w['outpatient']} 不是矛盾：</b>"
-                f"表头「个体咨询人数」按<b>患者人数</b>计，V4「住院 {w['inpatient']} 人 ＋ 门诊 {w['outpatient']} 人次」"
-                f"按<b>人次</b>计，差额正好是门诊复诊造成的重复计数。<br>"
-                f"<b>管床对接：本周新增 {bw.get('rows', 0)} 行 / {bw.get('people', 0)} 个患者</b>"
+                f"<br><b>⚠ 汇报表表头已停用：</b>40 人 / 4 场 / 19,002 元是 <b>2026-09-21 抓取值</b>，"
+                f"与《9 月报告》里 9.21—9.27 那周同值；10.18 23:48 的保存与 17:06 存档逐格比对，心理组 <b>0 变动</b>，"
+                f"说明表头没有滚到本周。按「缺项不拿旧值顶替」，本周改用 V4 唯一可核口径，旧值存档不丢。"
+                f"其中<b>团辅 4 场 vs 本周 3 场</b>是最直接的证据。"
+                f"<br><b>管床对接：本周新增 {bw.get('rows', 0)} 行 / {bw.get('people', 0)} 个患者</b>"
                 f"（{by_txt}），累计在管 <b>{p.get('boundPatients', 0)}</b> 人。"
                 "陈鹏 2 行只有 1 人——胡峻源 10-14、10-15 重复登记。"
                 "<br><b>⚠ 对账差额：</b>" + gap_txt + "，原因见上表注释；不做四舍五入、不互相覆盖。",
@@ -432,17 +429,17 @@ def main():
                       f"<br>⚠ 完成率按护理部口径<b>向下取整</b>（71/75、21/26 均不进位）；"
                       f"docx 逐日表只到 {DT}，本周 10.18 仅进周合计、未进逐日。",
                     "上周 92.1%（9.20—9.26）", f"本期 {LBL}"],
-        "psychology": [f"{MARK} 本期（{LBL} · 汇报表口径）", dep["psychology"]["individual"], dep["psychology"]["individual"], "人",
-                       f"汇报表心理咨询组表头：个体咨询 <b>{dep['psychology']['individual']}</b> 人、团辅 <b>{dep['psychology']['groupSessions']}</b> 场、"
-                       f"总人数 {dep['psychology']['people']} 人、总收入 <b>{dep['psychology']['revenueYuan']}</b> 元。"
-                       f"V4 日报逐条（至 {DT}）：接触 {psy['week']['contact']}、咨询 {psy['week']['consult']}、"
-                       f"家长访谈 {psy['week']['parent']}、团体 {psy['week']['groupSessions']} 场 {psy['week']['groupPeople']} 人。"
+        "psychology": [f"{MARK} 本期（{LBL} · V4 管理表口径）", None, dep["psychology"]["consult"], "人次",
+                       f"本周唯一口径＝V4 管理表：咨询工作量 <b>{dep['psychology']['consult']}</b> 人次、"
+                       f"患者接触 <b>{dep['psychology']['contact']}</b> 人次、家长访谈 {psy['week']['parent']}、"
+                       f"团体 {psy['week']['groupSessions']} 场 {psy['week']['groupPeople']} 人。"
                        f"管床本周新增 <b>{psy.get('boundWeek', {}).get('rows', 0)} 行 / {psy.get('boundWeek', {}).get('people', 0)} 个患者</b>，"
                        f"累计在管 <b>{psy.get('boundPatients', 0)}</b> 人。"
+                       f"⚠ 汇报表心理组表头（40 人 / 4 场 / 19,002 元）自 <b>2026-09-21</b> 起未滚动，已停用，不参与本周计算。"
                        f"<b>对账</b>：周个人统计 5 人 vs 日报逐条，差额 "
                        + ("、".join(f"{r['label']} {r['gap']:+d}" for r in (psy.get('recon') or []) if r.get('gap')) or "无")
                        + "——均因赵芳 10-18 那条日报落在简报表末尾、周表公式未覆盖。",
-                       "汇报表本周", f"本期 {LBL}"],
+                       "V4 本周", f"本期 {LBL}"],
         "service": [f"{MARK} 本期（{LBL} · 汇报表口径）", None, dep["service"]["arrived"], "人次",
                     f"汇报表客服服务部表头：到院 <b>{dep['service']['arrived']}</b> 人次（导医接待）、义诊 <b>{dep['service']['charity']}</b> 人；"
                     f"「随访人数」未填，记 null。台账（至 {DT}）：回访 {svc['week']['followup']} 条、标记到院 {svc['week']['arrived']} 人"
@@ -491,8 +488,9 @@ def main():
             f'入院 {m["weekAdmit"]["value"]}、出院 {m["weekDischarge"]["value"]}、门诊 {m["weekVisits"]["value"]} 人次、'
             f'物理治疗 {m["weekPhysio"]["value"]} 万，均取汇报表医生组表头/正文；'
             f'营收日报逐日台账（至 {DT}，合计 {m["weekRevenue"].get("ledgerValue")} 万）保留在数据核验里，供勾稽与作图，不参与展示。'
-            f'护理组/心理咨询组/客服服务部/营销中心四张卡＝汇报表各表头本周自填值；'
-            f'心理明细模块＝V4「咨询师每日简报」逐条（接触 {psy["week"]["contact"]} / 咨询 {psy["week"]["consult"]}）；'
+            f'护理组/客服服务部/营销中心三张卡＝汇报表各表头本周自填值；'
+            f'<b>心理咨询组例外</b>：汇报表该组表头停在 2026-09-21 旧值（40 人 / 4 场 / 19,002 元）未滚动，'
+            f'本周改用 V4 管理表（咨询 {psy["week"]["consult"]} 人次 / 接触 {psy["week"]["contact"]} 人次 / 团体 {psy["week"]["groupSessions"]} 场）；'
             f'客服台账＝标准化回访台账＋导诊记录；营销＝《患者有效对接表》各管家分表；到院＝《10月到院登记表》逐条（{SNAP["arrival"]["week"]} 人次，就诊口径）。'
             f'<b>缺失一律记 null、不写 0</b>：营销中心表头三项未填、客服「随访人数」未填、'
             f'医生组个人明细 {("、".join(dep["doctor"]["recon"]["blankRows"]) or "无")} 空白，均不反推。'
