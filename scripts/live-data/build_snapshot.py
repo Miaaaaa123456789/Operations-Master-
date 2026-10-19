@@ -376,6 +376,27 @@ def main(db_path=None, out=None, write=True):
     missing_butler = [n for n in butler_all if n not in but_map]
     bw_daily = daily_map(c, "butler.contact", p_start.isoformat(), but_end)
 
+    # ⭐ 2026-10-19：管家个人项目明细来自业主微信提供的周汇总 xlsx（复诊/初诊/检查/
+    #    物理治疗/心理咨询/住院/权重 七列，逐条流水里没有）。落盘在 data/extra/butler-week.json，
+    #    只在该文件的 week 与本快照窗口一致时启用，避免旧周明细被当本周用。
+    but_detail = None
+    _bw_path = os.path.join(ROOT, "data", "extra", "butler-week.json")
+    if os.path.exists(_bw_path):
+        with open(_bw_path, encoding="utf-8") as _f:
+            _bwd = json.load(_f)
+        if _bwd.get("week") == p_start.isoformat():
+            _rows = []
+            for _ppl in _bwd.get("people", []):
+                _ct = _ppl.get("contact") or 0
+                _rows.append({**_ppl, "rate": pct(_ppl.get("admit") or 0, _ct)})
+            _rows.sort(key=lambda r: (-(r.get("weight") or 0), -(r.get("contact") or 0)))
+            but_detail = {"week": _bwd.get("week"), "weekEnd": _bwd.get("weekEnd"),
+                          "label": _bwd.get("label"), "asOf": _bwd.get("asOf"),
+                          "source": _bwd.get("source"), "nameNote": _bwd.get("_nameNote"),
+                          "people": _rows, "total": _bwd.get("total"),
+                          "weightSum": sum((r.get("weight") or 0) for r in _rows),
+                          "admitSum": sum((r.get("admit") or 0) for r in _rows)}
+
     # ── 到院登记 ──────────────────────────────────────────────
     arr_w = int(s(c, "arrival.visit", p_start.isoformat(), arr_end) or 0)
     arr_new = int(s(c, "arrival.new", p_start.isoformat(), arr_end) or 0)
@@ -643,8 +664,14 @@ def main(db_path=None, out=None, write=True):
          "text": f"客服回访 {sw['followup']} 条、标记到院 {sw['arrived']} 人（{sw['rate']}%，{svc_n} 天）；"
                  f"上期同 {svc_n} 天 {sw_prev['followup']} 条 / {sw_prev['arrived']} 人（{sw_prev['rate']}%）。"},
         {"id": "butler", "metricIds": ["butler.contact"], "numbersOnly": True,
-         "text": f"管家有效对接 {bw['contact']} 条、转住院 {bw['admit']} 人（{bw['rate']}%，{but_n} 天）；"
-                 f"上期同 {but_n} 天 {bw_prev['contact']} 条 / {bw_prev['admit']} 人（{bw_prev['rate']}%）。"},
+         "text": (f"管家有效对接 {bw['contact']} 条、转住院 {bw['admit']} 人（{bw['rate']}%，{but_n} 天），"
+                  f"上期同 {but_n} 天 {bw_prev['contact']} 条 / {bw_prev['admit']} 人（{bw_prev['rate']}%）"
+                  + (f"；逐人 {' / '.join(f'{r['name']} {r['contact']}' for r in sorted(but_detail['people'], key=lambda r: -(r['contact'] or 0)))}，"
+                     f"复诊 {but_detail['total']['revisit']} · 初诊 {but_detail['total']['first']} · "
+                     f"检查 {but_detail['total']['exam']} · 物理 {but_detail['total']['physio']} · "
+                     f"心理咨询 {but_detail['total']['psych']}（周汇总表 10.12—10.18）"
+                     if but_detail else "")
+                  + "。⚠ 营销中心表头「本周入院/门诊/总收入」本周整行空白，按契约记 null、不拿旧值顶替。")},
     ]
 
     # ── 冲突 / 待核 ───────────────────────────────────────────
@@ -798,6 +825,7 @@ def main(db_path=None, out=None, write=True):
         "service": {"week": sw, "prevSameDays": sw_prev, "staff": svc_staff, "staffArrived": svc_arr,
                     "daily": {k: int(v) for k, v in svc_day.items()}},
         "butler": {"week": bw, "prevSameDays": bw_prev, "staff": but_staff, "missingStaff": missing_butler,
+                   "detail": but_detail,
                    "daily": {k: int(v) for k, v in bw_daily.items()}},
         "arrival": {"week": arr_w, "new": arr_new, "prevSameDays": arr_prev,
                     "channels": arr_chan, "daily": {k: int(v) for k, v in arr_daily.items()},

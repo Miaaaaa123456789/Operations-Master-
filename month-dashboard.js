@@ -230,7 +230,7 @@ return '本期（'+(_from===_to?_md(_from):(_md(_from)+'—'+_md(_to)))+'）';
       {key:'psychology',cls:'psychology',icon:'心',name:'心理咨询组',desc:'咨询承接与收入结构',metric:'84 人次',note:'本期 10.12–10.18 · 患者接触（V4）',foot:'咨询 46 人次 · 团体 3 场 17 人'},
       {key:'service',cls:'service',icon:'客',name:'客服服务部',desc:'随访、到院及付费跟踪',metric:'37 条',note:'本期 10.12–10.18 · 回访',foot:'到院 11 · 29.7%'},
       /* ⚠ 营销组不再挂「营业额」：营业额属全院口径，挂到营销组名下会被读成营销贡献。 */
-      {key:'marketing',cls:'marketing',icon:'营',name:'营销组',desc:'管家、工娱与渠道归集',metric:'55 条',note:'本期 10.12–10.18 · 管家有效对接',foot:'转住院 13 · 23.6%'}
+      {key:'marketing',cls:'marketing',icon:'营',name:'营销组',desc:'管家、工娱与渠道归集',metric:'80 条',note:'本期 10.12–10.18 · 管家有效对接',foot:'转住院 17 · 21.2%'}
     ],
     ranks:{
       /* ⚠ 2026-10-09 更新：本期切到业主《工作簿3_补充在院患者（脱敏及医师更正）》出院结帐明细
@@ -240,7 +240,12 @@ return '本期（'+(_from===_to?_md(_from):(_md(_from)+'—'+_md(_to)))+'）';
       nursing:[['何培培','护理组','综合 0.9432 · 周总 24.93','工作量×质控（源表口径）','动态试算'],['李永鑫','护理组','综合 0.9406 · 周总 25.68','工作量×质控（源表口径）','动态试算'],['沈琳','护理组','综合 0.8764','工作量×质控（源表口径）','动态试算'],['刘佳佳','护理组','综合 0.8640','工作量×质控（源表口径）','动态试算'],['赵雯倩','护理组','综合 0.8596','工作量×质控（源表口径）','动态试算']],
       psychology:[['冯浩鹏','心理咨询组','加权 63 · 咨询 16 / 接触 31 · 完整率 57%','V4 周个人统计 · 本周 10.12—10.18（咨询2:接触1）','动态试算'],['蔡宜蓉','心理咨询组','加权 57 · 咨询 16 / 接触 25 · 完整率 50%','V4 周个人统计 · 本周 10.12—10.18（咨询2:接触1）','动态试算'],['陈鹏','心理咨询组','加权 25 · 咨询 6 / 接触 13 · 完整率 25%','V4 周个人统计 · 本周 10.12—10.18（咨询2:接触1）','动态试算'],['赵芳','心理咨询组','加权 18 · 咨询 5 / 接触 8 · 完整率 0%','V4 周个人统计 · 本周 10.12—10.18（咨询2:接触1）','动态试算'],['王沛然','心理咨询组','加权 13 · 咨询 3 / 接触 7 · 完整率 0%','V4 周个人统计 · 本周 10.12—10.18（咨询2:接触1）','动态试算']],
       service:[['蒋雨','客服服务部','日均 279.5 分 · 回访 41 条','日工作量（按日均）','动态试算'],['温诗怡','客服服务部','日均 269.2 分 · 回访 21 条','日工作量（按日均）','动态试算'],['张欣雨','客服服务部','日均 197.5 分 · 回访 12 条','日工作量（按日均）','动态试算'],['张钰洁','客服服务部','日均 143.0 分 · 在岗 4 天','日工作量（按日均）','动态试算'],['黄诗棋','客服服务部','日均 139.3 分 · 主动服务 11 条','日工作量（按日均）','动态试算'],['陈宇轩','客服服务部','日均 117.5 分 · 在岗 4 天','日工作量（按日均）','动态试算']],
-      marketing:[['金林','营销组','转住院率 29.2%','对接 24 条','趋势参考'],['利娟','营销组','转住院率 21.4%','对接 14 条','趋势参考'],['朱婧','营销组','转住院率 13.3%','对接 30 条','趋势参考'],['菲菲','营销组','本期无新增对接','—','待核'],['国威','营销组','本期无新增对接','—','待核']]
+      /* ⭐ 2026-10-19 业主提供《10.12-10.18心理管家本周有效客户对接表.xlsx》：
+         有效对接 80 / 转住院 17（21.2%），逐人 利娟 20 · 金林 18 · 朱婧 17 · 国威 13 · 菲菲 12。
+         排序＝源表「权重」列（管家组长填的考核系数，合计 16.0）；条数第一是利娟（20），
+         但权重第 3（3.0）——两套排序并存，此处按权重、并在描述里同时给出条数与率值。
+         ⚠ 源表姓名写作「丽娟」，与表名及本站 33 处「利娟」不一致，数值全等判定同人，按「利娟」呈现。 */
+      marketing:[['金林','营销组','权重 5.3（第1）· 对接 18 条 · 转住院 6 人（33.3%，组内最高）· 初诊 12 条最多','对接 18 条 · 本周 10.12—10.18','动态试算'],['朱婧','营销组','权重 4.0 · 对接 17 条 · 转住院 4 人（23.5%）· 复诊 14 条最多','对接 17 条 · 本周 10.12—10.18','动态试算'],['利娟','营销组','权重 3.0 · 对接 20 条（全组第1）· 转住院 3 人（15.0%，量最大率第4）','对接 20 条 · 本周 10.12—10.18','动态试算'],['国威','营销组','权重 2.7 · 对接 13 条 · 转住院 3 人（23.1%）· 心理咨询 7 条','对接 13 条 · 本周 10.12—10.18','动态试算'],['菲菲','营销组','权重 1.0 · 对接 12 条（上期仅 2 条，已补回）· 转住院 1 人（8.3%）','对接 12 条 · 本周 10.12—10.18','动态试算']]
     }
   };
 
@@ -479,7 +484,7 @@ baseData.kpis=[
         '<article class="md-card md-chart-card md-click" tabindex="0" role="button" data-md-panel="daily"><header class="md-chart-top"><div><h3>'+MD_NUM+'.1—'+MDFt().date+' 逐日营业额</h3><p>单位：万元 · 截至 '+(lastDateMd()||'—')+'，本周剩余天数待更新</p></div><span class="md-chart-badge">日均 '+MDFt().avg+' 万</span></header><div class="md-bars">'+bars()+'</div><p class="md-chart-note">截至'+MDFt().dateCN+'累计'+MDFt().total+'万元；本期单日高点见柱状图。</p></article>'+
         '<div class="md-side-stack"><article class="md-card md-week-card md-click" tabindex="0" role="button" data-md-panel="weeks"><header class="md-card-title"><div><h3>'+MD_LABEL+'各周营业对比</h3><p>'+WEEK+'为进行中（数据至 '+(lastDateMd()||'—')+'）</p></div><b style="color:#15976c">月累计 '+MDFt().total+' 万</b></header><div class="md-week-list">'+weeks()+'</div></article><article class="md-card md-funnel md-click" tabindex="0" role="button" data-md-panel="funnel"><header class="md-card-title"><div><h3>'+WEEK+'经营流量</h3><p>门诊、入院、出院为同期数量，不直接计算转化率</p></div><span class="md-severity" style="color:#d57e1c">截至'+MDFt().date+'</span></header><div class="md-funnel-steps">'+funnel()+'</div><p class="md-funnel-foot">'+WEEK+'入院'+esc(data.funnelAdm)+'人、出院'+esc(data.funnelDis)+'人，患者池'+(data.funnelNet>=0?'净增':'净减')+Math.abs(data.funnelNet)+'人；'+esc(data.funnelWardAt)+'日终在院'+esc(data.funnelWard)+'人。</p></article></div>'+
       '</section>'+
-      '<div class="md-section-head"><div><h2>本期动态排名</h2><p>按部门最新可核周计算：心理=本周 10.12—10.18；医生=出院结账 9.28—10.7；护理=考核周（源表口径）；月末核验后才形成正式排名</p></div><button class="md-more" data-md-panel="rankrule" type="button">查看排名规则</button></div>'+
+      '<div class="md-section-head"><div><h2>本期动态排名</h2><p>按部门最新可核周计算：心理 / 营销（管家）/ 客服=本周 10.12—10.18；医生=出院结账 9.28—10.7（结算口径）；护理=考核周（源表口径）；月末核验后才形成正式排名</p></div><button class="md-more" data-md-panel="rankrule" type="button">查看排名规则</button></div>'+
       '<section class="md-card md-rank"><header class="md-card-title"><div><h3>员工绩效试算</h3><p>业务量、质量、转化与数据完整性分岗计算</p></div><div class="md-rank-tabs"><button class="active" data-rank="doctor">医生</button><button data-rank="nursing">护理</button><button data-rank="psychology">心理</button><button data-rank="service">客服</button><button data-rank="marketing">营销</button></div></header><div class="md-table-wrap" id="mdRankTable">'+ranking('doctor')+'</div></section>'+
       '<button class="md-card md-governance md-click" type="button" data-md-panel="governance"><div class="md-gov-grid"><i class="md-gov-icon">⌘</i><div class="md-gov-copy"><h3>排名数据治理决策</h3><p>当日记录、次日核验、月内动态试算、月末正式锁定；缺失记“待补”，冲突记“待核”，不得静默改榜。</p></div><span class="md-gov-badge">17 项待核验</span></div></button>'+
     '</div>';

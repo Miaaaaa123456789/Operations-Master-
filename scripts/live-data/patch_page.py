@@ -98,8 +98,14 @@ dept_cards = {
                  f"转住院 <b>{but['week']['admit']}</b> 人（<b>{but['week']['rate']}%</b>）——"
                  + " · ".join(f"{k} {v}" for k, v in but["staff"]) +
                  f"。上期同 {N} 天 {but['prevSameDays']['contact']} 条 / {but['prevSameDays']['admit']} 人（{but['prevSameDays']['rate']}%）。"
-                 f"⚠ {'、'.join(but['missingStaff']) or '—'} 本周无记录，按契约记 null、<b>不按 0 降榜</b>。"
-                 f"营销中心表头的入院/门诊/总收入<b>本周未填</b>，故不显示、也不拿其他源代替。"),
+                 + ((f"周汇总表补充分项：复诊 <b>{but['detail']['total']['revisit']}</b> · 初诊 <b>{but['detail']['total']['first']}</b> · "
+                     f"检查 <b>{but['detail']['total']['exam']}</b> · 物理治疗 <b>{but['detail']['total']['physio']}</b> · "
+                     f"心理咨询 <b>{but['detail']['total']['psych']}</b>；源表 I 列另有「权重」（合计 <b>{but['detail']['weightSum']}</b>，"
+                     f"金林 5.3 / 朱婧 4 / 利娟 3 / 国威 2.7 / 菲菲 1），<b>与条数排名不同序</b>，算法源表未说明、本页只呈现。")
+                    if but.get("detail") else "")
+                 + (f"⚠ {'、'.join(but['missingStaff'])} 本周无记录，按契约记 null、<b>不按 0 降榜</b>。"
+                    if but["missingStaff"] else "")
+                 + "营销中心表头的入院/门诊/总收入<b>本周整行空白</b>（10-18、10-19 两次抓取均空），故不显示、也不拿其他源代替。"),
     },
 }
 
@@ -447,6 +453,8 @@ def main():
                     "汇报表本周", f"本期 {LBL}"],
         "marketing": [f"{MARK} 本期（{LBL} · 数据至 {DT}）", but["prevSameDays"]["contact"], but["week"]["contact"], "条",
                       f"管家对接 <b>{but['week']['contact']}</b> 条、转住院 {but['week']['admit']} 人（<b>{but['week']['rate']}%</b>）；"
+                      + ("、".join(f"{r['name']} {r['contact']}（权重 {r['weight']}）" for r in but["detail"]["people"]) + "；"
+                         if but.get("detail") else "")
                       + " · ".join(f"{k} {v}" for k, v in but["staff"]) +
                       f"。上期同 {N} 天 {but['prevSameDays']['contact']} 条 / {but['prevSameDays']['admit']} 人（{but['prevSameDays']['rate']}%）。"
                       f"⚠ {'、'.join(but['missingStaff'])} 未填报，记 null 不降榜",

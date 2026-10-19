@@ -21,6 +21,10 @@ CN = timezone(timedelta(hours=8))
 # 之所以不删上一期：环比（prevSameDays）必须能算，删了就没有对照。
 # 该变量在 main() 里按 settings.period_anchor 赋值，未赋值时不截断。
 PSYCH_KEEP_FROM = None
+# 营销/管家组（《患者有效对接表》一人一表）同样只保留上一期起的流水。
+# 该表自 6 月起累积 1700+ 行，含 2006-09-19 这类年份笔误，旧行对本周分析无贡献，
+# 但会污染「本周新增对接」「管家个人排名」的分母，故与心理组同一截断日。
+BUTLER_KEEP_FROM = None
 
 SOURCES = {
     "action_report": ("特别行动小组汇报表", "https://www.kdocs.cn/l/cbwp2cvTiFyK", "department_report"),
@@ -542,6 +546,8 @@ def ingest_sheet(c, source, sheet_name, rows, pulled_at):
             d = norm_date(cell(i, 1))
             if not d or not cell(i, 2):
                 continue
+            if BUTLER_KEEP_FROM and d < BUTLER_KEEP_FROM:
+                continue          # 既往旧流水（含 2006 年笔误）不入库
             ref = hkey(d, cell(i, 2), staff)
             add_fact(c, "butler.contact", d, 1, source, sheet_name, ref, "staff", staff)
             if cell(i, 7) not in ("", "否", "/"):
@@ -581,6 +587,9 @@ def main():
     ensure_meta(c)
     PSYCH_KEEP_FROM = psych_cut(c)
     print(f"心理组既往旧数据：只保留 {PSYCH_KEEP_FROM} 起（上一期 + 本期），更早的逐日流水不再入库")
+    global BUTLER_KEEP_FROM
+    BUTLER_KEEP_FROM = PSYCH_KEEP_FROM
+    print(f"管家/营销组既往旧数据：只保留 {BUTLER_KEEP_FROM} 起，更早的对接流水不再入库")
     total_pull = 0
     for path in sorted(glob.glob(os.path.join(RAW, "*", "*.json"))):
         d = json.load(open(path))

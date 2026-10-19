@@ -1,0 +1,17 @@
+{
+  "_note": "营销组·管家个人本周明细。来源＝业主 2026-10-19 微信提供的《10.12-10.18心理管家本周有效客户对接表.xlsx》。这张表是《患者有效对接表》按自然周汇总后的人工复核版，比逐条流水多了复诊/初诊/检查/物理治疗/心理咨询/住院/权重七列，逐条流水取不到这些分项，故单独落盘、由 build_snapshot 合并进 butler.staffDetail。",
+  "_nameNote": "源表第 6 行写作「丽娟」，本站其余 33 处及《患者有效对接表》工作表名均为「利娟」，有效对接 20 / 住院 3 与源表完全一致，判定为同人、源表笔误，本站统一按「利娟」呈现，不回写。",
+  "week": "2026-10-12",
+  "weekEnd": "2026-10-18",
+  "label": "10.12—10.18",
+  "asOf": "2026-10-18",
+  "source": "10.12-10.18心理管家本周有效客户对接表.xlsx（业主 2026-10-19 提供）",
+  "people": [
+    { "name": "利娟", "contact": 20, "revisit": 12, "first": 8, "exam": 16, "physio": 3, "psych": 2, "admit": 3, "weight": 3 },
+    { "name": "金林", "contact": 18, "revisit": 6, "first": 12, "exam": 15, "physio": 6, "psych": 4, "admit": 6, "weight": 5.3 },
+    { "name": "朱婧", "contact": 17, "revisit": 14, "first": 3, "exam": 9, "physio": 6, "psych": 7, "admit": 4, "weight": 4 },
+    { "name": "国威", "contact": 13, "revisit": 11, "first": 1, "exam": 7, "physio": 3, "psych": 7, "admit": 3, "weight": 2.7 },
+    { "name": "菲菲", "contact": 12, "revisit": 8, "first": 4, "exam": 12, "physio": 3, "psych": 0, "admit": 1, "weight": 1 }
+  ],
+  "total": { "contact": 80, "revisit": 51, "first": 28, "exam": 59, "physio": 21, "psych": 20, "admit": 17, "weight": 16 }
+}
