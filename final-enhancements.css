@@ -3,6 +3,9 @@
 .side-pulse-head{display:flex;align-items:center;justify-content:space-between;color:#173a68;font-weight:800;font-size:14px}.side-pulse-head i{width:8px;height:8px;background:#28c99a;border-radius:50%;box-shadow:0 0 0 5px #d9f7ee}
 .side-goal{margin-top:12px;padding:12px;border-radius:13px;background:linear-gradient(135deg,#1769d8,#2a91ee);color:white}.side-goal small{opacity:.8}.side-goal strong{display:block;font-size:21px;margin:4px 0}.side-goal-track{height:6px;background:#ffffff38;border-radius:10px;overflow:hidden}.side-goal-track b{display:block;width:59.2%;height:100%;background:#79e6c3}
 .side-signals{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}.side-signal{padding:9px;border-radius:11px;font-size:11px}.side-signal b{display:block;font-size:16px;margin-top:2px}.side-signal.risk{background:#fff0f2;color:#c63d58}.side-signal.data{background:#fff7e8;color:#b97005}
+/* ⚠ 2026-10-07 新增：完成率已高于时间进度时用「低风险」绿色（跌绿 #21A6A0 体系），
+   此前只有 risk/data 两种，领先时只能沿用红色「高」——与实际领先状态矛盾。 */
+.side-signal.ok{background:#eafaf8;color:#1a8f8a}
 .side-shortcuts{display:flex;gap:7px;margin-top:9px}.side-shortcuts button{flex:1;border:0;border-radius:9px;background:#e8f1ff;color:#1767c9;font-size:11px;font-weight:700;padding:8px;cursor:pointer}
 #deptGrid [data-dept="doctor"]{--dept:#e85670;--deptSoft:#fff0f3;background:linear-gradient(155deg,#fff,#fff4f6);border-top:4px solid var(--dept)}
 #deptGrid [data-dept="nursing"]{--dept:#18a88d;--deptSoft:#eafaf6;background:linear-gradient(155deg,#fff,#edfbf7);border-top:4px solid var(--dept)}

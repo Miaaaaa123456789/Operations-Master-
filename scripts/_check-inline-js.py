@@ -6,7 +6,7 @@ import io, os, re, subprocess, sys
 P = "/Users/opp/WorkBuddy/2026-09-13-10-26-58/repo/index.html"
 html = io.open(P, encoding="utf-8").read()
 blocks = re.findall(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", html, re.S)
-NODE = "/Users/opp/.workbuddy/binaries/node/versions/22.22.2-3/bin/node"
+NODE = "/Users/opp/.workbuddy/binaries/node/versions/24.14.0/bin/node"
 print("内联脚本块：%d 个" % len(blocks))
 bad = 0
 for i, b in enumerate(blocks, 1):

@@ -79,7 +79,89 @@ body.md-mode .subtitle{color:#7a879c}
 .md-alert h3{margin:13px 0 5px;font-size:15px}
 .md-alert p{margin:0;color:#6e7b90;font-size:11.5px;line-height:1.55}
 
-.md-analysis-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(350px,.7fr);gap:16px}
+/* 例会模块基线（2026-10-10 图表化时被覆盖，此处补回） */
+.md-meeting{display:grid;gap:12px}
+.md-meeting-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+/* ⚠ 2026-10-10：两列等高（stretch）下漏斗卡内容只有一半高 → 底部约 260px 留白。
+   这里让**漏斗内容竖向均布**填满卡片，而不是把两卡改成起顶对齐（那会让整行参差）。 */
+.md-meeting-grid>.md-meet-card{display:flex;flex-direction:column}
+.md-meeting-grid>.md-meet-card>.md-mf-list{flex:1 1 auto;align-content:space-between}
+.md-meet-card{padding:18px}
+.md-meet-todo{padding:18px}
+.md-meet-pill{padding:5px 9px;border-radius:999px;background:#eef3f8;color:#5f7089;font-size:10px;font-weight:800;white-space:nowrap}
+.md-meet-count{min-width:30px;height:30px;display:grid;place-items:center;border-radius:9px;background:#fff3df;color:#a96a0b;font-size:12px;font-weight:900}
+
+/* ⭐ 2026-10-10：例会模块「多图表少文字」（业主反馈原版「可视化太丑」）。
+   结构＝结论卡网格 + 业务条形图 + 转化漏斗 + 待办责任人分布。
+   不引入新配色，全部复用 md-* 变量。 */
+.md-mk-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.md-mk{position:relative;overflow:hidden;padding:15px 15px 14px;border-radius:20px;
+  border:1px solid var(--md-line);background:linear-gradient(150deg,#fff,#f6faff);box-shadow:var(--md-shadow)}
+.md-mk:before{content:"";position:absolute;inset:0 auto 0 0;width:5px;background:var(--accent,var(--md-blue))}
+.md-mk i{display:grid;place-items:center;width:34px;height:34px;border-radius:11px;
+  background:var(--accent,var(--md-blue));color:#fff;font-size:16px;font-style:normal;font-weight:900}
+.md-mk label{display:block;margin-top:11px;color:#6d7c93;font-size:11px;font-weight:750}
+.md-mk strong{display:block;margin-top:5px;font-size:25px;letter-spacing:-.045em;line-height:1.05;color:var(--md-ink)}
+.md-mk strong em{font-size:12px;font-style:normal;font-weight:750;margin-left:3px;letter-spacing:0;color:#7a879b}
+.md-mk span{display:block;margin-top:7px;color:#7d8a9e;font-size:10.5px;line-height:1.5}
+.md-mk.red{--accent:var(--md-red)}
+.md-mk.orange{--accent:var(--md-orange)}
+.md-mk.purple{--accent:var(--md-purple)}
+.md-mk.blue{--accent:var(--md-blue)}
+.md-mk.green{--accent:var(--md-green)}
+
+.md-mb-list{display:grid;gap:13px;margin-top:15px}
+.md-mb-top{display:flex;align-items:baseline;gap:8px;font-size:11.5px}
+.md-mb-top label{flex:1;min-width:0;color:#5f6e86;font-weight:750}
+.md-mb-top b{color:var(--md-ink);font-size:13px;font-weight:850;white-space:nowrap}
+.md-mb-top em.up{font-style:normal;font-size:10.5px;font-weight:850;color:#138761;
+  background:#e9f8f1;border-radius:999px;padding:3px 7px;white-space:nowrap}
+.md-mb-track{display:flex;height:11px;margin-top:7px;border-radius:99px;background:#eef3f9;overflow:hidden}
+.md-mb-track>i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#8ebcf8,#287ae9)}
+.md-mb-track>i.purple{background:linear-gradient(90deg,#b3a2f7,#785ee8)}
+.md-mb-track>i.green{background:linear-gradient(90deg,#74dcbc,#16b981)}
+.md-mb-track>i.teal{background:linear-gradient(90deg,#79d3e6,#0aa1b2)}
+.md-mb-track>i.orange{background:linear-gradient(90deg,#ffcd86,#f1a339)}
+.md-mb-track>i.red{background:linear-gradient(90deg,#f79aa8,#eb5f72)}
+.md-mb-track>i.s1{background:linear-gradient(90deg,#8ebcf8,#287ae9);border-radius:99px 0 0 99px}
+.md-mb-track>i.s2{background:#dfe7f2;border-radius:0 99px 99px 0}
+.md-mb-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:7px;font-size:10px;color:#7d8a9e}
+.md-mb-legend span{display:inline-flex;align-items:center;gap:5px}
+.md-mb-legend i{width:9px;height:9px;border-radius:3px;background:#287ae9}
+.md-mb-legend i.s2{background:#dfe7f2}
+.md-mb-note{margin-top:6px;color:#7d8a9e;font-size:10.5px;line-height:1.5}
+
+.md-mf-list{display:grid;gap:16px;margin-top:15px}
+.md-mf-head{display:block;color:#5f6e86;font-size:11.5px;font-weight:750}
+.md-mf-step{display:grid;grid-template-columns:62px 1fr 52px;align-items:center;gap:9px;margin-top:7px;font-size:10.5px}
+.md-mf-step span{color:#7d8a9e}
+.md-mf-step i{display:block;height:15px;background:#f1f5fa;border-radius:7px;overflow:hidden}
+.md-mf-step i>b{display:block;height:100%;border-radius:7px;background:linear-gradient(90deg,#9fc6fa,#3f8ceb)}
+.md-mf-step:nth-of-type(2) i>b{background:linear-gradient(90deg,#a9d9ee,#4f9dc6)}
+.md-mf-step:nth-of-type(3) i>b{background:linear-gradient(90deg,#8fe0c3,#17b683)}
+.md-mf-step em{font-style:normal;text-align:right;font-weight:850;color:var(--md-ink)}
+.md-mf-note{margin-top:8px;color:#7d8a9e;font-size:10.5px;line-height:1.5}
+
+.md-grid-todo{grid-template-columns:minmax(0,.6fr) minmax(0,1.4fr)}
+/* 左卡内容少 → 纵向撑满，避免底部大片空白 */
+.md-grid-todo>.md-meet-card{display:flex;flex-direction:column}
+.md-tb-list{flex:1;align-content:space-between}
+.md-tb-list{display:grid;gap:9px;margin-top:15px}
+.md-tb-row{display:grid;grid-template-columns:96px 1fr 20px;align-items:center;gap:9px;font-size:11px}
+.md-tb-row label{color:#5f6e86;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.md-tb-row b{text-align:right;color:var(--md-ink);font-weight:850}
+.md-tb-track{display:block;height:10px;border-radius:99px;background:#eef3f9;overflow:hidden}
+.md-tb-track i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#ffd08a,#eda42f)}
+.md-meet-todos{list-style:none;margin:15px 0 0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 12px}
+.md-meet-todos li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:baseline;
+  padding:9px 11px;border-radius:11px;background:#f7f9fc;font-size:11px;line-height:1.5;color:#46536a}
+.md-meet-todos li i{display:grid;place-items:center;width:18px;height:18px;margin-top:1px;
+  border-radius:6px;background:#eaf3ff;color:var(--md-blue);font-size:9.5px;font-weight:900;font-style:normal}
+.md-meet-todos li span{min-width:0}
+.md-meet-todos li em{justify-self:end;font-style:normal;font-size:10px;font-weight:800;
+  color:var(--md-blue);white-space:nowrap;padding-left:2px}
+
+.md-analysis-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(350px,.7fr);gap:16px;align-items:start}
 .md-chart-card{padding:19px;overflow:hidden}
 .md-chart-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .md-chart-top h3{margin:0;font-size:17px}.md-chart-top p{margin:5px 0 0;color:var(--md-muted);font-size:11px}
@@ -99,6 +181,15 @@ body.md-mode .subtitle{color:#7a879c}
 .md-week-track{height:8px;background:#edf2f8;border-radius:99px;overflow:hidden}.md-week-track i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#8ebcf8,#287ae9)}
 .md-week-row.current .md-week-track i{background:linear-gradient(90deg,#63d5b1,#15b780)}
 .md-week-row.current b{color:#138761}
+
+/* ⭐ 2026-10-10：周对比的「未来周 / 进行中」区分。
+   起因：未来周原先也渲染成 0.00 万，会被读成「那一周营收为 0」。
+   现在未来周＝虚线空槽 +「未开始」；进行中的周在标签下补「已录 N/M 天」。 */
+.md-week-row.future{opacity:.85}
+.md-week-row.future label{color:#9aa8bc}
+.md-week-track.ghost{background:none;border:1px dashed #d7e1ec}
+.md-week-row b.w-future{color:#9aa8bc}
+.md-week-row label em{display:block;font-style:normal;font-size:9.5px;font-weight:700;color:#138761;margin-top:2px}
 .md-funnel-steps{display:grid;grid-template-columns:repeat(4,1fr);align-items:stretch;gap:6px;margin-top:15px}
 .md-funnel-step{position:relative;text-align:center;border-radius:13px;padding:11px 5px;background:#f2f7ff;border:1px solid #deebfb}
 .md-funnel-step:nth-child(2){background:#eefaf6;border-color:#d9eee7}.md-funnel-step:nth-child(3){background:#fff8ed;border-color:#f5e5cb}.md-funnel-step:nth-child(4){background:#f5f1ff;border-color:#e6defb}
@@ -106,14 +197,15 @@ body.md-mode .subtitle{color:#7a879c}
 .md-funnel-step span{display:block;color:#718098;font-size:10px}.md-funnel-step b{display:block;margin-top:5px;font-size:18px}.md-funnel-foot{margin:12px 0 0;color:#687790;font-size:11px;line-height:1.55}
 
 .md-departments{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
-.md-dept{position:relative;overflow:hidden;min-height:173px;padding:17px;border:0;color:#fff;background:linear-gradient(145deg,var(--c1),var(--c2));text-align:left}
+.md-dept{position:relative;overflow:hidden;min-height:173px;padding:17px;border:0;color:#fff;background:linear-gradient(145deg,var(--c1),var(--c2));text-align:left;display:flex;flex-direction:column}
 .md-dept:after{content:"";position:absolute;width:100px;height:100px;border-radius:50%;right:-45px;bottom:-50px;background:rgba(255,255,255,.11)}
 .md-dept.doctor{--c1:#237cf0;--c2:#1260ce}.md-dept.nursing{--c1:#25bca5;--c2:#149981}.md-dept.psychology{--c1:#8a70ee;--c2:#6549d4}.md-dept.service{--c1:#f0a54d;--c2:#db7e25}.md-dept.marketing{--c1:#33bb75;--c2:#19935b}
-.md-dept-icon{width:37px;height:37px;display:grid;place-items:center;border-radius:12px;background:rgba(255,255,255,.18);font-weight:900;font-size:16px}
+.md-dept-icon{width:37px;height:37px;flex:0 0 auto;align-self:flex-start;display:grid;place-items:center;border-radius:12px;background:rgba(255,255,255,.18);font-weight:900;font-size:16px}
 .md-dept h3{margin:13px 0 4px;font-size:16px}.md-dept p{margin:0;color:rgba(255,255,255,.78);font-size:11px}
-.md-dept-metric{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-top:17px}
-.md-dept-metric strong{font-size:22px;letter-spacing:-.04em}.md-dept-metric span{font-size:10px;color:rgba(255,255,255,.78);text-align:right}
-.md-dept-foot{position:absolute;left:17px;right:17px;bottom:13px;display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,.85)}
+/* ⚠ 2026-10-10：改分行布局 —— 原先 flex 横排会把 note 挤成竖排窄列（长说明最明显）。 */
+.md-dept-metric{display:block;margin-top:14px;flex:1 1 auto}
+.md-dept-metric strong{display:block;font-size:22px;letter-spacing:-.04em;white-space:nowrap}.md-dept-metric span{display:block;margin-top:3px;font-size:10px;line-height:1.45;color:rgba(255,255,255,.78);text-align:left}
+.md-dept-foot{position:static;display:flex;justify-content:space-between;gap:8px;padding-top:10px;font-size:10px;color:rgba(255,255,255,.85)}
 
 .md-rank{padding:19px;overflow:hidden}
 .md-rank-tabs{display:flex;gap:6px;flex-wrap:wrap}.md-rank-tabs button{border:1px solid #dce7f4;background:#f7faff;border-radius:9px;padding:7px 10px;color:#6b7890;font-size:11px;font-weight:750;cursor:pointer}.md-rank-tabs button.active{background:var(--md-blue);border-color:var(--md-blue);color:#fff}
@@ -132,7 +224,9 @@ body.md-mode .subtitle{color:#7a879c}
 
 @media(max-width:1220px){.md-departments{grid-template-columns:repeat(3,1fr)}.md-alerts{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:900px){
-  .md-hero-grid,.md-analysis-grid{grid-template-columns:1fr}.md-target{min-height:280px}.md-departments{grid-template-columns:repeat(2,1fr)}
+  .md-hero-grid,.md-analysis-grid,.md-meeting-grid,.md-grid-todo{grid-template-columns:1fr}.md-target{min-height:280px}.md-departments{grid-template-columns:repeat(2,1fr)}
+  .md-mk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .md-meet-card,.md-meet-todo{padding:15px}
 }
 @media(max-width:719px){
   body.md-mode main{padding-left:13px;padding-right:13px}.md-dashboard{gap:12px}.md-card{border-radius:18px}
@@ -140,8 +234,13 @@ body.md-mode .subtitle{color:#7a879c}
   .md-hero-grid{gap:12px}.md-summary,.md-target{padding:16px}.md-kpis{grid-template-columns:repeat(2,1fr);gap:8px}.md-kpi{min-height:106px;padding:13px}.md-kpi strong{font-size:24px}
   .md-target{min-height:305px}.md-amount strong{font-size:37px}.md-progress-label{gap:5px}.md-progress-label div{padding:8px}.md-progress-label b{font-size:14px}.md-target-copy{max-width:72%}.md-mascot{width:78px}
   .md-alerts{grid-template-columns:1fr 1fr;gap:8px}.md-alert{min-height:145px;padding:13px}.md-alert h3{font-size:13px}
+  .md-meet-card,.md-meet-todo{padding:15px}.md-meet-todos{grid-template-columns:1fr}
+  .md-meet-head-right{gap:6px}.md-meet-date{font-size:10px;padding:5px 8px}
+  .md-mk-grid{grid-template-columns:1fr 1fr;gap:8px}.md-mk{padding:13px;border-radius:16px}.md-mk strong{font-size:20px}
+  .md-mf-step{grid-template-columns:54px 1fr 44px;gap:6px}
+  .md-tb-row{grid-template-columns:80px 1fr 18px;gap:6px}
   .md-bars{height:190px;gap:5px}.md-bar-value{font-size:9px}.md-bar-date{font-size:9px}.md-chart-card,.md-week-card,.md-funnel,.md-rank{padding:15px}
-  .md-departments{grid-template-columns:1fr 1fr;gap:8px}.md-dept{min-height:166px;padding:14px}.md-dept-foot{left:14px;right:14px}
+  .md-departments{grid-template-columns:1fr 1fr;gap:8px}.md-dept{min-height:166px;padding:14px}
   .md-gov-grid{grid-template-columns:auto 1fr}.md-gov-badge{grid-column:2;justify-self:start}.md-fab-update{right:14px;bottom:88px}
 }
 @media(max-width:420px){.md-alerts,.md-departments{grid-template-columns:1fr}.md-kpis{grid-template-columns:1fr 1fr}.md-card-title{align-items:flex-start}.md-live{white-space:normal}.md-funnel-step b{font-size:15px}.md-section-head h2{font-size:18px}}

@@ -666,7 +666,7 @@ def main(db_path=None, out=None, write=True):
         {"id": "butler", "metricIds": ["butler.contact"], "numbersOnly": True,
          "text": (f"管家有效对接 {bw['contact']} 条、转住院 {bw['admit']} 人（{bw['rate']}%，{but_n} 天），"
                   f"上期同 {but_n} 天 {bw_prev['contact']} 条 / {bw_prev['admit']} 人（{bw_prev['rate']}%）"
-                  + (f"；逐人 {' / '.join(f'{r['name']} {r['contact']}' for r in sorted(but_detail['people'], key=lambda r: -(r['contact'] or 0)))}，"
+                  + (f"；逐人 {' / '.join('{} {}'.format(r['name'], r['contact']) for r in sorted(but_detail['people'], key=lambda r: -(r['contact'] or 0)))}，"
                      f"复诊 {but_detail['total']['revisit']} · 初诊 {but_detail['total']['first']} · "
                      f"检查 {but_detail['total']['exam']} · 物理 {but_detail['total']['physio']} · "
                      f"心理咨询 {but_detail['total']['psych']}（周汇总表 10.12—10.18）"

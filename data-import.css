@@ -24,6 +24,11 @@
 .cell-in{width:100%;box-sizing:border-box;height:30px;border:1px solid #e2e9f1;border-radius:8px;padding:0 7px;font-size:11.5px;color:#22374f;background:#fff}
 .cell-in:focus{outline:2px solid #cfe4fb;border-color:#8fc0f2}
 .cell-in.date{font-family:ui-monospace,Menlo,monospace}
+/* ⭐ 2026-10-09：留空待核对的格子（如「出院」两列只读出一列）。
+   提示文字换成说明（placeholder="两列相加"），并加淡黄底，
+   避免被灰色示例数字盖住、让人误以为有值或为 0。 */
+.cell-in.cell-need{background:#fffaf0;border-color:#e6cf9e;color:#8a6d3b}
+.cell-in.cell-need::placeholder{color:#b08948;font-weight:700}
 .cell-total{font-weight:800;color:#1c3f66;white-space:nowrap;font-size:11px}
 .import-empty{padding:16px 10px;text-align:center;color:#93a0b0;font-size:11.5px;background:#f6f9fc;border-radius:12px}
 .old-val{color:#8b97a5;font-size:10.5px;margin-top:2px}
@@ -54,6 +59,10 @@
 .thumb-big{width:100%;margin-top:8px;border-radius:12px;border:1px solid #dde5ef;background:#fff;max-height:320px;object-fit:contain}
 
 .ocr-status{margin-top:10px;padding:9px 11px;border-radius:10px;background:#eef6ff;color:#1165c8;font-size:11.5px;font-weight:700}
+/* 本机存储不可用告警（2026-10-09）：无痕/微信内置浏览器等环境下的「刷新会回退」提前告知 */
+.store-warn{margin-top:10px;padding:10px 12px;border-radius:10px;background:#fdf2f4;border:1px solid #f3ccd4;color:#b03250;font-size:11.5px;line-height:1.6}
+.store-warn b{display:block;margin-bottom:3px;font-size:12px}
+.store-warn span{color:#8d4657}
 .edit-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -15px;padding:0 15px}
 .edit-table{min-width:560px}
 .edit-table th:nth-child(1),.edit-table td:nth-child(1){width:58px}
@@ -62,3 +71,27 @@
 .edit-table th:nth-child(6),.edit-table td:nth-child(6),
 .edit-table th:nth-child(7),.edit-table td:nth-child(7){width:46px}
 .cell-in{padding:0 5px}
+
+/* ================== 全局拖拽提示遮罩（2026-10-07）==================
+   ⚠ 起因：页面此前只在拖拽区绑了 dragover/drop，没有全局拦截 →
+     往营销分析面板（开屏自动展开、覆盖整页）上拖日报截图时，
+     浏览器执行默认行为「直接打开图片」，看板整页丢失 → 用户报「拖进去就不能用了」。
+   JS 侧已在 document 上 preventDefault 兜底；这里给拖拽悬停时的全屏提示。 */
+.drag-hint{position:fixed;inset:0;z-index:500;display:grid;place-items:center;
+  background:rgba(9,32,66,.42);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  opacity:0;pointer-events:none;transition:.16s}
+.drag-hint.show{opacity:1}
+.drag-hint-box{background:#fff;border:3px dashed #1676e8;border-radius:24px;padding:32px 48px;
+  text-align:center;box-shadow:0 30px 70px rgba(9,32,66,.3);transform:scale(.96);transition:.18s;max-width:88vw}
+.drag-hint.show .drag-hint-box{transform:none}
+.drag-hint-icon{width:62px;height:62px;border-radius:20px;background:#1676e8;color:#fff;
+  display:grid;place-items:center;margin:0 auto 14px;font-size:30px;box-shadow:0 10px 26px rgba(22,118,232,.3)}
+.drag-hint-box b{display:block;color:#112b4a;font-size:19px;font-weight:850;letter-spacing:-.01em}
+.drag-hint-box span{display:block;color:#75859a;font-size:12.5px;margin-top:8px;line-height:1.6}
+@media(max-width:720px){.drag-hint-box{padding:24px 26px}.drag-hint-box b{font-size:16px}}
+
+/* 营销面板头部的「拖图即可更新」提示（面板开屏自动展开，用户最先看到这里） */
+.mkt-drop-tip{margin-left:auto;display:inline-flex;align-items:center;gap:7px;
+  padding:7px 12px;border:1px dashed #a9c9ee;border-radius:11px;background:#f1f8ff;
+  color:#1165c8;font-size:11.5px;font-weight:800;white-space:nowrap}
+.mkt-drop-tip i{font-style:normal;font-size:13px}
