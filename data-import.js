@@ -1207,8 +1207,14 @@
       e.innerHTML = e.innerHTML.replace(/营收日报[^；。]*[；。]/, '营收日报已更新至 ' + revTxt + '；');
     });
 
-    /* ---- 主面板（概览 Hero + 营收目标卡）：与营销面板同源、同一次渲染 ---- */
-    renderMainPanel(daily, s);
+    /* ---- 主面板（概览 Hero + 营收目标卡）----
+       ⛔ 2026-10-19 业主指令：医生组首页严格按《特别行动小组汇报表》填报条目。
+         原先这里用营收日报覆盖 Hero 的入院 / 出院 / 门诊三格（会盖成 13 / 12 / 123 与「6 天」，
+         与主表 19 / 17 / 210 直接打架），也把目标卡改成营收日报累计。
+         现改为**不覆盖**：Hero 与目标卡统一由 live-sync.js 按主表快照渲染，
+         静态兜底也已是主表值。此函数保留但不再调用，营收日报只用于逐日图与勾稽。
+    renderMainPanel(daily, s); */
+    void renderMainPanel;
     try { window.dispatchEvent(new CustomEvent('ops:revenue-updated', { detail: s })); } catch (e) { }
   }
 

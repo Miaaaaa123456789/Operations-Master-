@@ -681,15 +681,15 @@ def main(db_path=None, out=None, write=True):
         {"id": "week_revenue", "label": "本周营收：汇报表 72.5 万 vs 台账 37.27 万", "severity": "warn",
          "winner": "action_report", "source_a": "action_report", "source_b": "revenue_daily_report",
          "value_a": d_rev, "value_b": round(ledger_week / 10000, 2),
-         "detail": f"汇报表第3周总收入 {d_rev} 万（7 天，含 10.18）；营收日报只到 {rev_through}，"
+         "detail": f"汇报表本期（10.12—10.18，7 天，含 10.18）总收入 {d_rev} 万；营收日报只到 {rev_through}，"
                    f"{days_recorded - 1} 天合计 {ledger_week/10000:.2f} 万。差额不是算错：10.18 到院 {arr_daily.get(wk_end, 0)} 人次"
                    f"（平日 17–28），当日营收尚未进入日报。按指令以汇报表为准，台账原值保留可查。"},
         {"id": "month_revenue", "label": "10月累计：汇报表 167.70 万 vs 台账 139.78 万", "severity": "warn",
          "winner": "action_report", "source_a": "action_report", "source_b": "revenue_daily_report",
          "value_a": round(month_total / 10000, 2), "value_b": round(ledger_month / 10000, 2),
-         "detail": f"汇报表三周合计 26.2＋69＋72.5＝{month_total/10000:.2f} 万；台账 10.1—{rev_through} 逐日合计 "
+         "detail": f"汇报表 10 月累计 {month_total/10000:.2f} 万（含本期）；台账 10.1—{rev_through} 逐日合计 "
                    f"{ledger_month/10000:.2f} 万。差 {(month_total-ledger_month)/10000:+.2f} 万（含 10.18 未入台账，"
-                   f"及第1/2周两口径本身的差）。按指令采用汇报表，逐日图仍显示台账并标注口径。"},
+                   f"及两套口径本身的差）。按指令采用汇报表，逐日图仍显示台账并标注口径。"},
         {"id": "doctor_detail", "label": "医生组表头与其个人明细对不上", "severity": "warn",
          "winner": "action_report", "source_a": "action_report", "source_b": "action_report",
          "value_a": d_adm, "value_b": sum_adm,

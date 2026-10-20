@@ -65,8 +65,7 @@
     var m = s.metrics;
     var items = [
       ['本期营收', f2(m.weekRevenue.value) + ' 万', signed(m.weekRevenue.deltaPct) + '%'],
-      ['门诊', f2(m.weekOutpatient.value) + ' 万'],
-      ['在院', f2(m.weekInpatient.value) + ' 万'],
+      ['物理治疗', f2(m.weekPhysio.value) + ' 万'],
       ['日均', fmt(m.weekRevenue.valueYuan / 10000 / s.period.daysRecorded, 2) + ' 万'],
       ['入院', m.weekAdmit.value + ' 人'],
       ['出院', m.weekDischarge.value + ' 人'],
@@ -138,11 +137,11 @@
     var kpis = $('#heroKpis');
     if (kpis) {
       var cells = [
-        ['在院人数', m.wardCount.value, '人', '最新时点 ' + (s.period.dataThrough || '')],
+        ['在院人数', m.wardCount.value, '人', '最新时点 ' + (m.wardCount.dataThrough || s.period.dataThrough || '')],
         ['本期入院', m.weekAdmit.value, '人', s.period.label + '（' + s.period.daysRecorded + ' 天）'],
         ['本期出院', m.weekDischarge.value, '人', s.period.label + '（' + s.period.daysRecorded + ' 天）'],
-        ['门诊', m.weekVisits.value, '人次', s.period.label + ' · 营收日报'],
-        ['本期营收', f2(m.weekRevenue.value), '万元', s.period.label + ' · 已录 ' + s.period.daysRecorded + ' 天']
+        ['门诊', m.weekVisits.value, '人次', s.period.label + ' · 主表'],
+        ['物理治疗费', f2(m.weekPhysio.value), '万元', s.period.label + ' · 主表']
       ];
       kpis.innerHTML = cells.map(function (c) {
         return '<div class="ov-kpi"><label>' + c[0] + '</label><strong>' + c[1] + '<em>' + c[2] + '</em></strong><span class="ov-chip">' + c[3] + '</span></div>';
@@ -180,7 +179,7 @@
     if (sources) {
       var spans = sources.querySelectorAll('div > span');
       if (spans[1]) {
-        spans[1].innerHTML = '营收与入出院 <b>' + s.period.label + '</b>（营收日报，已录 ' + s.period.daysRecorded + ' 天、数据至 ' + s.period.dataThrough + '）；在院 <b>' + m.wardCount.value + ' 人</b>（' + s.period.dataThrough + ' 时点）；上一期 <b>' + s.previousPeriod.start + '—' + s.previousPeriod.end + '</b>（同 ' + s.previousPeriod.daysRecorded + ' 天对照）；心理 / 客服 / 管家 / 护理仍停在各自源表最近一期，未随营收日报推进。';
+        spans[1].innerHTML = '营收与入出院 <b>' + s.period.label + '</b>（营收日报，已录 ' + s.period.daysRecorded + ' 天、数据至 ' + (s.period.revenueDataThrough || s.period.dataThrough) + '）；在院 <b>' + m.wardCount.value + ' 人</b>（' + (m.wardCount.dataThrough || s.period.dataThrough) + ' 时点）；上一期 <b>' + s.previousPeriod.start + '—' + s.previousPeriod.end + '</b>（同 ' + s.previousPeriod.daysRecorded + ' 天对照）；心理 / 客服 / 管家 / 护理仍停在各自源表最近一期，未随营收日报推进。';
       }
     }
 
@@ -188,7 +187,7 @@
     if (summary) {
       var avg = m.weekRevenue.valueYuan / 10000 / s.period.daysRecorded;
       summary.innerHTML =
-        '<b>本期 ' + s.period.label + '，已录 ' + s.period.daysRecorded + ' 天（数据至 ' + s.period.dataThrough + '）</b>：营收 <b>' + fmt(m.weekRevenue.value) + ' 万</b>（门诊 ' + fmt(m.weekOutpatient.value) + ' 万 + 在院 ' + fmt(m.weekInpatient.value) + ' 万），日均 <b>' + fmt(avg, 2) + ' 万</b>；上期同 ' + s.period.daysRecorded + ' 天（' + s.previousPeriod.start + '—' + s.previousPeriod.compareSameDaysEnd + '）<b>' + fmt(m.weekRevenue.valueYuan / (1 + (m.weekRevenue.deltaPct || 0) / 100) / 10000) + ' 万</b>，总量 <b>' + signed(m.weekRevenue.deltaPct) + '%</b>。10 月累计 <b>' + fmt(m.monthRevenue.value) + ' 万</b> / 目标 ' + m.monthRevenue.targetWan + ' 万 = <b>' + m.monthRevenue.amountProgress + '%</b>，时间进度 ' + m.monthRevenue.timeProgress + '%，差 <b>' + signed(Math.round((m.monthRevenue.amountProgress - m.monthRevenue.timeProgress) * 10) / 10) + 'pt</b>，剩余缺口 <b>' + fmt(m.monthRevenue.gap) + ' 万</b>。入院 <b>' + m.weekAdmit.value + '</b>、出院 <b>' + m.weekDischarge.value + '</b>，在院 <b>' + m.wardCount.value + ' 人</b>（' + s.period.dataThrough + ' 时点）；门诊 <b>' + m.weekVisits.value + ' 人次</b>（初诊 ' + m.weekVisits.visitsNew + ' / 复诊 ' + m.weekVisits.visitsReturn + '）。';
+        '<b>本期 ' + s.period.label + '（' + s.period.daysRecorded + ' 天，数据至 ' + s.period.dataThrough + '）· 医生组一律取《特别行动小组汇报表》</b>：总收入 <b>' + fmt(m.weekRevenue.value) + ' 万</b>、物理治疗 <b>' + fmt(m.weekPhysio.value) + ' 万</b>（占收入 ' + Math.round(m.weekPhysio.value / m.weekRevenue.value * 1000) / 10 + '%，是收入的科目、不可相加）、入院 <b>' + m.weekAdmit.value + '</b> 人、出院 <b>' + m.weekDischarge.value + '</b> 人、门诊 <b>' + m.weekVisits.value + '</b> 人次；上期同 ' + s.period.daysRecorded + ' 天（' + s.previousPeriod.start + '—' + s.previousPeriod.compareSameDaysEnd + '）<b>' + fmt(m.weekRevenue.valueYuan / (1 + (m.weekRevenue.deltaPct || 0) / 100) / 10000) + ' 万</b>，总量 <b>' + signed(m.weekRevenue.deltaPct) + '%</b>。10 月累计 <b>' + fmt(m.monthRevenue.value) + ' 万</b> / 目标 ' + m.monthRevenue.targetWan + ' 万 = <b>' + m.monthRevenue.amountProgress + '%</b>，时间进度 ' + m.monthRevenue.timeProgress + '%，差 <b>' + signed(Math.round((m.monthRevenue.amountProgress - m.monthRevenue.timeProgress) * 10) / 10) + 'pt</b>，剩余缺口 <b>' + fmt(m.monthRevenue.gap) + ' 万</b>。在院 <b>' + m.wardCount.value + ' 人</b>（' + (m.wardCount.dataThrough || s.period.dataThrough) + ' 时点，营收日报）——<b>营收日报的入出院/门诊数与主表不同源，本页一律以主表为准</b>。';
     }
   }
 
@@ -197,8 +196,8 @@
     var d = s.departments || {}, p = s.psych || {}, sv = s.service || {}, bt = s.butler || {};
     var m = s.metrics;
     var map = {
-      doctor: [['本期出院', m.weekDischarge.value, '人'],
-               ['患者池净变化', (m.netPool.value >= 0 ? '+' : '') + m.netPool.value, '人']],
+      doctor: [['总收入', m.weekRevenue.value, '万'],
+               ['本周入院', m.weekAdmit.value, '人']],
       nursing: [['物理治疗人数', d.nursing ? d.nursing.physioPeople : null, '人次'],
                 ['工娱（场/人次）', d.nursing ? d.nursing.recreationSessions + '/' + d.nursing.recreationPeople : null, '']],
       psychology: [['咨询工作量', p.week ? p.week.consult : null, '人次'],
@@ -570,8 +569,10 @@
   }
 
 
-  /* ---------- 数字滚动（尊重「减少动态效果」系统设置） ---------- */
+  /* ---------- 数字滚动（尊重「减少动态效果」系统设置；每次页面加载只播一次） ---------- */
   var REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var heroRolledOnce = false;
+
   function countUp(el, to, decimals, dur) {
     if (!el || REDUCED || typeof to !== 'number' || !isFinite(to)) return;
     var from = parseFloat(String(el.dataset.prev || el.textContent || '0').replace(/[^\d.-]/g, '')) || 0;
@@ -588,73 +589,32 @@
     requestAnimationFrame(frame);
   }
 
+  /* ⚠ renderOverview 已经把最终数字写进 DOM。这里只在「本次页面加载的第一次」做滚动，
+     之后（含 30 秒轮询重绘）一律直接落定 —— 否则每次刷新都会从 0 重滚，
+     中途被读到就会显示 3 / 0 / 15 这类不存在于任何源表的中间值。 */
   function animateKpis() {
-    var amt = document.querySelector('.ov-amount strong');
-    if (amt) countUp(amt, parseFloat(amt.textContent.replace(/[^\d.]/g, '')), 2, 760);
+    var play = !REDUCED && !heroRolledOnce;
+    heroRolledOnce = true;
     document.querySelectorAll('#heroKpis .ov-kpi').forEach(function (k, i) {
       var st = k.querySelector('strong');
       if (!st || !st.firstChild || st.firstChild.nodeType !== 3) return;
-      var raw = parseFloat(String(st.firstChild.nodeValue || '').replace(/[^\d.-]/g, ''));
-      if (!isFinite(raw)) return;
-      var dec = String(st.firstChild.nodeValue).indexOf('.') >= 0 ? 1 : 0;
       var node = st.firstChild;
-      if (REDUCED) return;
-      var from = 0, t0 = null, to = raw;
+      var to = parseFloat(String(node.nodeValue || '').replace(/[^\d.-]/g, ''));
+      if (!isFinite(to)) return;
+      var dec = String(node.nodeValue).indexOf('.') >= 0 ? 1 : 0;
+      if (!play) { node.nodeValue = to.toFixed(dec); return; }
+      var t0 = null;
       function frame(ts) {
-        if (t0 === null) t0 = ts + i * 90;
-        var k = Math.min(1, Math.max(0, (ts - t0) / 700));
-        var e = 1 - Math.pow(1 - k, 3);
-        node.nodeValue = (from + (to - from) * e).toFixed(dec);
-        if (k < 1) requestAnimationFrame(frame);
+        if (t0 === null) t0 = ts + i * 70;
+        var kk = Math.min(1, Math.max(0, (ts - t0) / 620));
+        var e = 1 - Math.pow(1 - kk, 3);
+        node.nodeValue = (to * e).toFixed(dec);
+        if (kk < 1) requestAnimationFrame(frame);
         else node.nodeValue = to.toFixed(dec);
       }
       requestAnimationFrame(frame);
     });
   }
-
-
-  /* ---------- 数字滚动（尊重「减少动态效果」系统设置） ---------- */
-  var REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  function countUp(el, to, decimals, dur) {
-    if (!el || REDUCED || typeof to !== 'number' || !isFinite(to)) return;
-    var from = parseFloat(String(el.dataset.prev || el.textContent || '0').replace(/[^\d.-]/g, '')) || 0;
-    if (from === to) { el.textContent = to.toFixed(decimals); return; }
-    var t0 = null;
-    function frame(ts) {
-      if (t0 === null) t0 = ts;
-      var k = Math.min(1, (ts - t0) / (dur || 720));
-      var e = 1 - Math.pow(1 - k, 3);
-      el.textContent = (from + (to - from) * e).toFixed(decimals);
-      if (k < 1) requestAnimationFrame(frame);
-      else { el.textContent = to.toFixed(decimals); el.dataset.prev = to; }
-    }
-    requestAnimationFrame(frame);
-  }
-
-  function animateKpis() {
-    var amt = document.querySelector('.ov-amount strong');
-    if (amt) countUp(amt, parseFloat(amt.textContent.replace(/[^\d.]/g, '')), 2, 760);
-    document.querySelectorAll('#heroKpis .ov-kpi').forEach(function (k, i) {
-      var st = k.querySelector('strong');
-      if (!st || !st.firstChild || st.firstChild.nodeType !== 3) return;
-      var raw = parseFloat(String(st.firstChild.nodeValue || '').replace(/[^\d.-]/g, ''));
-      if (!isFinite(raw)) return;
-      var dec = String(st.firstChild.nodeValue).indexOf('.') >= 0 ? 1 : 0;
-      var node = st.firstChild;
-      if (REDUCED) return;
-      var from = 0, t0 = null, to = raw;
-      function frame(ts) {
-        if (t0 === null) t0 = ts + i * 90;
-        var k = Math.min(1, Math.max(0, (ts - t0) / 700));
-        var e = 1 - Math.pow(1 - k, 3);
-        node.nodeValue = (from + (to - from) * e).toFixed(dec);
-        if (k < 1) requestAnimationFrame(frame);
-        else node.nodeValue = to.toFixed(dec);
-      }
-      requestAnimationFrame(frame);
-    });
-  }
-
 
   /* ---------- 核心指标磁贴：按快照换数（保留原 onclick，不重建 DOM） ---------- */
   function patchKpiTiles(s) {
@@ -737,13 +697,16 @@
 
   function load(force) {
     // 优先同源 API（Node + SQLite）；静态部署时回退到构建产物 data/snapshot.json
-    return fetch('/api/operations/v1/snapshot', { cache: 'no-store' })
+    /* ⛔ 2026-10-19：静态兜底一律带时间戳查询串。只写 cache:'no-store' 不够——
+       部分浏览器/中间层仍会回放旧 JSON（实测本地把 19/17/210 读成 3/0/15）。 */
+    var stamp = '?t=' + Date.now();
+    return fetch('/api/operations/v1/snapshot' + stamp, { cache: 'no-store' })
       .then(function (r) {
         if (r.ok && (r.headers.get('content-type') || '').indexOf('json') >= 0) return r.json();
-        return fetch('./data/snapshot.json', { cache: 'no-store' }).then(function (r2) { return r2.ok ? r2.json() : null; });
+        return fetch('./data/snapshot.json' + stamp, { cache: 'no-store' }).then(function (r2) { return r2.ok ? r2.json() : null; });
       })
       .catch(function () {
-        return fetch('./data/snapshot.json', { cache: 'no-store' }).then(function (r2) { return r2.ok ? r2.json() : null; });
+        return fetch('./data/snapshot.json' + stamp, { cache: 'no-store' }).then(function (r2) { return r2.ok ? r2.json() : null; });
       })
       .then(function (s) {
         if (!s) return;

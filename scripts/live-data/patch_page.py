@@ -35,14 +35,14 @@ dep = SNAP["departments"]
 
 dept_cards = {
     "doctor": {
-        "m1": ("本期出院", dep["doctor"]["discharge"], "人"),
-        "m2": ("物理治疗费", dep["doctor"]["physioWan"], "万"),
+        "m1": ("总收入", dep["doctor"]["revenueWan"], "万"),
+        "m2": ("本周入院", dep["doctor"]["admit"], "人"),
         "trend": [1, 2, 2, 3, 2, 2],
         "axis": "d1012",
         "note": (f"{LBL}（7 天，含 10.18）《特别行动小组汇报表》医生组表头：入院 <b>{dep['doctor']['admit']}</b> 人、"
                  f"出院 <b>{dep['doctor']['discharge']}</b> 人、门诊 <b>{dep['doctor']['outpatient']}</b> 人次、"
                  f"物理治疗 <b>{dep['doctor']['physioWan']}</b> 万、总收入 <b>{dep['doctor']['revenueWan']}</b> 万。"
-                 f"本月三周：26.2 → 69 → 72.5 万。"
+                 f"上一自然周（同 7 天）：69.0 万 / 27.0 万 / 入院 10 / 出院 19 / 门诊 307。"
                  f"⚠ 表头是全组口径，个人明细 6 人加总入院 {dep['doctor']['recon']['admit']['detail']}、"
                  f"出院 {dep['doctor']['recon']['discharge']['detail']}，差 "
                  f"{dep['doctor']['recon']['admit']['gap']} 入 / {dep['doctor']['recon']['discharge']['gap']} 出，"
@@ -393,7 +393,7 @@ def main():
 
     # 3) 部门摘要（卡片名下的 delta / status / summary）与抽屉首行
     summ = {
-        "doctor": ("本期出院", sgn(m["weekDischarge"]["deltaPct"]) + "%", "高优先级", "high"),
+        "doctor": ("总收入", sgn(m["weekRevenue"]["deltaPct"]) + "%", "高优先级", "high"),
         "nursing": ("物理治疗人数", "总量口径", "待补率值", ""),
         "psychology": ("患者接触", sgn(round((psy["week"]["contact"] - psy["prevSameDays"]["contact"]) /
                                             max(1, psy["prevSameDays"]["contact"]) * 100, 1)) + "%", "需关注", ""),
@@ -412,7 +412,7 @@ def main():
 
     # 4) 每部门抽屉补一行「本期」，保留历史行；marker 去重
     rows = {
-        "doctor": [f"{MARK} 本期（{LBL} · 汇报表口径 7 天）", None, dep["doctor"]["discharge"], "人",
+        "doctor": [f"{MARK} 本期（{LBL} · 汇报表口径 7 天）", None, dep["doctor"]["revenueWan"], "万",
                    f"《特别行动小组汇报表》医生组：入院 <b>{dep['doctor']['admit']}</b>、出院 <b>{dep['doctor']['discharge']}</b>、"
                    f"门诊 <b>{dep['doctor']['outpatient']}</b> 人次、物理治疗 <b>{dep['doctor']['physioWan']}</b> 万、"
                    f"总收入 <b>{dep['doctor']['revenueWan']}</b> 万。个人明细 6 人加总入院 {dep['doctor']['recon']['admit']['detail']}、"
