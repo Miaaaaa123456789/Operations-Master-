@@ -70,10 +70,25 @@ def build():
     #   （如 kd647f17971148967）。对 row_ref 只校验「它确实是哈希」，不校验内容。
     hits = []
     for tbl, col in (("fact", "dim_value"), ("fact", "sheet_name"),
-                     ("source", "note"), ("revision", "snapshot_json")):
+                     ("source", "note")):
         for (v,) in dst.execute("SELECT %s FROM %s" % (col, tbl)):
             if v and PHONE.search(str(v)):
                 hits.append("%s.%s" % (tbl, col))
+    # ⚠ 2026-10-26 修：revision.snapshot_json 里的 `_fp` 是 sha256 指纹（64 位十六进制），
+    #   必然出现「1[3-9] 开头的连续 11 位数字」片段 —— 与 fact.row_ref 同源的假阳性
+    #   （实测 rev30 的 _fp 里就藏着 18469942836，把整轮发布卡住）。
+    #   改法：先把 _fp 摘掉，只对正文扫手机号。
+    for (v,) in dst.execute("SELECT snapshot_json FROM revision"):
+        if not v:
+            continue
+        try:
+            obj = json.loads(v)
+            obj.pop("_fp", None)
+            body = json.dumps(obj, ensure_ascii=False)
+        except Exception:
+            body = str(v)
+        if PHONE.search(body):
+            hits.append("revision.snapshot_json")
     # row_ref 只有两种合法形态：自然键哈希 k+16hex，或营收 seed 用的日期。
     bad_ref = 0
     for (v,) in dst.execute("SELECT row_ref FROM fact WHERE row_ref IS NOT NULL"):

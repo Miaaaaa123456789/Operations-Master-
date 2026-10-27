@@ -1,0 +1,158 @@
+/* ==========================================================================
+   全设备自适应修复（业主 2026-10-11：看板在电脑端/手机端都不能完整展示，
+   营销面板右上角「×」点不到）
+   --------------------------------------------------------------------------
+   实测定位到的三个根因（2026-10-11，1366/1024/834/768/430/390/360 多视口扫描）：
+     ① 整页可横向滚动 3px：month-dashboard.css 把窄屏 `main` 的左右内边距改成
+        13px，而 index.html 里 `.mobile-head` 仍是 `margin:0 -16px; padding:0 16px`
+        → 头部左边界 -3px、右边界 393px（视口 390）→ 文档宽 396 > 390。
+     ② 营销面板「×」跑到屏幕外点不到：`.mkt-top` 是 flex 且不换行，
+        `.mkt-drop-tip`（230px、white-space:nowrap、不可收缩）＋「更新数据」＋
+        「AI 报告」＋「×」合计 330px，把容器撑到 427px（面板仅 366px），
+        且 `.mkt-top` 无 overflow 兜底 → 「×」右半截落在屏幕外，无法点击；
+        同时标题被压成 33px 宽、文字竖排成一行一个字。
+     ③ 手机端若干触摸目标过小（复选框 13×13、按钮高 16—20px）。
+   --------------------------------------------------------------------------
+   ⚠ 本文件必须**最后加载**（放在 channel-dashboard.css 之后），
+     以便用同等特异性覆盖前面文件的规则；少量 `!important` 用于压过
+     marketing-detail.css 已有的 `!important`。
+   ⚠ 不要给 html/body 加 `overflow-x:hidden` 来"压住"溢出：
+     非根元素的 overflow 会改变 position:sticky 的包含块，
+     届时 `.mobile-head`／`.mkt-top` 的吸顶会失效。这里只做**根治**。
+   ========================================================================== */
+
+/* ---------- 1. 与 main 内边距同步：消灭窄屏 3px 整页横向滚动 ---------- */
+/* 变量值必须与实际生效的 main 内边距一致：
+   基础 16px（index.html 内联）· ≥720px 28px（index.html）· ≤719px 13px（month-dashboard.css） */
+:root { --page-pad-x: 16px; }
+@media (min-width: 720px) { :root { --page-pad-x: 28px; } }
+@media (max-width: 719px) { :root { --page-pad-x: 13px; } }
+
+/* 特异性 0,1,1 高于 index.html 内联规则的 0,1,0，无需 !important */
+body .mobile-head {
+  margin-left: calc(-1 * var(--page-pad-x));
+  margin-right: calc(-1 * var(--page-pad-x));
+  padding-left: var(--page-pad-x);
+  padding-right: var(--page-pad-x);
+  gap: 8px;
+}
+/* 头部内容允许收缩，品牌名过长则省略号，绝不把整页顶宽 */
+body .mobile-head .mobile-brand { min-width: 0; overflow: hidden; }
+body .mobile-head .mobile-brand strong,
+body .mobile-head .mobile-brand span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body .mobile-head .head-action { flex: 0 0 auto; }
+
+/* ---------- 2. flex/grid 子项默认 min-width:auto 会撑破容器，统一放开 ---------- */
+.mobile-head, .mobile-brand, .title-row, .title-actions, .dash-search,
+.mkt-top, .mkt-title, .mkt-actions,
+.md-section-head, .md-card-title, .md-hero-grid, .md-analysis-grid,
+.np-head, .npr-head, .npr-card, .rk-card-table,
+.dept-sales-list, .diagnosis { min-width: 0; }
+
+/* 媒体元素不撑破容器 */
+img, svg, video, canvas { max-width: 100%; }
+/* 表格自身的 max-width 由滚动容器负责，这里只保证不溢出页面 */
+table.md-table, table.rk-table, table.np-table, table.np-orig, table.ch-table { max-width: none; }
+
+/* ---------- 3. 营销面板头部：让「×」永远在屏幕内、永远可点 ---------- */
+/* ⚠ 桌面/平板 `.mkt-top` 是**固定 height:84px**（marketing-redesign.css），
+   所以这里**绝不能换行** —— 换行会让第二行的按钮溢出 84px 的头部。
+   只靠「标题可收缩 + 不增长」把整行压进 84px；换行仅在手机端（那里 height:auto）启用。 */
+.mkt-top { flex-wrap: nowrap; }
+/* ⚠ 标题只能是「可收缩、不增长」(0 1 auto)。写成 1 1 auto 时它会把剩余空间全部吃掉，
+   按钮组被挤到第二行 —— 1024px 下实测标题被撑到 882px、头部变成两行。 */
+.mkt-title { flex: 0 1 auto; min-width: 0; }
+.mkt-title > div:last-child { min-width: 0; }
+/* 标题不再被压成一列字（此前 33px 宽 → 竖排） */
+.mkt-title h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mkt-title p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mkt-actions { flex: 0 0 auto; flex-wrap: wrap; row-gap: 8px; justify-content: flex-end; }
+.mkt-drop-tip { min-width: 0; }
+
+@media (max-width: 719px) {
+  /* 头部重排为两层：第一层「logo + 标题」，第二层按钮整行；× 钉在右上角 */
+  /* 手机端 `.mkt-top` 是 height:auto，可以安全换行 */
+  .mkt-top {
+    position: relative;
+    flex-wrap: wrap;
+    row-gap: 10px;
+    padding-right: 62px;   /* 给绝对定位的 × 留位，标题不会压到它 */
+    padding-left: 15px;
+  }
+  .mkt-actions {
+    order: 2;
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+  .mkt-close {
+    position: absolute !important;
+    top: 10px !important;
+    right: 10px !important;
+    left: auto !important;
+    bottom: auto !important;
+    margin: 0 !important;
+    z-index: 6;
+  }
+  /* 提示条允许换行，不再用一个 230px 的不可收缩块挤爆头部 */
+  .mkt-drop-tip { white-space: normal; margin-left: 0; font-size: 11px; line-height: 1.5; }
+  /* ⚠ marketing-redesign.css 窄屏把「更新数据」压成 40px 方图标（font-size:0 + :after 补图标），
+     结果是文字竖排挤成一列。这里恢复文字按钮，并让「AI 报告」也显示出来。 */
+  .mkt-actions button:not(.mkt-close) { font-size: 12px; }
+  .mkt-actions .mkt-import { width: auto; font-size: 12px; padding: 0 14px; }
+  .mkt-actions .mkt-import:after { content: none; }
+  /* ⚠ 原规则用的是 `.mkt-actions button:not(.mkt-import):not(.mkt-close){display:none}`（特异性 0,3,1），
+     这里必须写到同等或更高特异性（补两个 :not 达到 0,4,1），否则「AI 报告」在手机上仍被隐藏。 */
+  .mkt-actions button.mkt-ai:not(.mkt-close):not(.mkt-import) {
+    display: inline-flex; align-items: center; width: auto; padding: 0 14px;
+  }
+  .mkt-title h1 { font-size: 17px; }
+  .mkt-title p { font-size: 12px; }
+}
+@media (max-width: 430px) {
+  /* 极窄屏：隐藏纯提示条，优先保证「更新数据 / AI 报告 / ×」三个都能点到 */
+  .mkt-drop-tip { display: none; }
+}
+
+/* ---------- 4. 触摸目标：手机端可点元素不小于 32px ---------- */
+/* 实测手机端真正「可见且过小」的只有两个：顶部搜索框 19px 高、渠道简报「查看更多」20px 高 */
+@media (max-width: 719px) {
+  .dash-search input, #searchInput { min-height: 32px; }
+  #chBriefMore { min-height: 30px; padding: 5px 10px; }
+  /* 以下为通用兜底，避免别的机型/缩放下再现过小目标 */
+  .head-action, .section-link, .sheet-tab, .np-tab, .np-mode-tab,
+  .mkt-actions button, .mkt-tabs button, .md-rank-tabs button,
+  .mkt-filter button, .import-actions button, .ch-btn { min-height: 32px; }
+  input[type="checkbox"], input[type="radio"] { width: 18px; height: 18px; }
+}
+
+/* ---------- 5. 表格/宽表：横向滚动容器内滚，绝不把整页顶宽 ---------- */
+.md-table-wrap, .rk-table-wrap, .np-table-wrap, .import-table-wrap,
+.np-suggest-table, .md-table-wrap > * {
+  max-width: 100%;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ---------- 6. 全屏抽屉/弹层：窄屏一律铺满可视宽度 ---------- */
+@media (max-width: 719px) {
+  #sepReport, #npSepDrawer {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+  .srd-close, .nsd-close { right: 14px !important; top: 14px !important; }
+  /* 部门弹层头部：标题与「×」不许错位 */
+  .sheet-head { gap: 10px; }
+  .sheet-head h2 { min-width: 0; }
+  .sheet-close { flex: 0 0 auto; }
+}
+
+/* ---------- 7. 兜底：超长串（日期区间、URL）允许换行，避免顶宽卡片 ---------- */
+/* ⚠ 用 break-word 而非 anywhere —— 中文本来就断，anywhere 会把数字/英文也切断 */
+.title-row, .subtitle, .rank-summary, .diagnosis-item,
+.dc-risk, .npr-card, .md-card, .rk-table-foot, .compare-note {
+  overflow-wrap: break-word;
+  word-break: normal;
+}

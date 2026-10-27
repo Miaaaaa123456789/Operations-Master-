@@ -37,7 +37,10 @@
      这里把「本周 / 上周 / 当月 / 截止日」整体重新对齐到「包含最新数据的那一周」，
      并向后延长区间以覆盖到最新数据日。窗口只会前进、不会回退。 */
   function refreshWindow() {
-    var last = _probeLastDay(TODAY);
+    /* ⚠ 与初始化一致：有 PERIOD_ANCHOR 时窗口锁死在锚点周，
+       否则营收日报推到 10.20 会把本期撑成 10.12—10.20（9 天），
+       医生卡的出院数会被算成 22（含 10.19/10.20 各 2 人）。 */
+    var last = PERIOD_ANCHOR || _probeLastDay(TODAY);
     var a = new Date(+last.slice(0, 4), +last.slice(5, 7) - 1, +last.slice(8));
     var mon = _monOf(a), sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6);
     /* ⭐ 本期＝两周窗口：起点＝数据末日所在周的周一往前推 (PERIOD_WEEKS-1) 周；
@@ -50,7 +53,7 @@
       WEEK_START = ws; WEEK_END = we;
       LW_START = _d2s(lwm); LW_END = _d2s(lws);
     }
-    if (last > WEEK_END) WEEK_END = last;   // 本期内的新数据：把区间向右延到最新数据日
+    if (!PERIOD_ANCHOR && last > WEEK_END) WEEK_END = last;   // 本期内的新数据：把区间向右延到最新数据日
     /* ⚠ 月窗口仍**不随数据前移** —— 但原因已变：
        2026-10-06 起结算月显式设为 2026-10（业主决定主面板切 10 月），
        窗口由 SETTLED_MONTH 推导，**按定义**就不该跟着数据漂。
@@ -204,7 +207,44 @@
        ⚠ 出院列＝出院初次＋出院多次。 */
     '2026-10-15': [15606.47, 34949.26, 3, 13, 31, 3, 4],
     '2026-10-16': [16889.99, 40612.27, 5, 12, 34, 3, 0],
-    '2026-10-17': [15455.42, 38788.56, 4, 18, 32, 0, 2]
+    '2026-10-17': [15455.42, 38788.56, 4, 18, 32, 0, 2],
+    /* ⭐ 2026-10-18 — 10-20（业主 2026-10-22 提供营收日报截图）。
+       ⚠ 这三条的缺失，正是「财务经营分析 / 十月经营板还停在 10.17」的唯一原因：
+         本文件是 OPS_REVENUE 的**种子层**，SEED 到哪天、SEED_REVENUE_DATA.updatedThrough
+         就到哪天，与 data/snapshot.json 里已补的三天无关。
+       ✅ 与 db/live-data.sqlite 的 fact（source_id=revenue_daily_report）逐项一致。
+       ⚠ 10.18 单日 15.21 万（门诊 13.02 万）是本月次高，仅低于 10.1 的 16.22 万；
+         10.18 门诊 87 人次（初 7 / 复 80）为 10 月单日最高。 */
+    /* ⚠ 2026-10-26 修：本行「出院」原记 4，只见「出院初次 4」、漏了「出院多次 1」。
+       按源表出院＝初次＋多次应为 5，在院递推 32＋5−5＝32 才闭合（记 4 时会推出 33，与源表 32 矛盾）。 */
+    '2026-10-18': [130216.02, 21929.66, 7, 80, 32, 5, 5],
+    /* ⚠ 2026-10-26 修：同上，出院初次 2＋多次 2＝4（原记 2）。 */
+    '2026-10-19': [23093.65, 54220.66, 5, 17, 30, 2, 4],
+    /* ⚠ 2026-10-26 修：同上，出院初次 1＋多次 1＝2（原记 1）。 */
+    '2026-10-20': [38068.91, 29528.77, 8, 19, 29, 1, 2],
+    /* ⭐ 2026-10-21 — 10-23（业主 2026-10-25 提供营收日报截图，取数含心理科）。
+       ✅ 逐日「门诊＋在院＝当日合计」与「当月累计」勾稽通过：
+          10.21 74,144.84；10.22 71,787.59；10.23 98,966.52；
+          10.23 当月累计 1,939,734.90（逐日加总 1,939,734.91，差 0.01 系四舍五入）。
+       ⚠ 出院列＝出院初次＋出院多次（10.22 = 1＋1、10.23 = 1＋0）。
+       ⚠ 10.23 门诊 5 人＋复诊 40 人却创周内单日最高 9.90 万，属结算集中，
+         不代表日均节奏，排目标时不要按这天外推。 */
+    '2026-10-21': [38835.29, 35309.55, 10, 17, 32, 3, 0],
+    '2026-10-22': [25082.19, 46705.40, 5, 54, 32, 2, 2],
+    '2026-10-23': [55094.50, 43872.02, 5, 40, 35, 4, 1],
+    /* ⭐ 2026-10-24 — 10-25（业主 2026-10-26 提供营收日报截图，取数含心理科）。
+       ✅ 五项勾稽全部通过：
+          10.24 门诊 6,612.16＋在院 38,925.01＝当日合计 45,537.17；
+                累計 1,939,734.90＋45,537.17＝1,985,272.07
+          10.25 门诊 106,560.16＋在院 41,626.26＝当日合计 148,186.42；
+                累计 1,985,272.07＋148,186.42＝2,133,458.49（源表末行）
+          在院递推 10.24：35＋1−1＝35；10.25：35＋3−5＝33
+       ⚠ 10.25 单日 14.82 万（门诊 10.66 万、复诊 75 人）为 10 月次高，
+         仅低于 10.1 的 16.22 万；门诊环比 ＋99,948.00 是本轮最大单日回升。
+       ⚠ 10.24（周六）门诊仅 6,612.16、当日 4.55 万，是月内第二低点
+         （最低 10.8 的 3.20 万）—— 周末前后落差极大，别按单日外推。 */
+    '2026-10-24': [6612.16, 38925.01, 3, 24, 35, 1, 1],
+    '2026-10-25': [106560.16, 41626.26, 4, 75, 33, 3, 5]
   };
 
 
@@ -241,7 +281,14 @@
   }
   var _now = new Date();
   var _todayS = _d2s(_now);
-  var _anchorS = _probeLastDay(_todayS);          // 数据锚点日（本周归属以它为准）
+  /* ⭐⭐ 2026-10-22：本期窗口锚点改为**显式常量**，不再取「数据最后一天」。
+     起因：营收日报补到 10.20 后，_probeLastDay 返回 10.20（周二），
+     本周被推导成 10.19—10.25 → Hero / 医生卡 / 本周小结全部空窗，
+     而看板的「本期」按业主口径仍是 10.12—10.18。
+     与 scripts/live-data/build_snapshot.py 的 settings.period_anchor 同一取值；
+     换期时两处一起改。 */
+  var PERIOD_ANCHOR = '2026-10-25';   // ⭐ 2026-10-26：营收日报推进到 10.25（锚点须为已存在的日期；10.25 仍属 10.19—10.25 同一自然周）
+  var _anchorS = PERIOD_ANCHOR || _probeLastDay(_todayS);   // 数据锚点日（本周归属以它为准）
   var _anchor = new Date(+_anchorS.slice(0, 4), +_anchorS.slice(5, 7) - 1, +_anchorS.slice(8));
   var _mon = _monOf(_anchor);                     // 锚点所在周的周一
   var _sun = new Date(_mon.getFullYear(), _mon.getMonth(), _mon.getDate() + 6);
@@ -932,9 +979,17 @@
     /* ---- 时间戳 / 口径行 ---- */
     var revTxt = s.revCut ? fmtCN(s.revCut) : '—';
     var cutTxt = fmtCN(s.globalCut);
-    var stamp = (s.revCut && s.revCut > TODAY) ? s.revCut : TODAY;
+    var _p = window.__OPS_PERIOD;
+    var stamp = (_p && _p.dataThrough) ? _p.dataThrough : ((s.revCut && s.revCut > TODAY) ? s.revCut : TODAY);
     setText('#periodBtn', '数据更新至 ' + stamp.split('-')[0] + '年' + (+stamp.slice(5, 7)) + '月' + (+stamp.slice(8)) + '日');
-    $$('.ov-live').forEach(function (e) { e.textContent = '每日 09:00 抓取 · 数据更新至 ' + (+s.globalCut.slice(5, 7)) + '.' + (+s.globalCut.slice(8)); });
+    $$('.ov-live').forEach(function (e) {
+      var _q = window.__OPS_PERIOD;
+      if (_q && _q.reportDataThrough) {
+        e.textContent = '每日 09:00 抓取 · 主表至 ' + (+_q.reportDataThrough.slice(5, 7)) + '.' + (+_q.reportDataThrough.slice(8)) + ' · 营收日报至 ' + (+_q.revenueDataThrough.slice(5, 7)) + '.' + (+_q.revenueDataThrough.slice(8));
+      } else {
+        e.textContent = '每日 09:00 抓取 · 数据更新至 ' + (+s.globalCut.slice(5, 7)) + '.' + (+s.globalCut.slice(8));
+      }
+    });
     setText('.mkt-filter small', ''); // 由下方重建（含 ● 图标）
     $$('.mkt-filter small').forEach(function (e) {
       e.innerHTML = '<b>●</b> 数据更新至 ' + fmtDot(TODAY) + '　·　本期 ' + fmtCN(WEEK_START) + '—' + fmtCN(WEEK_END) + '（进行中，各源数据至 ' + cutTxt + '，营收至 ' + revTxt + '）';

@@ -32,6 +32,12 @@
      与 data-import.js 的 refreshWindow() 必须保持同一口径，两处一起改。
      ⚠ 月内周序列仍由 weeksOfMonth(ym) 按月份推导（10 月 → 10.1—10.4 / 10.5—10.11 / …）。 */
   var PERIOD_WEEKS = 1;   // 本期跨度（自然周数）
+  /* ⭐⭐ 2026-10-22：本期窗口锚点显式给定，与 data-import.js 的 PERIOD_ANCHOR、
+     build_snapshot.py 的 settings.period_anchor 三处同一取值。
+     起因：营收日报补到 10.20 后，原「按数据末日重算」把本期算成 10.19—10.20（2 天），
+     财务面板的「当前速度＝累计＋剩余天数×本期日均」与「上一期速度」两组数整段错位一周
+     （把 10.12—10.18 当成了上一期）。 */
+  var PERIOD_ANCHOR = '2026-10-25';   // ⭐ 2026-10-26：与 data-import.js 同步，随营收日报推进到 10.25
   var CUR = ['2026-09-28', '2026-10-11'], PREV = ['2026-09-14', '2026-09-27'];   // 初值；derive() 按数据实际末日重算
   function ymd(x) {
     return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');
@@ -53,7 +59,10 @@
   function refreshWindow() {
     var rs = data.rows;
     if (!rs || !rs.length) return;
-    var mon = weekStartOf(rs[rs.length - 1].date);
+    /* 锚点必须真实存在于数据里；换期时若锚点尚未录入，退回数据末日，避免窗口整段空转。 */
+    var _anchorOk = false;
+    for (var _i = 0; _i < rs.length; _i++) { if (rs[_i].date === PERIOD_ANCHOR) { _anchorOk = true; break; } }
+    var mon = weekStartOf(_anchorOk ? PERIOD_ANCHOR : rs[rs.length - 1].date);
     var from = addDays(mon, -7 * (PERIOD_WEEKS - 1));
     CUR = [from, addDays(mon, 6)];
     PREV = [addDays(from, -7 * PERIOD_WEEKS), addDays(from, -1)];

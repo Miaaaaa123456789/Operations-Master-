@@ -113,12 +113,13 @@
       return;
     }
     /* ⛔ 月累计口径（业主 2026-10-19 指定）：与《特别行动小组汇报表》冲突时一律取汇报表。
-       本区其余字段仍是营收日报逐日口径（它只到 10.17），故两套数必须同时标出。
+       本区其余字段仍是营收日报逐日口径（2026-10-22 已补到 10.20），故两套数必须同时标出。
        汇报表覆盖时：主数＝汇报表，副注＝台账；无快照时退回纯台账。 */
     var _mr = ((window.OPS_LIVE_SNAPSHOT || {}).metrics || {}).monthRevenue || null;
-    var _auth = !!(_mr && _mr.authority === 'action_report' && _mr.value != null);
+    var _auth = !!(_mr && _mr.value != null && (_mr.authority === 'action_report' || _mr.authority === 'revenue_daily_report'));
+    var _isDaily = !!(_auth && _mr.authority === 'revenue_daily_report');
     var _dt = ((window.OPS_LIVE_SNAPSHOT || {}).watermarks || {}).dept || null;
-    var _deptTo = (_auth && _dt && _dt.dataThrough) ? md(_dt.dataThrough) : md(s.lastDate);
+    var _deptTo = (_auth && _mr.dataThrough) ? md(_mr.dataThrough) : md(s.lastDate);
     /* ⚠ 单位陷阱：快照里的 value / gap 是**万元**，而本文件的 wan() 按**元**除以 1e4。
        直接 wan(kTotal) 会得到 0.02（实测踩过），必须先 ×1e4 再交给 wan()。
        时间进度同理：报表口径已含 10.18，天数应为 18 而不是台账的 17。 */
@@ -132,15 +133,18 @@
                             : '落后时间进度 ' + Math.abs(pace).toFixed(1) + ' 个百分点';
     var paceCls = pace >= 0 ? '#12A150' : '#E0576F';
     var ledgerNote = _auth
-      ? '<br>台账口径（营收日报至 ' + md(s.lastDate) + '）' + wan(s.total) + ' 万 · 完成 ' + s.pct.toFixed(1) + '%；'
-        + '汇报表含 10.18 当天，按指令采用汇报表数。'
+      ? (_isDaily
+          ? '<br>汇报表口径（主表至 ' + md(_mr.actionReportThrough || '') + '）'
+            + (_mr.actionReportValue != null ? _mr.actionReportValue.toFixed(2) : '—')
+            + ' 万 · 只滚到该日，落后日报 2 天；两套不同源、不相加、不互相覆盖。'
+          : '<br>台账口径（营收日报至 ' + md(s.lastDate) + '）' + wan(s.total) + ' 万 · 完成 ' + s.pct.toFixed(1) + '%；'
+            + '汇报表含 10.18 当天，按指令采用汇报表数。')
       : '';
 
     host.innerHTML =
       '<div class="section-head">' +
         '<div><h2>10 月经营</h2>' +
-        '<p>2026.10.01—10.31 · 营收日报已录 ' + s.days + ' 天（截至 ' + md(s.lastDate) + '）'
-          + (_auth ? ' · 部门/汇报表数据至 ' + _deptTo : '')
+        '<p>2026.10.01—10.31 · 营收日报已录 ' + (_auth ? (+String(_mr.dataThrough || '').slice(8) || s.days) : s.days) + ' 天（截至 ' + (_auth ? _deptTo : md(s.lastDate)) + '）'
           + ' · 目标 260 万（沿用 9 月）</p></div>' +
         '<span class="range-chip"><i>▦</i>数据至 ' + (_auth ? _deptTo : md(s.lastDate)) + '</span>' +
       '</div>' +
@@ -149,7 +153,7 @@
 
         /* ① 月累计 */
         '<article class="ob-card ob-wide">' +
-          '<label>10 月累计营业额' + (_auth ? '（汇报表口径）' : '') + '</label>' +
+          '<label>10 月累计营业额' + (_auth ? (_isDaily ? '（营收日报口径）' : '（汇报表口径）') : '') + '</label>' +
           '<div class="ob-num">' + wan(kTotalYuan) + '<em>万元</em></div>' +
           '<div class="ob-sub">目标 <b>260 万</b> · 完成 <b>' + kPct.toFixed(1) + '%</b> · ' +
             '缺口 <b>' + wan(kGapYuan) + ' 万</b></div>' +
@@ -173,7 +177,7 @@
             '<div><label>剩余天数</label><b>' + s.leftDays + '<em> 天</em></b></div>' +
             '<div><label>需日均</label><b>' + wan(s.leftDays > 0 ? (OCT_TARGET - kTotalYuan) / s.leftDays : 0) + '<em> 万</em></b></div>' +
           '</div>' +
-          (_auth ? '<div class="ob-note">需日均按汇报表月累计 ' + wan(kTotalYuan) + ' 万测算。</div>' : '') +
+          (_auth ? '<div class="ob-note">需日均按' + (_isDaily ? '营收日报' : '汇报表') + '月累计 ' + wan(kTotalYuan) + ' 万测算。</div>' : '') +
         '</article>' +
 
         /* ③ 末日单日明细 */

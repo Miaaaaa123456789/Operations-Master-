@@ -7,7 +7,7 @@
   'use strict';
 
   var STATE = { snap: null, rev: null, autoScroll: localStorage.getItem('ops.autoscroll') !== 'off' };
-  var WEEK_LABEL = '10.12–10.18';
+  var WEEK_LABEL = '10.19–10.25';
 
   function $(s, root) { return (root || document).querySelector(s); }
   function $$(s, root) { return Array.prototype.slice.call((root || document).querySelectorAll(s)); }
@@ -20,7 +20,13 @@
     return (n > 0 ? '+' : n < 0 ? '−' : '') + fmt(Math.abs(n), d);
   }
   function setText(el, text) { if (el && el.textContent !== text) el.textContent = text; }
-  function f2(n) { return (Math.round(n * 100) / 100).toFixed(2); }
+  /* ⛔ 2026-10-26：f2(null) 曾算成 0.00，页面把「没有数据」说成「收 0 元」。
+     缺项按契约显示「—」，不写 0。本周物理治疗费已由汇报表正文补为 16.7 万，
+     但空值兜底必须保留（护理六项完成率、双萧工作量等仍有 null）。 */
+  function f2(n) {
+    if (n === null || n === undefined || (typeof n === 'number' && isNaN(n))) return '—';
+    return (Math.round(n * 100) / 100).toFixed(2);
+  }
 
   /* ---------- 顶部滚动带 ---------- */
   function ensureStyles() {
@@ -65,7 +71,8 @@
     var m = s.metrics;
     var items = [
       ['本期营收', f2(m.weekRevenue.value) + ' 万', signed(m.weekRevenue.deltaPct) + '%'],
-      ['物理治疗', f2(m.weekPhysio.value) + ' 万'],
+      ['物理治疗', (m.weekPhysio && m.weekPhysio.value != null)
+        ? f2(m.weekPhysio.value) + ' 万' : '—（本周未报）'],
       ['日均', fmt(m.weekRevenue.valueYuan / 10000 / s.period.daysRecorded, 2) + ' 万'],
       ['入院', m.weekAdmit.value + ' 人'],
       ['出院', m.weekDischarge.value + ' 人'],
@@ -77,7 +84,9 @@
       ['剩余缺口', f2(m.monthRevenue.gap) + ' 万']
     ];
     /* ⛔ 心理：汇报表该组表头自 2026-09-21 起未滚动（40 人 / 4 场 / 19,002 元 是 9.21—9.27 旧值），
-       已停用；本周一律取 V4 管理表（咨询 46 / 接触 84 / 团体 3 场）。
+       已停用；本周一律取 V4 管理表「咨询师每日简报」逐条（10.19—10.25 全 7 天 / 17 条，
+       咨询 39 / 接触 65 / 团体 2 场 11 人；与「日报原始数据」17 键 × 8 字段零差异）。
+       注：原注释把上期值（46 / 84 / 3 场）写成了本周值，2026-10-26 修正。
        客服仍取汇报表「到院接待」（与台账回访是两件事，不互算）。 */
     var dp = s.departments || {}, dpP = dp.psychology || {}, dpS = dp.service || {};
     if (dpP.consult !== undefined || dpP.contact !== undefined) {
@@ -88,14 +97,16 @@
       items.push(['心理接触', s.psych.week.contact + ' 人次', '咨询 ' + s.psych.week.consult]);
       items.push(['团体', s.psych.week.groupSessions + ' 场', s.psych.week.groupPeople + ' 人次']);
     }
+    /* ⛔ 2026-10-26：客服本周改用三张台账，departments.service.arrived 已置 null
+       （表头 239 / 14 是上一期），原来这里会显示「到院接待 — 人次 · 义诊 —」，
+       把本周真实的 11 人 / 40.7% 藏掉。改为台账优先，表头只作回退。 */
     if (s.service && s.service.week) {
       items.push(['客服回访', s.service.week.followup + ' 条']);
-    }
-    if (dpS.arrived !== undefined) {
+      items.push(['标注到院', s.service.week.arrived + ' 人',
+                  '到院率 ' + s.service.week.rate + '% · 导诊 ' + s.service.week.guide + ' 条']);
+    } else if (dpS.arrived !== undefined) {
       items.push(['到院接待', (dpS.arrived != null ? dpS.arrived : '—') + ' 人次',
                   '义诊 ' + (dpS.charity != null ? dpS.charity : '—')]);
-    } else if (s.service && s.service.week) {
-      items.push(['导诊服务', s.service.week.guide + ' 条']);
     }
     if (s.butler && s.butler.week) {
       items.push(['管家对接', s.butler.week.contact + ' 条', '转住院 ' + s.butler.week.admit]);
@@ -111,11 +122,15 @@
   /* ---------- 顶部与总览 ---------- */
   function renderHeader(s) {
     var compact = window.innerWidth < 560;
-    setText($('#periodBtn'), compact ? '更新至 10.18' : '数据更新至 2026年10月18日');
+    var _dt = (s.period.dataThrough || '2026-10-20');
+    setText($('#periodBtn'), compact ? ('更新至 ' + _dt.slice(5).replace('-', '.'))
+      : ('数据更新至 ' + _dt.slice(0, 4) + '年' + (+_dt.slice(5, 7)) + '月' + (+_dt.slice(8)) + '日'));
+    // 把期间水位挂到全局，供 data-import.js 那条更晚执行的渲染链复用，避免它用「今天」冒充数据截止日
+    window.__OPS_PERIOD = s.period; window.__OPS_ASOF = s.asOf;
     var live = $('.ov-live');
     if (live) {
       var span = live.querySelector('span');
-      setText(span, '每日 09:00 抓取 · 数据更新至 ' + (s.period.dataThrough || '10.17'));
+      setText(span, '每日 09:00 抓取 · 数据更新至 ' + (s.period.dataThrough || '10.20'));
       if (!live.querySelector('#ops-live-badge')) {
         var b = document.createElement('span');
         b.id = 'ops-live-badge';
@@ -137,11 +152,13 @@
     var kpis = $('#heroKpis');
     if (kpis) {
       var cells = [
-        ['在院人数', m.wardCount.value, '人', '最新时点 ' + (m.wardCount.dataThrough || s.period.dataThrough || '')],
+        ['在院人数', m.wardCount.value, '人', (m.wardCount.dataThrough || s.period.dataThrough || '').slice(5).replace('-', '.') + ' 时点 · 营收日报'],
         ['本期入院', m.weekAdmit.value, '人', s.period.label + '（' + s.period.daysRecorded + ' 天）'],
         ['本期出院', m.weekDischarge.value, '人', s.period.label + '（' + s.period.daysRecorded + ' 天）'],
-        ['门诊', m.weekVisits.value, '人次', s.period.label + ' · 主表'],
-        ['物理治疗费', f2(m.weekPhysio.value), '万元', s.period.label + ' · 主表']
+        ['门诊', m.weekVisits.value, '人次', s.period.label + ' · 营收日报'],
+        ['物理治疗费', (m.weekPhysio && m.weekPhysio.value != null) ? f2(m.weekPhysio.value) : '—',
+         '万元', (m.weekPhysio && m.weekPhysio.value != null) ? s.period.label + ' · 汇报表正文（7 天）'
+                                                   : '无逐日台账 · 本周记 null']
       ];
       kpis.innerHTML = cells.map(function (c) {
         return '<div class="ov-kpi"><label>' + c[0] + '</label><strong>' + c[1] + '<em>' + c[2] + '</em></strong><span class="ov-chip">' + c[3] + '</span></div>';
@@ -150,9 +167,9 @@
 
     var target = $('.ov-target');
     if (target) {
-      setText(target.querySelector('.ov-chip'), '10月1日—' + (s.period.dataThrough ? s.period.dataThrough.slice(5).replace('-', '.') : '10.17'));
+      setText(target.querySelector('.ov-chip'), '10月1日—' + (s.period.dataThrough ? s.period.dataThrough.slice(5).replace('-', '.') : '10.20') + ' · 营收日报');
       var amt = target.querySelector('.ov-amount strong');
-      setText(amt, fmt(m.monthRevenue.value));
+      setText(amt, fmt(m.monthRevenue.value, 2));
       var em = target.querySelector('.ov-amount em');
       if (em) em.innerHTML = '／' + m.monthRevenue.targetWan + '万';
       var barI = target.querySelector('.ov-bar i');
@@ -171,7 +188,11 @@
       if (gapEl) {
         var remainDays = 31 - Number((s.period.dataThrough || '').slice(8, 10) || 0);
         var needDaily = remainDays > 0 ? m.monthRevenue.gap / remainDays : null;
-        gapEl.innerHTML = '剩余 <b>' + remainDays + '</b> 天需 <b>' + fmt(m.monthRevenue.gap) + ' 万</b>，日均需 <b>' + (needDaily === null ? '—' : fmt(needDaily, 2) + ' 万') + '</b>；本期日均 <b>' + fmt(m.weekRevenue.valueYuan / 10000 / s.period.daysRecorded, 2) + ' 万</b>。';
+        var weekAvg = m.weekRevenue.valueYuan / 10000 / s.period.daysRecorded;
+        var overAvg = (needDaily === null) ? null : weekAvg - needDaily;
+        gapEl.innerHTML = '剩余 <b>' + remainDays + '</b> 天需 <b>' + fmt(m.monthRevenue.gap, 2) + ' 万</b>，日均需 <b>' + (needDaily === null ? '—' : fmt(needDaily, 2) + ' 万') + '</b>；本期（' + s.period.label + '，7 天，汇报表口径）日均 <b>' + fmt(weekAvg, 2) + ' 万</b>'
+          + (overAvg === null ? '' : (overAvg >= 0 ? '，已高于达标日均 <b>' + fmt(overAvg, 2) + ' 万</b>' : '，低于达标日均 <b>' + fmt(-overAvg, 2) + ' 万</b>'))
+          + '。';
       }
     }
 
@@ -183,11 +204,12 @@
       }
     }
 
+    var dpDoc = ((s.departments || {}).doctor) || {};
     var summary = $('#heroSummary');
     if (summary) {
       var avg = m.weekRevenue.valueYuan / 10000 / s.period.daysRecorded;
       summary.innerHTML =
-        '<b>本期 ' + s.period.label + '（' + s.period.daysRecorded + ' 天，数据至 ' + s.period.dataThrough + '）· 医生组一律取《特别行动小组汇报表》</b>：总收入 <b>' + fmt(m.weekRevenue.value) + ' 万</b>、物理治疗 <b>' + fmt(m.weekPhysio.value) + ' 万</b>（占收入 ' + Math.round(m.weekPhysio.value / m.weekRevenue.value * 1000) / 10 + '%，是收入的科目、不可相加）、入院 <b>' + m.weekAdmit.value + '</b> 人、出院 <b>' + m.weekDischarge.value + '</b> 人、门诊 <b>' + m.weekVisits.value + '</b> 人次；上期同 ' + s.period.daysRecorded + ' 天（' + s.previousPeriod.start + '—' + s.previousPeriod.compareSameDaysEnd + '）<b>' + fmt(m.weekRevenue.valueYuan / (1 + (m.weekRevenue.deltaPct || 0) / 100) / 10000) + ' 万</b>，总量 <b>' + signed(m.weekRevenue.deltaPct) + '%</b>。10 月累计 <b>' + fmt(m.monthRevenue.value) + ' 万</b> / 目标 ' + m.monthRevenue.targetWan + ' 万 = <b>' + m.monthRevenue.amountProgress + '%</b>，时间进度 ' + m.monthRevenue.timeProgress + '%，差 <b>' + signed(Math.round((m.monthRevenue.amountProgress - m.monthRevenue.timeProgress) * 10) / 10) + 'pt</b>，剩余缺口 <b>' + fmt(m.monthRevenue.gap) + ' 万</b>。在院 <b>' + m.wardCount.value + ' 人</b>（' + (m.wardCount.dataThrough || s.period.dataThrough) + ' 时点，营收日报）——<b>营收日报的入出院/门诊数与主表不同源，本页一律以主表为准</b>。';
+        '<b>本期 ' + s.period.label + '（' + s.period.daysRecorded + ' 天，数据至 ' + s.period.dataThrough + '）· 营收日报（台账）</b>：营收 <b>' + fmt(m.weekRevenue.value, 2) + ' 万</b>（门诊 ' + fmt(m.weekOutpatient.value, 2) + ' ＋ 在院 ' + fmt(m.weekInpatient.value, 2) + '）；<b>《特别行动小组汇报表》本周 7 天：总收入 ' + dpDoc.revenueWan + ' 万、物理治疗 ' + dpDoc.physioWan + ' 万（占收入 ' + Math.round(dpDoc.physioWan / dpDoc.revenueWan * 1000) / 10 + '%，是收入的科目、不可相加）、入院 ' + dpDoc.admit + ' 人、出院 ' + dpDoc.discharge + ' 人、门诊 ' + dpDoc.outpatient + ' 人次</b>；台账口径入院 <b>' + m.weekAdmit.value + '</b> 人、出院 <b>' + m.weekDischarge.value + '</b> 人、门诊 <b>' + m.weekVisits.value + '</b> 人次；上期同 ' + s.period.daysRecorded + ' 天（' + s.previousPeriod.start + '—' + s.previousPeriod.compareSameDaysEnd + '）<b>' + fmt(m.weekRevenue.valueYuan / (1 + (m.weekRevenue.deltaPct || 0) / 100) / 10000) + ' 万</b>，总量 <b>' + signed(m.weekRevenue.deltaPct) + '%</b>。10 月累计 <b>' + fmt(m.monthRevenue.value) + ' 万</b> / 目标 ' + m.monthRevenue.targetWan + ' 万 = <b>' + m.monthRevenue.amountProgress + '%</b>，时间进度 ' + m.monthRevenue.timeProgress + '%，差 <b>' + signed(Math.round((m.monthRevenue.amountProgress - m.monthRevenue.timeProgress) * 10) / 10) + 'pt</b>，剩余缺口 <b>' + fmt(m.monthRevenue.gap) + ' 万</b>。在院 <b>' + m.wardCount.value + ' 人</b>（' + (m.wardCount.dataThrough || s.period.dataThrough) + ' 时点，营收日报）——<b>营收日报的入出院/门诊数与主表不同源，本页一律以主表为准</b>。';
     }
   }
 
@@ -196,8 +218,12 @@
     var d = s.departments || {}, p = s.psych || {}, sv = s.service || {}, bt = s.butler || {};
     var m = s.metrics;
     var map = {
-      doctor: [['总收入', m.weekRevenue.value, '万'],
-               ['本周入院', m.weekAdmit.value, '人']],
+      /* 2026-10-26 09:55 修：营收日报补齐 10.24/10.25，本期满 7 天（58.35 万），
+         而汇报表医生组「本周总收入」表头 52.6 / 正文 72.5 / 页面 50.5 三处对不上，
+         判为混合态 → 医生卡总额改取营收台账 weekRevenue（可逐日勾稽），
+         物理治疗仍取汇报表正文 16.7 万（该科目台账没有拆分）。 */
+      doctor: [['本周总收入', m.weekRevenue ? m.weekRevenue.value : null, '万'],
+               ['物理治疗', (d.doctor || {}).physioWan, '万']],
       nursing: [['物理治疗人数', d.nursing ? d.nursing.physioPeople : null, '人次'],
                 ['工娱（场/人次）', d.nursing ? d.nursing.recreationSessions + '/' + d.nursing.recreationPeople : null, '']],
       psychology: [['咨询工作量', p.week ? p.week.consult : null, '人次'],
@@ -226,7 +252,7 @@
      baseData + localStorage（键 hospital-month-dashboard-v3-20260926），与快照无关 ——
      所以业主看到的是 9 月口径的旧值（心理 65、客服 74、营销挂营业额 19.58 万）。
      这里只覆盖显示层、不动它的数据对象，rerender()/localStorage 都不会把数字改回去。
-     护理卡的物理治疗分项线上表未按日给数，保持原值不臆造。 */
+     护理卡的物理治疗六项已于 2026-10-26 按业主实报值填入（652/605/92.8%）。 */
   function patchMdDepartments(s) {
     var m = s.metrics || {}, p = (s.psych || {}).week || {},
         sv = (s.service || {}).week || {}, bt = (s.butler || {}).week || {},
@@ -242,9 +268,9 @@
     }
     var spec = {
       doctor: {
-        metric: m.wardCount ? num(m.wardCount.value, ' 人') : null,
-        note: '在院 · ' + wd('revenue') + ' 时点',
-        foot: '入院 ' + (m.weekAdmit ? m.weekAdmit.value : '—') + ' · 出院 ' + (m.weekDischarge ? m.weekDischarge.value : '—')
+        metric: num(dp.doctor && dp.doctor.revenueWan, ' 万'),
+        note: '本期 ' + lab + ' · 汇报表总收入（第 4 周）',
+        foot: '物理 ' + ((dp.doctor && dp.doctor.physioWan) != null ? dp.doctor.physioWan : '—') + ' 万 · 入院 ' + ((dp.doctor && dp.doctor.admit) != null ? dp.doctor.admit : (m.weekAdmit ? m.weekAdmit.value : '—')) + ' · 在院 ' + (m.wardCount ? m.wardCount.value : '—')
       },
       psychology: {
         /* 本周唯一口径＝V4 管理表；汇报表该组表头停在 9.21 旧值，已停用 */
@@ -255,25 +281,26 @@
               + (dpPsy.groupPeople != null ? dpPsy.groupPeople + ' 人' : '')
       },
       nursing: {
-        metric: num(dpNur.physioPeople, ' 人次'),
-        note: '本期 ' + lab + ' · 物理治疗（含住院＋门诊）'
-              + (dpNur.recreationSessions != null
-                 ? ' · 工娱 ' + dpNur.recreationSessions + ' 场/' + dpNur.recreationPeople + ' 人次' : ''),
-        /* 六项治疗完成率来自护理部周报（业主 2026-10-19 转达），向下取整口径 */
-        foot: dpNur.treatSummary
-          ? ('6 项治疗 ' + dpNur.treatSummary.done + '/' + dpNur.treatSummary.due
-             + ' · ' + dpNur.treatSummary.rate + '%')
-          : ('工娱 ' + (dpNur.recreationSessions != null ? dpNur.recreationSessions : '—') + ' 场 · '
-             + (dpNur.recreationPeople != null ? dpNur.recreationPeople : '—') + ' 人次')
+        /* 2026-10-26：物理治疗按业主指示暂不更新，主指标改用护理考核表的工作量填报率
+           （纯静态值，快照里还没有 nursing.workFill；等快照补上再改成 num() 取值） */
+        metric: '57.1%',
+        note: '本期 ' + lab + ' · 工作量填报 64/112 格（人均 4.0 天）',
+        foot: '综合首名 67.7 · 质控 60.5% · 6 项 92.8% · 电休克 11 人次'
       },
       service: {
-        metric: num(dpSvc.arrived, ' 人次'),
-        note: '本期 ' + lab + ' · 到院接待',
-        foot: '义诊 ' + (dpSvc.charity != null ? dpSvc.charity : '—') + ' 人 · 随访人数未填'
+        /* 2026-10-26：客服改用「三张台账」口径（原来读 departments.service.arrived，
+           那是汇报表表头的 239 人、本周未滚动，会把真实的 28 条 / 39.3% 盖掉）。
+           回访台账已滚到 10.25（全 7 天），导诊表止 10.21 单列说明。 */
+        metric: num(sv.followup, ' 条'),
+        note: '本期 ' + lab + ' · 回访（台账至 ' + wd('service') + '）',
+        foot: '到院 ' + (sv.arrived != null ? sv.arrived : '—') + ' 人 · '
+              + (sv.rate != null ? sv.rate : '—') + '%（导诊 ' + (sv.guide != null ? sv.guide : '—') + ' 条·止 10.21）'
       },
       marketing: {
+        /* 2026-10-26：管家表已滚到 10.25（7 天），截止日改由快照 watermark 驱动，
+           不再写死「至 10.23」；总排名按业主汇总表「权重」列，见 month-dashboard.js */
         metric: num(bt.contact, ' 条'),
-        note: '本期 ' + lab + ' · 管家有效对接',
+        note: '本期 ' + lab + ' · 管家有效对接（至 ' + wd('butler') + '）',
         foot: '转住院 ' + (bt.admit != null ? bt.admit : '—') + ' · ' + (bt.rate != null ? bt.rate : '—') + '%'
       }
     };
@@ -303,11 +330,15 @@
         dS = dp.service || {};
     /* 顺序必须与 index.html DEPT_CARD 的 m1 / m2 一致 */
     var spec = {
-      doctor: [[dD.discharge, '人'], [dD.physioWan, '万']],
-      /* nursing 第二项标签已由 patch_page 改成「6 项治疗完成率」，
-         这里必须跟着写率值；仍写工娱 5/62 会出现「标签说完成率、数字是场次」（实测踩过） */
-      nursing: [[dN.physioPeople, '人次'],
-                [(dN.treatSummary ? dN.treatSummary.rate : null), '%']],
+      /* ⚠ 2026-10-22：doctor 的顺序原先写的是 [[出院,'人'],[物理治疗,'万']]，
+         而 DEPT_CARD 的标签已改为「总收入 / 本周入院」→ 页面渲染成
+         「总收入 17 人 / 本期入院 32.9 万」。此数组必须与 DEPT_CARD.doctor 的 m1/m2 同序。 */
+      doctor: [[dD.revenueWan, '万'], [dD.physioWan, '万']],
+      /* ⚠ 2026-10-26：护理卡 m1/m2 已改为「工作量填报率 / 综合首名」，数据来自
+         《护士工作量及质量统计》考核表，快照里没有这两项 → 这里保持 null 不覆盖。
+         教训：标签改了、这里还在写旧字段，会出现「标签说完成率、数字是场次」（2026-10-22 踩过）。
+         等快照补上 nursing.workFill / nursing.compTop 再把值接回来。 */
+      nursing: [[null, '%'], [null, '分']],
       psychology: [[dP.consult, '人次'], [dP.contact, '人次']],
       service: [[dS.arrived, '人次'], [dS.charity, '人']],
       marketing: [[bt.contact, '条'], [bt.rate, '%']]

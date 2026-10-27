@@ -1,0 +1,495 @@
+/* ==========================================================================
+   十月经营 + 员工排名 + 九月报告抽屉
+   （业主 2026-10-02 指定：九月报告收进右上角绿色按钮抽屉；
+     主面板保留原有区块，另增「10 月经营」「员工排名」两块）
+   ========================================================================== */
+
+/* ---------- 1. 九月报告抽屉 ---------- */
+
+/* ⚠ #sepReport 必须留在原位（紧跟 .title-row）——month-dashboard.js 以它为插入锚点，
+   把月面板 insertAdjacentHTML 到它之后。只是用 CSS 把它变成右侧滑出抽屉，
+   不可移动 DOM 节点，否则月面板会被插进抽屉里。 */
+#sepReport {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(1020px, 95vw);
+  margin: 0;
+  padding: 0 26px 72px;
+  z-index: 300;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #F4F7FB;
+  transform: translateX(103%);
+  /* visibility 延迟 .32s 生效 —— 否则关闭时抽屉会被立刻隐藏，看不到滑出动画 */
+  transition: transform .32s cubic-bezier(.4, 0, .2, 1), visibility 0s .32s;
+  box-shadow: -24px 0 64px rgba(6, 40, 96, .22);
+  display: block;
+  visibility: hidden;
+}
+body.srd-open #sepReport {
+  transform: none;
+  visibility: visible;
+  transition: transform .32s cubic-bezier(.4, 0, .2, 1), visibility 0s 0s;
+}
+body.srd-open { overflow: hidden; }
+
+/* 抽屉内的报告头吸顶，滚动时标题不消失。
+   ⚠ 右侧留 52px：抽屉内右上角原本就有 september-report.js 生成的「9 月已收官」标签
+     （它也叫 .sr-close，与本模块的关闭按钮在视口右上重叠过），
+     留白后 × 按钮落在标签右侧，互不遮挡。 */
+#sepReport .sr-head {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  margin: 0 0 14px;      /* 保留 september-report.css 原本的 margin-bottom:14px */
+  padding: 20px 52px 13px 0;
+  background: #F4F7FB;
+  border-bottom: 1px solid var(--line);
+}
+
+.srd-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 299;
+  background: rgba(8, 22, 48, .46);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .32s;
+}
+body.srd-open .srd-backdrop { opacity: 1; pointer-events: auto; }
+
+/* 抽屉内关闭按钮 */
+.srd-close {
+  position: fixed;
+  top: 18px;
+  right: 26px;
+  z-index: 302;
+  width: 38px;
+  height: 38px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  color: #202638;
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 3px 12px rgba(6, 40, 96, .18);
+}
+body.srd-open .srd-close { display: flex; }
+.srd-close:hover { background: #EEF3FA; }
+
+/* 右上角绿色按钮 */
+.sep-drawer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 11px;
+  background: #12A150;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .16s;
+}
+.sep-drawer-btn:hover { background: #0E8A44; }
+.sep-drawer-btn i {
+  font-style: normal;
+  font-size: 13px;
+  display: inline-block;
+  transition: transform .28s;
+}
+body.srd-open .sep-drawer-btn i { transform: rotate(90deg); }
+
+/* ---------- 2. 十月经营 ---------- */
+
+.ob-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.ob-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  padding: 14px 16px;
+  min-width: 0;
+}
+.ob-card > label {
+  display: block;
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-bottom: 7px;
+}
+.ob-num {
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -.4px;
+  color: var(--ink);
+  line-height: 1.15;
+}
+.ob-num em { font-size: 13px; font-weight: 700; font-style: normal; color: var(--muted); margin-left: 3px; }
+.ob-sub { font-size: 11.5px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+.ob-sub b { color: #0A54C4; }
+
+.ob-bar {
+  height: 8px;
+  border-radius: 99px;
+  background: #E8EEF6;
+  margin-top: 11px;
+  overflow: hidden;
+  position: relative;
+}
+.ob-bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: #0066CC;
+}
+.ob-bar > u {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: #E0576F;
+  border-radius: 2px;
+}
+.ob-legend {
+  display: flex;
+  gap: 14px;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 7px;
+}
+.ob-legend s { text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+.ob-legend s:before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: #0066CC; }
+.ob-legend s.lt:before { background: #9DB8D8; }
+.ob-legend s.t:before { width: 2px; height: 11px; border-radius: 1px; background: #E0576F; }
+
+/* 逐日柱 */
+.ob-dbars {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  height: 108px;
+  margin-top: 4px;
+}
+.ob-dcol {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  min-width: 0;
+}
+.ob-dcol > b { font-size: 11px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+.ob-dcol > i {
+  display: block;
+  width: 100%;
+  max-width: 46px;
+  border-radius: 6px 6px 3px 3px;
+}
+.ob-dcol > s {
+  text-decoration: none;
+  font-size: 10.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.ob-wide { grid-column: span 2; }
+.ob-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 10px;
+}
+.ob-split > div {
+  background: #F6F9FD;
+  border-radius: 11px;
+  padding: 9px 11px;
+}
+.ob-split label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.ob-split b { font-size: 14.5px; font-weight: 800; color: var(--ink); }
+.ob-split b em { font-size: 11px; font-weight: 600; color: var(--muted); font-style: normal; }
+.ob-note {
+  margin-top: 11px;
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.6;
+  background: #F6F9FD;
+  border-radius: 11px;
+  padding: 10px 12px;
+}
+.ob-note b { color: var(--ink); }
+
+@media (max-width: 900px) {
+  .ob-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ob-wide { grid-column: span 2; }
+}
+@media (max-width: 560px) {
+  .ob-grid { grid-template-columns: 1fr; }
+  .ob-wide { grid-column: span 1; }
+  .ob-split { grid-template-columns: 1fr; }
+}
+
+/* ---------- 3. 员工排名 ---------- */
+
+.rk-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.rk-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+.rk-tab i {
+  font-style: normal;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  background: #EEF3FA;
+  color: #0A54C4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+.rk-tab.on {
+  background: #0A54C4;
+  border-color: #0A54C4;
+  color: #fff;
+}
+.rk-tab.on i { background: rgba(255, 255, 255, .22); color: #fff; }
+
+.rk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
+  gap: 12px;
+}
+.rk-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  padding: 14px 16px;
+  min-width: 0;
+}
+.rk-card > h4 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.45;
+}
+.rk-card > small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.rk-row {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  gap: 9px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid #F1F4F9;
+}
+.rk-row:first-of-type { border-top: 0; }
+.rk-row > i {
+  font-style: normal;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+}
+.rk-row.medal > i { font-size: 15px; }
+.rk-row > div { min-width: 0; }
+.rk-row b { display: block; font-size: 13px; color: var(--ink); }
+.rk-row small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-top: 2px;
+}
+.rk-row > em {
+  font-style: normal;
+  font-size: 13px;
+  font-weight: 800;
+  color: #0A54C4;
+  white-space: nowrap;
+}
+.rk-more {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: #F8FAFD;
+  color: #0A54C4;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+.rk-more:hover { background: #EEF3FA; }
+.rk-empty {
+  padding: 18px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ⭐ 2026-10-09：员工排名区的「矩阵表」型分组（医生 × 项目明细）。
+   桌面一行放得下；窄屏横向滚动而不是挤成一团。 */
+.rk-card-table { grid-column: 1 / -1; }
+.rk-table-wrap {
+  margin-top: 10px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.rk-table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+.rk-table thead th {
+  padding: 8px 9px;
+  text-align: right;
+  white-space: nowrap;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #5B6678;
+  background: #F5F8FC;
+  border-bottom: 1px solid var(--line);
+}
+.rk-table thead th.rk-td-name { text-align: left; }
+.rk-table tbody td {
+  padding: 9px;
+  text-align: right;
+  white-space: nowrap;
+  color: #33415C;
+  border-bottom: 1px solid #F0F3F8;
+}
+.rk-table tbody td.rk-td-name {
+  text-align: left;
+  font-weight: 800;
+  color: var(--ink);
+}
+.rk-table tbody tr:hover td { background: #FAFCFF; }
+.rk-table tbody td b { color: #0A54C4; }
+.rk-tr-sum td {
+  background: #F0F6FC;
+  font-weight: 800;
+  color: #0058B0 !important;
+  border-top: 1px solid #D9E5F4;
+  border-bottom: 0 !important;
+}
+.rk-table-foot {
+  margin: 9px 0 0;
+  font-size: 10.5px;
+  line-height: 1.65;
+  color: var(--muted);
+}
+
+
+/* ==========================================================================
+   护理组排名 · 九月明细绿色按钮抽屉（业主 2026-10-11 指定：
+   九月排名整体收进护理组排名面板右上角绿色按钮抽屉；面板改为 10 月口径）
+   ========================================================================== */
+.npr-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 13px; }
+.npr-head-title { font-size: 14px; font-weight: 750; color: var(--ink); }
+
+#npSepDrawer {
+  position: fixed; top: 0; right: 0; height: 100%;
+  width: min(1020px, 95vw);
+  margin: 0; padding: 0 26px 72px;
+  z-index: 400;
+  overflow-y: auto; overscroll-behavior: contain;
+  background: #F4F7FB;
+  transform: translateX(103%);
+  visibility: hidden;
+  transition: transform .32s cubic-bezier(.4, 0, .2, 1), visibility 0s .32s;
+  box-shadow: -24px 0 64px rgba(6, 40, 96, .22);
+  display: block;
+}
+body.nsd-open #npSepDrawer {
+  transform: none; visibility: visible;
+  transition: transform .32s cubic-bezier(.4, 0, .2, 1), visibility 0s 0s;
+}
+body.nsd-open { overflow: hidden; }
+
+.nsd-backdrop {
+  position: fixed; inset: 0; z-index: 399;
+  background: rgba(8, 22, 48, .46);
+  opacity: 0; pointer-events: none;
+  transition: opacity .32s;
+}
+body.nsd-open .nsd-backdrop { opacity: 1; pointer-events: auto; }
+
+.nsd-close {
+  position: fixed; top: 18px; right: 26px; z-index: 402;
+  width: 38px; height: 38px; display: none;
+  align-items: center; justify-content: center;
+  border: 0; border-radius: 50%;
+  background: #fff; color: #202638;
+  font-size: 19px; line-height: 1; font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 3px 12px rgba(6, 40, 96, .18);
+}
+body.nsd-open .nsd-close { display: flex; }
+.nsd-close:hover { background: #EEF3FA; }
+
+.npr-inner { max-width: 1180px; margin: 0 auto; }
+.npr-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 9px; margin: 24px 0 5px; }
+.npr-h h3 { margin: 0; font-size: 19px; letter-spacing: -.3px; color: var(--ink); }
+.npr-h span { font-size: 12px; color: var(--muted); }
+.npr-sub { margin: 0 0 14px; font-size: 12px; line-height: 1.7; color: var(--muted); }
+.npr-card { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; margin: 0 0 14px; }
+.npr-card > h4 { margin: 0 0 4px; font-size: 14px; color: var(--ink); }
+.npr-card > p.npr-cap { margin: 0; font-size: 11.5px; line-height: 1.65; color: var(--muted); }
+.npr-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 10px; }
+.npr-mini { border: 1px solid var(--line); border-radius: 13px; padding: 11px 12px; min-width: 0; }
+.npr-mini h5 { margin: 0 0 7px; font-size: 12.5px; color: var(--ink); }
+.npr-mini .rk-table { min-width: 0; font-size: 11.5px; }
+.npr-mini .rk-table-wrap { margin-top: 0; }
+.npr-notes { margin: 10px 0 0; padding: 0; list-style: none; }
+.npr-notes li { position: relative; padding: 0 0 10px 16px; font-size: 12px; line-height: 1.75; color: #3d4759; }
+.npr-notes li:before { content: '\00b7'; position: absolute; left: 3px; top: 0; color: #0A54C4; font-weight: 900; }
+.npr-notes li strong { display: block; color: var(--ink); }
+.npr-notes li b { color: #0A54C4; }
+.npr-inner .rank-group h4 { font-size: 14px; }
+.npr-inner .diagnosis { margin-top: 4px; }
+
+/* 窄屏：抽屉全宽；表格横向滚动（数字列多，宁可滑也别挤成一团） */
+.npr-scrollhint { display: none; }
+@media (max-width: 720px) {
+  #npSepDrawer { width: 100vw; padding: 0 14px 60px; }
+  .npr-grid { grid-template-columns: 1fr; }
+  .npr-scrollhint { display: block; margin: 0 0 8px; font-size: 11px; color: var(--muted); }
+  .npr-card .rk-table { min-width: 520px; }
+}

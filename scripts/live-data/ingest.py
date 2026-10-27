@@ -12,6 +12,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import live_db
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# 首次建库时的本期窗口缺省锚点（自然周周一）。换期只改 settings，不改这里。
+# 与 data-import.js 的 PERIOD_ANCHOR、september-revenue-data.js 的 PERIOD_ANCHOR 同一口径。
+PERIOD_ANCHOR_DEFAULT = '2026-10-19'
 RAW = os.path.join(ROOT, "data", "raw-kdocs")
 DB = os.path.join(ROOT, "db", "live-data.sqlite")
 CN = timezone(timedelta(hours=8))
@@ -160,9 +164,14 @@ def ensure_meta(c):
         c.execute("INSERT OR IGNORE INTO source(id,name,url,grain) VALUES(?,?,?,?)", (sid, name, url, grain))
     for row in METRICS:
         c.execute("INSERT OR IGNORE INTO metric_def(id,label,unit,grain,source_id,formula) VALUES(?,?,?,?,?,?)", row)
-    c.execute("INSERT OR REPLACE INTO settings(key,value) VALUES('period_weeks','1')")
-    c.execute("INSERT OR REPLACE INTO settings(key,value) VALUES('period_anchor','2026-10-12')")
-    c.execute("INSERT OR REPLACE INTO settings(key,value) VALUES('period_basis','natural_week')")
+    # ⛔ 2026-10-24 修（重要）：原先 period_anchor 用 INSERT OR REPLACE 硬写 '2026-10-12'，
+    #    等于**每跑一次 ingest 就把换期改回上一周**——手工 UPDATE settings 之后再跑管线，
+    #    锚点被静默重置，build_snapshot 仍按旧周出快照，症状是「数据补了但页面还是上周」。
+    #    改为 INSERT OR IGNORE：只在**首次建库**时写入缺省值，之后由换期流程显式 UPDATE。
+    #    换期 = UPDATE settings SET value='<新周一>' WHERE key='period_anchor'（三处同改，见 README）。
+    c.execute("INSERT OR IGNORE INTO settings(key,value) VALUES('period_weeks','1')")
+    c.execute("INSERT OR IGNORE INTO settings(key,value) VALUES('period_anchor',?)", (PERIOD_ANCHOR_DEFAULT,))
+    c.execute("INSERT OR IGNORE INTO settings(key,value) VALUES('period_basis','natural_week')")
 
 
 def hkey(*parts):
@@ -322,6 +331,18 @@ def ingest_dept(c, sheet, rows):
         wk = weeks[k]
         # ⛔ 第3周的四项表头已在上方按「表头口径」写过一次；这里若再用另一 row_ref 写一遍，
         #    SUM 会翻倍。第3周只补表头没有的「出院」，其余跳过。
+        # ⭐ 2026-10-24：正文三周轨迹另存一份到 tri.* 命名空间。
+        #   用途：判断「表头有没有滚动」——表头四项若等于第 3 周（＝填表当时刚结束的那一周），
+        #   说明整行还在复读上一周，build_snapshot 据此拒绝把表头当本周数。
+        #   不存这份副本就无法判定：第 3 周的表头值本来是跳过不写的（避免同一口径写两遍）。
+        trio = [(rev.get(k), "dept.doctor.revenue", "万元"),
+                (phy.get(k), "dept.doctor.physio", "万元"),
+                (adm.get(k), "dept.doctor.admit", "人"),
+                (opd.get(k), "dept.doctor.outpatient", "人次"),
+                (dis.get(k), "dept.doctor.discharge", "人")]
+        for v, mid, unit in trio:
+            add_week_fact(c, mid.replace("dept.doctor.", "dept.doctor.tri."), wk, v,
+                          "action_report", sheet, hkey("dept-tri", mid, k), unit=unit)
         if k == 3:
             add_week_fact(c, "dept.doctor.discharge", wk, dis.get(k), "action_report", sheet,
                           hkey("dept-hist", "discharge", k), unit="人")
