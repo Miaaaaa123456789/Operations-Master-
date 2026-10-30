@@ -764,6 +764,13 @@ def main(db_path=None, out=None, write=True):
         else:
             _mv.setdefault("periodStart", p_start.isoformat())
             _mv.setdefault("periodEnd", p_end.isoformat())
+            # ⚠ 2026-10-29 修：营收日报已推进到 10.28（跨周），但周口径窗口仍是 10.19—10.25。
+            #   dataThrough 原先跟着全局 data_through 走，周指标会被标成「数据至 10.28」，
+            #   读者会误以为 58.35 万里含 10.26—10.28。周口径一律夹到 periodEnd。
+            #   ⚠ 时点值（在院人数）例外：它就是「最新一天的时点」，不能被夹回周内。
+            if not _mv.get("pointInTime"):
+                _dtw = str(_mv.get("dataThrough") or p_end.isoformat())
+                _mv["dataThrough"] = min(_dtw, p_end.isoformat())
             _mv["coverage"] = {"recordedDays": days_recorded, "expectedDays": 7,
                                "pct": round(days_recorded / 7 * 100, 1)}
         _mv["fetchedAt"] = fetched_at
