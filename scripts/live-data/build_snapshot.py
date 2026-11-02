@@ -144,15 +144,22 @@ def main(db_path=None, out=None, write=True):
     #   规则：四项全等第 3 周 → 未滚动；有命中但不全等 → 混合态，同样回退台账；
     #   一项都不等 → 视为已滚动到新一周，按表头用。
     _mixed = 0 < _matched < len(_hdr_pairs)
-    stale_ar = _cmp_ok or _mixed
+    # ⛔ 2026-11-02 补：**表头整行为空**（换周次日、五部门都还没填）也必须走「不引用」分支。
+    #   原先只判 _cmp_ok / _mixed，全空时 _matched=0、两者皆 False，于是走「已滚动」分支，
+    #   后面 int(d_adm) 直接 TypeError 崩掉整条管线（10.26 换周首次运行实测）。
+    _all_blank = all(v is None for v in (d_rev, d_adm, d_dis, d_opd, d_phy))
+    stale_ar = _cmp_ok or _mixed or _all_blank
     # 表头原值留档：即便判为未滚动，也要把「表里到底写了什么」留在快照里可查（psych.header 同一做法）
     ar_header_raw = {"revenueWan": d_rev, "admit": d_adm, "discharge": d_dis,
                      "outpatient": d_opd, "physioWan": d_phy,
                      "week3Triplet": _tri,
-                     "judgedBy": "header==week3_triplet" if _cmp_ok else "header!=week3"}
+                     "judgedBy": ("header_blank" if _all_blank
+                                  else "header==week3_triplet" if _cmp_ok else "header!=week3")}
     _hdr_phy = d_phy
     if stale_ar:
-        _why = "与正文第 3 周逐项同值" if _cmp_ok else f"与第 3 周只对上 {_matched}/4 项（混合态）"
+        _why = ("本周表头四项整行为空（尚未填报）" if _all_blank
+                else "与正文第 3 周逐项同值" if _cmp_ok
+                else f"与第 3 周只对上 {_matched}/4 项（混合态）")
         print(f"⚠ 汇报表本周表头{_why}（{_tri}）→ 判定不可信，本周改用营收日报台账")
         d_rev = d_rev_p = d_adm = d_adm_p = d_dis = d_dis_p = d_opd = d_opd_p = d_phy = None
         d_month = None
@@ -323,19 +330,65 @@ def main(db_path=None, out=None, write=True):
     WK_COLS = [("report_days", "填报天数"), ("ward_days", "参加查房"), ("first", "首次对接"),
                ("emotion", "情绪支持"), ("inpatient", "住院咨询"), ("outpatient", "门诊咨询"),
                ("family", "家庭咨询"), ("parent", "家长访谈"), ("group_attend", "团体参与")]
+    # ⛔⛔ 2026-11-02：本表的周窗口由组长在表内手填（第 3 行「周起始日 / 周结束日」，
+    #   另有 B2 手动覆盖值），**不会**随 settings.period_anchor 滚动。原实现直接取
+    #   dept_weeks 的本周窗口、又把「最新一期周表值」当作本周值 → 与本周日报跨期对账，
+    #   gap 全是周期差（首次 −4 / 情绪 −11 / 住院 −14），不是漏填。
+    #   契约：staffWeek/weekSum 永远是「本周」口径；周表口径只用于同窗 recon。
+    _wt = c.execute("SELECT period_start, period_end FROM fact "
+                    "WHERE metric_id='psych.week.report_days' AND period_start IS NOT NULL "
+                    "ORDER BY period_end DESC LIMIT 1").fetchone()
+    wt_start, wt_end = (_wt[0], _wt[1]) if _wt else (p_start.isoformat(), psy_end)
+    wt_aligned = (wt_start == p_start.isoformat() and wt_end == psy_end)
+
+    # 日报侧逐人聚合（周表未滚动时，作为本周唯一可用口径）
+    _daily_fields = [("psych.report", "report_days"), ("psych.ward_attend", "ward_days"),
+                     ("psych.first_contact", "first"), ("psych.emotion_support", "emotion"),
+                     ("psych.inpatient_consult", "inpatient"),
+                     ("psych.outpatient_consult", "outpatient"),
+                     ("psych.family_consult", "family"), ("psych.parent_interview", "parent"),
+                     ("psych.group_attend_daily", "group_attend")]
+    _dmap = {}
+    for _mid, _f in _daily_fields:
+        for _k, _v in s(c, _mid, p_start.isoformat(), psy_end, "staff"):
+            _dmap.setdefault(_k, {})[_f] = int(_v)
+
+    _wk_names = [r[0] for r in c.execute(
+        "SELECT dim_value, MIN(id) FROM fact WHERE metric_id='psych.week.report_days' "
+        "AND period_start=? AND period_end=? GROUP BY dim_value ORDER BY MIN(id)",
+        (wt_start, wt_end))]
+
     psy_staff_week = []
-    for nm, _fid in c.execute("SELECT dim_value, MIN(id) FROM fact "
-                              "WHERE metric_id='psych.week.report_days' "
-                              "GROUP BY dim_value ORDER BY MIN(id)"):
+    for nm in _wk_names + [k for k in _dmap if k not in _wk_names]:
         row = {"name": nm}
-        for f, _lab in WK_COLS:
-            v = q1(c, "SELECT value FROM fact WHERE metric_id=? AND dim_value=?",
-                   (f"psych.week.{f}", nm))
-            row[f] = int(v) if v is not None else None
-        row["rate"] = q1(c, "SELECT value FROM fact WHERE metric_id='psych.week.rate' AND dim_value=?",
-                         (nm,))
+        if wt_aligned:
+            for f, _lab in WK_COLS:
+                v = q1(c, "SELECT value FROM fact WHERE metric_id=? AND dim_value=? "
+                          "AND period_start=? AND period_end=?",
+                       (f"psych.week.{f}", nm, wt_start, wt_end))
+                row[f] = int(v) if v is not None else None
+            row["rate"] = q1(c, "SELECT value FROM fact WHERE metric_id='psych.week.rate' "
+                                "AND dim_value=? AND period_start=? AND period_end=?",
+                             (nm, wt_start, wt_end))
+            row["source"] = "week_table"
+        else:
+            # 天数类：名单内却无日报＝0 天，属可观测事实；
+            # 业务量类：整周未填＝null，不当 0、也不拿上周周表值顶替。
+            d = _dmap.get(nm, {})
+            for f, _lab in WK_COLS:
+                row[f] = d.get(f, 0) if f in ("report_days", "ward_days") else d.get(f)
+            row["rate"] = None
+            row["source"] = "daily"
         psy_staff_week.append(row)
     psy_week_sum = {f: sum((x[f] or 0) for x in psy_staff_week) for f, _ in WK_COLS}
+
+    # 周表自身窗口的合计（只用于同窗对账，不冒充本周）
+    psy_wt_sum = {}
+    for f, _lab in WK_COLS:
+        tot = q1(c, "SELECT SUM(value) FROM fact WHERE metric_id=? "
+                    "AND period_start=? AND period_end=?",
+                 (f"psych.week.{f}", wt_start, wt_end))
+        psy_wt_sum[f] = int(tot) if tot is not None else None
     psy_ward_attend = int(s(c, "psych.ward_attend", p_start.isoformat(), psy_end) or 0)
 
     # ── 个人本周排名（替代月面板里 8.31—9.26 的旧榜）─────────────
@@ -363,16 +416,20 @@ def main(db_path=None, out=None, write=True):
                          "rate": _wk_rate.get(_nm)})
     psy_rank.sort(key=lambda x: (-x["score"], -x["consult"], -x["contact"]))
 
+    # 同窗对账：日报（周表窗口内）vs 周表 —— 只有窗口一致，gap 才是真差额。
+    _pw_wt = psy(wt_start, wt_end)
+    _ward_wt = int(s(c, "psych.ward_attend", wt_start, wt_end) or 0)
     psy_recon = []
-    for lab, dv, wv in [("填报天数", pw["report"], psy_week_sum["report_days"]),
-                        ("参加查房", psy_ward_attend, psy_week_sum["ward_days"]),
-                        ("首次对接", pw["first"], psy_week_sum["first"]),
-                        ("情绪支持", pw["emotion"], psy_week_sum["emotion"]),
-                        ("住院咨询", pw["inpatient"], psy_week_sum["inpatient"]),
-                        ("门诊咨询", pw["outpatient"], psy_week_sum["outpatient"]),
-                        ("家庭咨询", pw["family"], psy_week_sum["family"]),
-                        ("家长访谈", pw["parent"], psy_week_sum["parent"])]:
-        psy_recon.append({"label": lab, "daily": dv, "weekly": wv, "gap": dv - wv})
+    for lab, dv, wv in [("填报天数", _pw_wt["report"], psy_wt_sum["report_days"]),
+                        ("参加查房", _ward_wt, psy_wt_sum["ward_days"]),
+                        ("首次对接", _pw_wt["first"], psy_wt_sum["first"]),
+                        ("情绪支持", _pw_wt["emotion"], psy_wt_sum["emotion"]),
+                        ("住院咨询", _pw_wt["inpatient"], psy_wt_sum["inpatient"]),
+                        ("门诊咨询", _pw_wt["outpatient"], psy_wt_sum["outpatient"]),
+                        ("家庭咨询", _pw_wt["family"], psy_wt_sum["family"]),
+                        ("家长访谈", _pw_wt["parent"], psy_wt_sum["parent"])]:
+        gap = (dv - wv) if (dv is not None and wv is not None) else None
+        psy_recon.append({"label": lab, "daily": dv, "weekly": wv, "gap": gap})
 
     # 本周新增对接（行数 / 去重患者数 / 按管床分组）。患者姓名不进快照，只出计数。
     def _pd(s):
@@ -610,6 +667,31 @@ def main(db_path=None, out=None, write=True):
         "blankRows": blank,
         "note": "个人明细只覆盖科内 6 名医生，表头为全组口径；空白行按契约记 null、不记 0，也不反推。",
     }
+    # ── 医生组出院结账周报（业主 2026-11-02 提供）──────────────
+    # 换周后《特别行动小组汇报表》医生组表头整行为空，本周主表没有数。
+    # 业主另给《周排名分析_2026-10-26至11-01》＋《医院出院结帐明细表》，
+    # 口径是「出院结账（住院自费）」——按出院日期归集，不含门诊、不含医保统筹。
+    # 它与营收日报（逐日进账、含门诊）**不同源**，故单独放 doctorWeek，
+    # 绝不覆盖 departments.doctor（那是汇报表口径），页面只并列展示、不相加。
+    # 窗口不匹配（换周后旧的周报文件还在）就不挂，避免把上周数当本周。
+    _dw_path = os.path.join(ROOT, "data", "doctor-week-2026-10-26.json")
+    dept_report["doctorWeek"] = None
+    if os.path.exists(_dw_path):
+        try:
+            with open(_dw_path, encoding="utf-8") as _f:
+                _dw = json.load(_f)
+        except Exception as _e:
+            print(f"⚠ 医生组周报读取失败：{_e}")
+            _dw = None
+        if _dw and (_dw.get("period") or {}).get("start") == p_start.isoformat():
+            dept_report["doctorWeek"] = _dw
+            print(f"  医生组周报已接入（出院结账口径）："
+                  f"{_dw['totals']['revenueWan']} 万 / 出院 {_dw['totals']['discharge']} 人 / "
+                  f"在院 {_dw['totals']['inWard']} 人")
+        elif _dw:
+            print(f"⚠ 医生组周报窗口 {( _dw.get('period') or {}).get('start')} 与本期 "
+                  f"{p_start.isoformat()} 不符，本次不挂载")
+
     dept_report["week"] = {"start": p_start.isoformat(), "end": wk_end,
                            "label": f"{p_start.month}.{p_start.day}—{p_end.month}.{p_end.day}",
                            "authority": "revenue_daily_report" if stale_ar else "action_report",
@@ -836,17 +918,25 @@ def main(db_path=None, out=None, write=True):
     #    而是「上一周的数」。此时不再做双方对账，改记一条「未填报」待核，避免把旧值当值。
     if stale_ar:
         conflicts = [
-            {"id": "report_stale", "label": "汇报表本周表头未滚动（五个部门均未更新）",
+            {"id": "report_stale",
+             "label": ("汇报表本周表头整行空白（五部门均未填报）" if _all_blank
+                       else "汇报表本周表头未滚动（五个部门均未更新）"),
              "severity": "risk", "winner": "revenue_daily_report",
              "source_a": "action_report", "source_b": "revenue_daily_report",
              "value_a": ar_header_raw["revenueWan"], "value_b": round(ledger_week / 10000, 2),
-             "detail": (f"汇报表医生组本周四项（总收入 {ar_header_raw['revenueWan']} 万 / 入院 "
-                        f"{ar_header_raw['admit']} 人 / 门诊 {ar_header_raw['outpatient']} 人次 / 物理治疗 "
-                        f"{ar_header_raw['physioWan']} 万）与 10.12—10.18 那一周逐项完全相同，判定整周未滚动；"
-                        f"护理组（{_hdr.get('dept.nursing.physio_people')} 人次 / {_hdr.get('dept.nursing.rec_sessions')} 场）"
-                        f"、客服组（到院 {_hdr.get('dept.service.arrived')} / 义诊 {_hdr.get('dept.service.charity')}）同样未变。"
-                        f"按『缺项不拿旧值顶替』，本周一律不引用该表，改用营收日报逐日台账（{days_recorded} 天 "
-                        f"{ledger_week/10000:.2f} 万）；原值存档在 departments.actionReportRaw，不丢、不覆盖。")},
+             "detail": (
+                 (f"汇报表医生组本周表头四项（总收入 / 入院 / 门诊 / 物理治疗）全部为空，"
+                  f"护理组、客服组同样未填 —— 换周后源表尚未填报，"
+                  f"按『缺项不拿旧值顶替』一律不引用该表，数值改取各源台账。")
+                 if _all_blank else
+                 (f"汇报表医生组本周四项（总收入 {ar_header_raw['revenueWan']} 万 / 入院 "
+                  f"{ar_header_raw['admit']} 人 / 门诊 {ar_header_raw['outpatient']} 人次 / 物理治疗 "
+                  f"{ar_header_raw['physioWan']} 万）与 10.12—10.18 那一周逐项完全相同，判定整周未滚动；"
+                  f"护理组（{_hdr.get('dept.nursing.physio_people')} 人次 / {_hdr.get('dept.nursing.rec_sessions')} 场）"
+                  f"、客服组（到院 {_hdr.get('dept.service.arrived')} / 义诊 {_hdr.get('dept.service.charity')}）同样未变。")
+             )
+             + (f"按『缺项不拿旧值顶替』，本周一律不引用该表，改用营收日报逐日台账（{days_recorded} 天 "
+                f"{ledger_week/10000:.2f} 万）；原值存档在 departments.actionReportRaw，不丢、不覆盖。")},
             {"id": "month_revenue", "label": f"10月累计：台账 {ledger_month/10000:.2f} 万（至 {rev_through}）",
              "severity": "info", "winner": "revenue_daily_report",
              "source_a": "revenue_daily_report", "source_b": "",
@@ -949,7 +1039,7 @@ def main(db_path=None, out=None, write=True):
                      "dataThrough": dth, "lastSuccessAt": lp,
                      "note": {"revenue_daily_report": "营收日报逐日台账（经勾稽核验）",
                               "action_report": "部门汇报表：本周口径由各部门自填，表头与正文可能不同期",
-                              "psych_v4": "V4 管理表：周个人统计（起始日 10.12）+ 日报逐条 + 管床对接；既往旧数据已清理（只留上一期起）",
+                              "psych_v4": "V4 管理表：咨询师每日简报逐条（本周唯一口径）+ 周个人统计（起始日由组长手填，当前 10.19 未滚动，只作同窗对账）+ 管床对接；既往旧数据已清理（只留上一期起）",
                               "psych_visits": "仅用前三 sheet（新-排班 / 课程排班 / 团体治疗登记）",
                               "butler_contacts": "各管家分表；未填报记 null",
                               "service_followups": "回访台账逐条 + 导诊记录 + 日工作量",
@@ -1014,6 +1104,11 @@ def main(db_path=None, out=None, write=True):
         "filling": filling,
         "psych": {"week": pw, "prevSameDays": pw_prev, "staff": psy_staff,
                   "staffWeek": psy_staff_week, "weekSum": psy_week_sum, "recon": psy_recon,
+                  "weekTable": {"start": wt_start, "end": wt_end, "aligned": wt_aligned,
+                                "note": ("周个人统计窗口与本周一致，逐人值取表内公式"
+                                         if wt_aligned else
+                                         f"周个人统计表内窗口仍为 {wt_start}—{wt_end}，未滚动到本周；"
+                                         f"本周逐人值改由日报逐条聚合，recon 只做同窗对账")},
                   "rank": psy_rank,
                   "header": dept_report["psychology"]["header"],
                   "headerStale": True, "headerAsOf": "2026-09-21",

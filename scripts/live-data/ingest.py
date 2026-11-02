@@ -54,6 +54,7 @@ METRICS = [
     ("psych.parent_interview", "家长访谈", "人次", "day", "psych_v4", "列求和"),
     ("psych.group_session", "团体场次", "场", "day", "psych_visits", "逐条计数"),
     ("psych.group_attendee", "团体参与人次", "人次", "day", "psych_visits", "参加人数求和"),
+    ("psych.group_attend_daily", "日报-活动参与人数", "人次", "day", "psych_v4", "简报「活动参与人数」列求和"),
     ("psych.patient_bind", "新增管床对接", "人", "day", "psych_v4", "对接日期计数"),
     ("psych.ward_round", "团队查房覆盖", "%", "day", "psych_v4", "实际/应查"),
     ("psych.ward_attend", "日报内参加统一查房", "天", "day", "psych_v4", "「是否参加」=是 计 1"),
@@ -476,7 +477,27 @@ def ingest_sheet(c, source, sheet_name, rows, pulled_at):
         fmap = {"report_days": 1, "ward_days": 2, "first": 3, "emotion": 4,
                 "inpatient": 5, "outpatient": 6, "family": 7, "parent": 8,
                 "group_attend": 14, "rate": 19}
-        wk = dept_weeks(c)[3]
+        # ⛔⛔ 2026-11-02 修（跨期错配的根因）：本表的周窗口**由组长手填**（第 3 行
+        #   「周起始日 / 周结束日」，另有 B2 覆盖值），**不会**随 settings.period_anchor
+        #   自动滚动。原实现直接取 dept_weeks(c)[3]＝本周窗口，于是把「上一周的表格内容」
+        #   记到「本周」头上 → 快照 recon 拿本周日报对上周周表，gap 全假
+        #   （首次 −4 / 情绪 −11 / 住院 −14 都是周期差，不是漏填）。
+        #   契约：以表内窗口为准入库；读不到表内窗口才回退本周。
+        weeks = dept_weeks(c)
+        wt_start, wt_end = norm_date(cell(3, 1) if len(rows) > 3 else ""), \
+                           norm_date(cell(3, 3) if len(rows) > 3 else "")
+        wk = None
+        for _a, _b in weeks.values():
+            if _a.isoformat() == wt_start and _b.isoformat() == wt_end:
+                wk = (_a, _b)
+                break
+        if wk is None and wt_start and wt_end:
+            try:
+                wk = (date.fromisoformat(wt_start), date.fromisoformat(wt_end))
+            except Exception:
+                wk = None
+        if wk is None:
+            wk = weeks[3]      # 表内窗口缺失/不可解析时回退本周，并由 build 侧标记不可对账
         for i in range(6, len(rows)):
             r = rows[i]
             name = str((r[0] if len(r) > 0 else "") or "").strip()
@@ -489,8 +510,11 @@ def ingest_sheet(c, source, sheet_name, rows, pulled_at):
                               unit="%" if f == "rate" else None)
 
     elif source == "psych_v4" and sheet_name == "咨询师每日简报":
+        # ⚠ 简报表列序与「日报原始数据」不同：住院 8 / 门诊 9 / 家庭 10 / 家长 11 /
+        #   团体转化 18 / 活动参与 19。活动参与单列采集，供周表未滚动时与周表「团体治疗参与」对账。
         cols = {"psych.first_contact": 6, "psych.emotion_support": 7, "psych.inpatient_consult": 8,
-                "psych.outpatient_consult": 9, "psych.family_consult": 10, "psych.parent_interview": 11}
+                "psych.outpatient_consult": 9, "psych.family_consult": 10, "psych.parent_interview": 11,
+                "psych.group_attend_daily": 19, "psych.group_convert": 18}
         # ⛔ 2026-10-19 修：原实现逐行直接写，row_ref=hkey(日期,姓名)。同一人同一天填了
         #   两条（王沛然 10-14 既有「正常班」又有「测评值班」）时，第二条 INSERT OR REPLACE
         #   会把第一条的有值行覆盖成空 → 情绪支持、住院咨询各少 2（快照 47/23，真值 49/25）。

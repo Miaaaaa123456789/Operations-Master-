@@ -37,7 +37,7 @@
      起因：营收日报补到 10.20 后，原「按数据末日重算」把本期算成 10.19—10.20（2 天），
      财务面板的「当前速度＝累计＋剩余天数×本期日均」与「上一期速度」两组数整段错位一周
      （把 10.12—10.18 当成了上一期）。 */
-  var PERIOD_ANCHOR = '2026-10-25';   // ⭐ 2026-10-26：与 data-import.js 同步，随营收日报推进到 10.25
+  var PERIOD_ANCHOR = '2026-10-26';   // ⭐ 2026-11-02：本期 10.26—11.01，与 data-import.js / 快照 settings 三处同改
   var CUR = ['2026-09-28', '2026-10-11'], PREV = ['2026-09-14', '2026-09-27'];   // 初值；derive() 按数据实际末日重算
   function ymd(x) {
     return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');

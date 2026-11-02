@@ -7,7 +7,7 @@
   'use strict';
 
   var STATE = { snap: null, rev: null, autoScroll: localStorage.getItem('ops.autoscroll') !== 'off' };
-  var WEEK_LABEL = '10.19–10.25';
+  var WEEK_LABEL = '10.26–11.01';
 
   function $(s, root) { return (root || document).querySelector(s); }
   function $$(s, root) { return Array.prototype.slice.call((root || document).querySelectorAll(s)); }
@@ -84,7 +84,7 @@
       ['剩余缺口', f2(m.monthRevenue.gap) + ' 万']
     ];
     /* ⛔ 心理：汇报表该组表头自 2026-09-21 起未滚动（40 人 / 4 场 / 19,002 元 是 9.21—9.27 旧值），
-       已停用；本周一律取 V4 管理表「咨询师每日简报」逐条（10.19—10.25 全 7 天 / 17 条，
+       已停用；本周一律取 V4 管理表「咨询师每日简报」逐条（10.26—11.01 全 7 天 / 17 条，
        咨询 39 / 接触 65 / 团体 2 场 11 人；与「日报原始数据」17 键 × 8 字段零差异）。
        注：原注释把上期值（46 / 84 / 3 场）写成了本周值，2026-10-26 修正。
        客服仍取汇报表「到院接待」（与台账回访是两件事，不互算）。 */
@@ -190,7 +190,7 @@
         var needDaily = remainDays > 0 ? m.monthRevenue.gap / remainDays : null;
         var weekAvg = m.weekRevenue.valueYuan / 10000 / s.period.daysRecorded;
         var overAvg = (needDaily === null) ? null : weekAvg - needDaily;
-        /* ⚠ 2026-10-29：营收日报已跨周（数据至 10.28，本期窗口仍 10.19—10.25）。
+        /* ⚠ 2026-10-29：营收日报已跨周（数据至 10.28，本期窗口仍 10.26—11.01）。
            原写法只说本期 7 天日均，读者看不出新 3 天掉速 → 补「本周进行中」一段。 */
         var _wk = [], _wkPrev = [];
         (s.daily || []).forEach(function (r) {
@@ -224,7 +224,7 @@
       /* 月末推演用元值算（value 已舍入到两位小数，会把 257.77 推成 257.78） */
       var _proj = (m.monthRevenue.valueYuan || (m.monthRevenue.value * 10000)) / 10000 / m.monthRevenue.coverage.recordedDays * 31;
       summary.innerHTML =
-        '<b>本期 ' + s.period.label + '（' + s.period.daysRecorded + ' 天，数据至 ' + s.period.dataThrough + '）· 营收日报（台账）</b>：营收 <b>' + fmt(m.weekRevenue.value, 2) + ' 万</b>（门诊 ' + fmt(m.weekOutpatient.value, 2) + ' ＋ 在院 ' + fmt(m.weekInpatient.value, 2) + '）；' + (dpDoc.revenueWan == null   ? '<b>《特别行动小组汇报表》医生组表头判为混合态（表头总收入 52.6 / 正文 72.5 / 页面此前 50.5 三处对不上，门诊 210 与上一期完全相同），本表本期不引用、只并列</b>；'   : '<b>《特别行动小组汇报表》医生组 10.19—10.25：总收入 ' + dpDoc.revenueWan + ' 万、物理治疗 ' + dpDoc.physioWan + ' 万（占收入 ' + Math.round(dpDoc.physioWan / dpDoc.revenueWan * 1000) / 10 + '%，是收入的科目、不可相加）、入院 ' + dpDoc.admit + ' 人、出院 ' + dpDoc.discharge + ' 人、门诊 ' + dpDoc.outpatient + ' 人次</b>；') + '台账口径入院 <b>' + m.weekAdmit.value + '</b> 人、出院 <b>' + m.weekDischarge.value + '</b> 人、门诊 <b>' + m.weekVisits.value + '</b> 人次；上期同 ' + s.period.daysRecorded + ' 天（' + s.previousPeriod.start + '—' + s.previousPeriod.compareSameDaysEnd + '）<b>' + fmt(m.weekRevenue.valueYuan / (1 + (m.weekRevenue.deltaPct || 0) / 100) / 10000, 2) + ' 万</b>，总量 <b>' + signed(m.weekRevenue.deltaPct) + '%</b>。10 月累计 <b>' + fmt(m.monthRevenue.value, 2) + ' 万</b> / 目标 ' + m.monthRevenue.targetWan + ' 万 = <b>' + m.monthRevenue.amountProgress + '%</b>，时间进度 ' + m.monthRevenue.timeProgress + '%，差 <b>' + signed(Math.round((m.monthRevenue.amountProgress - m.monthRevenue.timeProgress) * 10) / 10) + 'pt</b>，剩余缺口 <b>' + fmt(m.monthRevenue.gap, 2) + ' 万</b>。' + ((_wk && _wk.length && _wkAvg != null) ? ('<b>新一周进行中 ' + _wk[0].date.slice(5).replace('-', '.') + '—' + _wk[_wk.length - 1].date.slice(5).replace('-', '.') + '（' + _wk.length + ' 天）：' + fmt(_wkSum / 10000, 2) + ' 万</b>，日均 <b>' + fmt(_wkAvg, 2) + ' 万</b>'   + (_pSum ? '，较上周同期（' + _wkPrev[0].date.slice(5).replace('-', '.') + '—' + _wkPrev[_wkPrev.length - 1].date.slice(5).replace('-', '.') + '）' + fmt(_pSum / 10000, 2) + ' 万 <b>' + signed(Math.round((_wkSum - _pSum) / _pSum * 1000) / 10) + '%</b>' : '')   + '；按全月日均推演月末 <b>' + fmt(_proj, 2) + ' 万</b>，' + ((_proj) >= m.monthRevenue.targetWan ? '超出目标 <b>' + fmt(_proj - m.monthRevenue.targetWan, 2) + ' 万</b>' : '差目标 <b>' + fmt(m.monthRevenue.targetWan - _proj, 2) + ' 万</b>') + '。') : '') + '在院 <b>' + m.wardCount.value + ' 人</b>（' + (m.wardCount.dataThrough || s.period.dataThrough) + ' 时点，营收日报）——<b>营收日报的入出院/门诊数与主表不同源，本页一律以主表为准</b>。';
+        '<b>本期 ' + s.period.label + '（' + s.period.daysRecorded + ' 天，数据至 ' + s.period.dataThrough + '）· 营收日报（台账）</b>：营收 <b>' + fmt(m.weekRevenue.value, 2) + ' 万</b>（门诊 ' + fmt(m.weekOutpatient.value, 2) + ' ＋ 在院 ' + fmt(m.weekInpatient.value, 2) + '）；' + (dpDoc.revenueWan == null   ? '<b>《特别行动小组汇报表》医生组表头判为混合态（表头总收入 52.6 / 正文 72.5 / 页面此前 50.5 三处对不上，门诊 210 与上一期完全相同），本表本期不引用、只并列</b>；'   : '<b>《特别行动小组汇报表》医生组 10.26—11.01：总收入 ' + dpDoc.revenueWan + ' 万、物理治疗 ' + dpDoc.physioWan + ' 万（占收入 ' + Math.round(dpDoc.physioWan / dpDoc.revenueWan * 1000) / 10 + '%，是收入的科目、不可相加）、入院 ' + dpDoc.admit + ' 人、出院 ' + dpDoc.discharge + ' 人、门诊 ' + dpDoc.outpatient + ' 人次</b>；') + '台账口径入院 <b>' + m.weekAdmit.value + '</b> 人、出院 <b>' + m.weekDischarge.value + '</b> 人、门诊 <b>' + m.weekVisits.value + '</b> 人次；上期同 ' + s.period.daysRecorded + ' 天（' + s.previousPeriod.start + '—' + s.previousPeriod.compareSameDaysEnd + '）<b>' + fmt(m.weekRevenue.valueYuan / (1 + (m.weekRevenue.deltaPct || 0) / 100) / 10000, 2) + ' 万</b>，总量 <b>' + signed(m.weekRevenue.deltaPct) + '%</b>。10 月累计 <b>' + fmt(m.monthRevenue.value, 2) + ' 万</b> / 目标 ' + m.monthRevenue.targetWan + ' 万 = <b>' + m.monthRevenue.amountProgress + '%</b>，时间进度 ' + m.monthRevenue.timeProgress + '%，差 <b>' + signed(Math.round((m.monthRevenue.amountProgress - m.monthRevenue.timeProgress) * 10) / 10) + 'pt</b>，剩余缺口 <b>' + fmt(m.monthRevenue.gap, 2) + ' 万</b>。' + ((_wk && _wk.length && _wkAvg != null) ? ('<b>新一周进行中 ' + _wk[0].date.slice(5).replace('-', '.') + '—' + _wk[_wk.length - 1].date.slice(5).replace('-', '.') + '（' + _wk.length + ' 天）：' + fmt(_wkSum / 10000, 2) + ' 万</b>，日均 <b>' + fmt(_wkAvg, 2) + ' 万</b>'   + (_pSum ? '，较上周同期（' + _wkPrev[0].date.slice(5).replace('-', '.') + '—' + _wkPrev[_wkPrev.length - 1].date.slice(5).replace('-', '.') + '）' + fmt(_pSum / 10000, 2) + ' 万 <b>' + signed(Math.round((_wkSum - _pSum) / _pSum * 1000) / 10) + '%</b>' : '')   + '；按全月日均推演月末 <b>' + fmt(_proj, 2) + ' 万</b>，' + ((_proj) >= m.monthRevenue.targetWan ? '超出目标 <b>' + fmt(_proj - m.monthRevenue.targetWan, 2) + ' 万</b>' : '差目标 <b>' + fmt(m.monthRevenue.targetWan - _proj, 2) + ' 万</b>') + '。') : '') + '在院 <b>' + m.wardCount.value + ' 人</b>（' + (m.wardCount.dataThrough || s.period.dataThrough) + ' 时点，营收日报）——<b>营收日报的入出院/门诊数与主表不同源，本页一律以主表为准</b>。';
     }
   }
 
@@ -283,9 +283,17 @@
     }
     var spec = {
       doctor: {
-        metric: num(dp.doctor && dp.doctor.revenueWan, ' 万'),
-        note: '本期 ' + lab + ' · 汇报表总收入（第 4 周）',
-        foot: '物理 ' + ((dp.doctor && dp.doctor.physioWan) != null ? dp.doctor.physioWan : '—') + ' 万 · 入院 ' + ((dp.doctor && dp.doctor.admit) != null ? dp.doctor.admit : (m.weekAdmit ? m.weekAdmit.value : '—')) + ' · 在院 ' + (m.wardCount ? m.wardCount.value : '—')
+        /* 2026-11-02：汇报表第 5 周整行空白，医生组改用业主《出院结帐明细表》口径。
+           departments.doctor 仍是汇报表口径（全 null），故优先读 departments.doctorWeek。 */
+        metric: (dp.doctorWeek && dp.doctorWeek.totals) ? dp.doctorWeek.totals.revenueWan + ' 万'
+                : num(dp.doctor && dp.doctor.revenueWan, ' 万'),
+        note: (dp.doctorWeek && dp.doctorWeek.totals) ? '本期 ' + lab + ' · 出院结账（7 天）'
+                : '本期 ' + lab + ' · 汇报表总收入',
+        foot: (dp.doctorWeek && dp.doctorWeek.totals)
+                ? '物理 ' + dp.doctorWeek.totals.physioWan + ' 万 · 出院 ' + dp.doctorWeek.totals.discharge
+                  + ' · 在院 ' + dp.doctorWeek.totals.inWard
+                : '物理 ' + ((dp.doctor && dp.doctor.physioWan) != null ? dp.doctor.physioWan : '—')
+                  + ' 万 · 在院 ' + (m.wardCount ? m.wardCount.value : '—')
       },
       psychology: {
         /* 本周唯一口径＝V4 管理表；汇报表该组表头停在 9.21 旧值，已停用 */
@@ -296,11 +304,13 @@
               + (dpPsy.groupPeople != null ? dpPsy.groupPeople + ' 人' : '')
       },
       nursing: {
-        /* 2026-10-26：物理治疗按业主指示暂不更新，主指标改用护理考核表的工作量填报率
-           （纯静态值，快照里还没有 nursing.workFill；等快照补上再改成 num() 取值） */
-        metric: '57.1%',
-        note: '本期 ' + lab + ' · 工作量填报 64/112 格（人均 4.0 天）',
-        foot: '综合首名 67.7 · 质控 60.5% · 6 项 92.8% · 电休克 11 人次'
+        /* 2026-11-02：10.25—10.31 考核表未提交（weeklySubmitted=false），
+           本周一律记 null、不拿 10.18—10.24 存档顶替。补交后快照置 true 自动切回数值。 */
+        metric: dpNur.weeklySubmitted ? (dpNur.workFill != null ? dpNur.workFill + '%' : '—') : '未交',
+        note: dpNur.weeklySubmitted ? '本期 ' + lab + ' · 工作量填报'
+                : '本期 ' + lab + ' · 考核表未提交',
+        foot: dpNur.weeklySubmitted ? '综合首名 ' + (dpNur.topScore != null ? dpNur.topScore : '—')
+                : '本周记 null · 存档值仅作留档'
       },
       service: {
         /* 2026-10-26：客服改用「三张台账」口径（原来读 departments.service.arrived，
@@ -309,13 +319,13 @@
         metric: num(sv.followup, ' 条'),
         note: '本期 ' + lab + ' · 回访（台账至 ' + wd('service') + '）',
         foot: '到院 ' + (sv.arrived != null ? sv.arrived : '—') + ' 人 · '
-              + (sv.rate != null ? sv.rate : '—') + '%（导诊 ' + (sv.guide != null ? sv.guide : '—') + ' 条·止 10.21）'
+              + (sv.rate != null ? sv.rate : '—') + '%（导诊 ' + (sv.guide != null ? sv.guide : '—') + ' 条·6 天）'
       },
       marketing: {
         /* 2026-10-26：管家表已滚到 10.25（7 天），截止日改由快照 watermark 驱动，
            不再写死「至 10.23」；总排名按业主汇总表「权重」列，见 month-dashboard.js */
         metric: num(bt.contact, ' 条'),
-        note: '本期 ' + lab + ' · 管家有效对接（至 ' + wd('butler') + '）',
+        note: '本期 ' + lab + ' · 管家有效对接（7 天，至 ' + wd('butler') + '）',
         foot: '转住院 ' + (bt.admit != null ? bt.admit : '—') + ' · ' + (bt.rate != null ? bt.rate : '—') + '%'
       }
     };
@@ -348,14 +358,20 @@
       /* ⚠ 2026-10-22：doctor 的顺序原先写的是 [[出院,'人'],[物理治疗,'万']]，
          而 DEPT_CARD 的标签已改为「总收入 / 本周入院」→ 页面渲染成
          「总收入 17 人 / 本期入院 32.9 万」。此数组必须与 DEPT_CARD.doctor 的 m1/m2 同序。 */
-      doctor: [[dD.revenueWan, '万'], [dD.physioWan, '万']],
+      /* 2026-11-02：汇报表表头空白时 dD.* 全为 null；改读 doctorWeek（出院结账） */
+      doctor: (dp.doctorWeek && dp.doctorWeek.totals)
+        ? [[dp.doctorWeek.totals.revenueWan, '万'], [dp.doctorWeek.totals.physioWan, '万']]
+        : [[dD.revenueWan, '万'], [dD.physioWan, '万']],
       /* ⚠ 2026-10-26：护理卡 m1/m2 已改为「工作量填报率 / 综合首名」，数据来自
          《护士工作量及质量统计》考核表，快照里没有这两项 → 这里保持 null 不覆盖。
          教训：标签改了、这里还在写旧字段，会出现「标签说完成率、数字是场次」（2026-10-22 踩过）。
          等快照补上 nursing.workFill / nursing.compTop 再把值接回来。 */
       nursing: [[null, '%'], [null, '分']],
       psychology: [[dP.consult, '人次'], [dP.contact, '人次']],
-      service: [[dS.arrived, '人次'], [dS.charity, '人']],
+      /* 2026-11-02：DEPT_CARD 的 m1/m2 已是「回访条数 / 标注到院率」，
+         必须读 service.week，不能再用 departments.service（那是汇报表表头、本周全空） */
+      service: [[(s.service && s.service.week || {}).followup, '条'],
+                [(s.service && s.service.week || {}).rate, '%']],
       marketing: [[bt.contact, '条'], [bt.rate, '%']]
     };
     Object.keys(spec).forEach(function (k) {

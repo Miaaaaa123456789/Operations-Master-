@@ -43,8 +43,12 @@
   }
   function mdPaceAlert(o) {
     var gap = o.gap, base = '截至' + mdPaceDate(o.date) + '金额完成' + o.amt + '%';
+    /* ⚠ 收官后「缺口」必须由 累计−目标 算符号：超额时不能写「缺口 0.00 万 / 未达成」 */
+    var _over = (o.total != null && o.goal) ? (Number(o.total) - Number(o.goal)) : null;
     var tail = o.closed
-      ? ('，' + MD_LABEL_SP + '已收官，缺口 ' + o.remainWan + ' 万元，月度目标未达成。')
+      ? ((_over != null && _over >= 0)
+          ? ('，' + MD_LABEL_SP + '已收官，完成 ' + o.amt + '%，超额 ' + _over.toFixed(2) + ' 万元，月度目标已达成。')
+          : ('，' + MD_LABEL_SP + '已收官，缺口 ' + (_over != null ? Math.abs(_over).toFixed(2) : o.remainWan) + ' 万元，月度目标未达成。'))
       : ('，剩余 ' + o.days + ' 天、日均需 ' + o.need + ' 万元。');
     if (gap == null || !isFinite(gap) || Math.abs(gap) < 0.05)
       return {tone:'blue',icon:'↔',tag:'进度同步',title:'营收进度与时间同步',copy:base + '，与时间进度基本持平' + tail};
@@ -223,36 +227,29 @@ return '本期（'+(_from===_to?_md(_from):(_md(_from)+'—'+_md(_to)))+'）';
       {label:'门诊',value:'70人次'},{label:'入院',value:'1人'},{label:'出院',value:'5人'},{label:'在院',value:'33人'}
     ],
     departments:[
-      /* ⚠ 2026-10-18：五张卡的默认值统一到 snapshot rev5（10.19–10.25），
+      /* ⚠ 2026-10-18：五张卡的默认值统一到 snapshot rev5（10.26–11.01），
          只作「快照没取到」时的兜底；线上真实刷新由 live-sync.js 的 patchMdDepartments 完成。 */
-      {key:'doctor',cls:'doctor',icon:'医',name:'医生组',desc:'住院规模与管床贡献',metric:'58.35 万',note:'本期 10.19–10.25 · 营收台账（7 天满窗）',foot:'物理 16.7 万 · 入院 16 · 出 15'},
-      {key:'nursing',cls:'nursing',icon:'护',name:'护理组',desc:'治疗执行与服务兑现',metric:'92.8%',note:'六项 652 应做 / 605 实做，另电休克 11 人次',foot:'未做 47 人次 · 团体生物反馈 72% 最低 · ECT 11'},
-      {key:'psychology',cls:'psychology',icon:'心',name:'心理咨询组',desc:'咨询承接与收入结构',metric:'65 人次',note:'本期 10.19–10.25 · 患者接触（V4 · 至 10.25，7 天 17 条）',foot:'咨询 39 人次 · 团体 2 场 11 人'},
-      {key:'service',cls:'service',icon:'客',name:'客服服务部',desc:'随访、到院及付费跟踪',metric:'28 条',note:'本期 10.19–10.25 · 回访（表内至 10.25）',foot:'到院 11 · 39.3%'},
+      {key:'doctor',cls:'doctor',icon:'医',name:'医生组',desc:'住院规模与管床贡献',metric:'21.45 万',note:'本期 10.26–11.01 · 出院结账（7 天）',foot:'物理 12.89 万 · 出院 10 · 在院 36'},
+      {key:'nursing',cls:'nursing',icon:'护',name:'护理组',desc:'治疗执行与服务兑现',metric:'未交',note:'本期 10.26–11.01 · 考核表未提交',foot:'最新存档 10.18—10.24 · 工作量 57.1%'},
+      {key:'psychology',cls:'psychology',icon:'心',name:'心理咨询组',desc:'咨询承接与收入结构',metric:'36 人次',note:'本期 10.26–11.01 · 患者接触（V4 · 7 天 17 条）',foot:'咨询 24 人次 · 团体 2 场 12 人'},
+      {key:'service',cls:'service',icon:'客',name:'客服服务部',desc:'随访、到院及付费跟踪',metric:'49 条',note:'本期 10.26–11.01 · 回访（7 天）',foot:'到院 11 · 22.4% · 日均 +69.0%'},
       /* ⚠ 营销组不再挂「营业额」：营业额属全院口径，挂到营销组名下会被读成营销贡献。 */
-      {key:'marketing',cls:'marketing',icon:'营',name:'营销组',desc:'管家、工娱与渠道归集',metric:'87 条',note:'本期 10.19–10.25 · 管家有效对接（至 10.25）',foot:'转住院 14 · 16.1%'}
+      {key:'marketing',cls:'marketing',icon:'营',name:'营销组',desc:'管家、工娱与渠道归集',metric:'92 条',note:'本期 10.26–11.01 · 管家有效对接（7 天）',foot:'转住院 12 · 13.0%'}
     ],
     ranks:{
-      /* ⭐ 2026-10-19 业主指令：医生组首页严格按《特别行动小组汇报表》10.19—10.25 填报条目。
-         排序＝本周入院降序（并列看本周出院），只给原始条数、不算占比——因为表头「入院/门诊/物理/总收入」
-         源表不按人拆，个人正文只有「本周入 X 出 Y」这一句。
-         ⚠ 赵郁莹源表两格空白，记「待补」不记 0；孙乐为住院总医师，记转化/多导，岗位口径不同、不入本题。
-         旧的「出院结帐明细 9.28—10.7」个人业绩排名已整块下架。 */
-      doctor:[['曾凯','医生组','本周入 5 / 出 2 · 全组本周入院最多 · 9 月累计入 14 / 出 12','主表正文 · 本周 10.19—10.25','动态试算'],['康言','医生组','本周入 4 / 出 3 · 9 月累计入 12 / 出 11','主表正文 · 本周 10.19—10.25','动态试算'],['王建','医生组','本周入 4 / 出 2 · 9 月累计入 10 / 出 8','主表正文 · 本周 10.19—10.25','动态试算'],['王建宁','医生组','本周入 3 / 出 5（全组本周出院最多）· 单独转化 1 人 · 9 月累计入 12 / 出 10','主表正文 · 本周 10.19—10.25','动态试算'],['赵郁莹','医生组','本周入 / 出 两格空白（源表未填，不是 0）· 8 月累计入 11 / 出 12','主表正文 · 本周 10.19—10.25','待补'],['孙乐','医生组','住院总医师 · 本周转化 5 / 多导 5 · 10 月累计转化 12 / 多导 11（岗位口径不同，不并入入出院）','主表正文 · 本周 10.19—10.25','岗位口径']],
-      nursing:[['何培培','护理组','综合 0.9432 · 周总 24.93','工作量×质控（源表口径）','动态试算'],['李永鑫','护理组','综合 0.9406 · 周总 25.68','工作量×质控（源表口径）','动态试算'],['沈琳','护理组','综合 0.8764','工作量×质控（源表口径）','动态试算'],['刘佳佳','护理组','综合 0.8640','工作量×质控（源表口径）','动态试算'],['赵雯倩','护理组','综合 0.8596','工作量×质控（源表口径）','动态试算']],
-      psychology:[['蔡宜蓉','心理咨询组','加权 59 · 咨询 15 / 接触 29 · 填报 5 天','V4 简报逐条 · 本周 10.19—10.25（咨询2:接触1）','动态试算'],['冯浩鹏','心理咨询组','加权 48 · 咨询 15 / 接触 18 · 填报 4 天','V4 简报逐条 · 本周 10.19—10.25（咨询2:接触1）','动态试算'],['陈鹏','心理咨询组','加权 13 · 咨询 3 / 接触 7 · 填报 2 天','V4 简报逐条 · 本周 10.19—10.25（咨询2:接触1）','动态试算'],['赵芳','心理咨询组','加权 12 · 咨询 3 / 接触 6 · 填报 3 天','V4 简报逐条 · 本周 10.19—10.25（咨询2:接触1）','动态试算'],['王沛然','心理咨询组','加权 7 · 咨询 2 / 接触 3 · 填报 2 天','V4 简报逐条 · 本周 10.19—10.25（咨询2:接触1）','动态试算'],['史允之','心理咨询组','加权 4 · 咨询 1 / 接触 2 · 填报 1 天','V4 简报逐条 · 本周 10.19—10.25（咨询2:接触1）','动态试算']],
-      service:[['蒋雨','客服服务部','日均 253.0 分 · 在岗 2 天 · 回访 28 条（第 1）','日工作量（按日均）','10.19—10.25'],['温诗怡','客服服务部','日均 160.5 分 · 在岗 2 天（样本偏小）','日工作量（按日均）','10.19—10.25'],['陈宇轩','客服服务部','日均 119.4 分 · 在岗 5 天','日工作量（按日均）','10.19—10.25'],['黄诗棋','客服服务部','日均 116.2 分 · 在岗 5 天 · 主动服务 10 条（第 1）','日工作量（按日均）','10.19—10.25'],['张钰洁','客服服务部','日均 113.4 分 · 在岗 5 天','日工作量（按日均）','10.19—10.25'],['张欣雨','客服服务部','日均 113.4 分 · 在岗 5 天','日工作量（按日均）','10.19—10.25']],
-      /* ⭐ 2026-10-26 业主指令：总排名按业主《心理管家有效客户对接表》的「权重」列。
-         xlsx Sheet1 两个周块 ——
-           10.12-10.18：菲菲 12/1 · 国威 13/2.7 · 金林 18/5.3 · 朱婧 17/4 · 丽娟 20/3，合计 80 / 权重 16
-           10.19-10.25：菲菲 空   · 国威 17/3   · 金林 27/4   · 朱婧 22/4 · 丽娟 21/3，合计 87 / 权重 14
-         本期 87 / 14 与线上 5 张分表逐条完全一致（初诊 18 / 住院 14 亦同）。
-         名次＝权重降序，权重并列按条数：金林 4.0 → 朱婧 4.0 → 利娟 3.0 → 国威 3.0；菲菲未填报 → 待补。
-         ⚠ 上一版把 xlsx 的**上期块**（80 条 / 17 人 / 21.2%）当成了本期，已纠正。
-         ⚠ 线上分表第 10 列标题写「权重」，但本期只在该列 14 个住院行填 1，是住院标记，不是系数。
-         ⚠ 朱婧表第 425、426 行日期写成 2025.10.25，实为 10.25，已按 10.25 计入。 */
-      marketing:[['金林','营销组','权重 4.0（并列第 1）· 有效对接 27 条（全组第 1）· 转住院 4 人（14.8%）· 初诊 5 条 · 出勤 7 天','业主汇总表权重 · 本周 10.19—10.25','动态试算'],['朱婧','营销组','权重 4.0（并列第 1）· 有效对接 22 条 · 转住院 4 人（18.2%，组内最高）· 初诊 2 条 · 出勤 5 天','业主汇总表权重 · 本周 10.19—10.25','动态试算'],['利娟','营销组','权重 3.0（并列第 3）· 有效对接 21 条 · 转住院 3 人（14.3%）· 初诊 6 条（组内最多）· 出勤 7 天','业主汇总表权重 · 本周 10.19—10.25','动态试算'],['国威','营销组','权重 3.0（并列第 3）· 有效对接 17 条 · 转住院 3 人（17.6%）· 初诊 5 条 · 出勤 6 天','业主汇总表权重 · 本周 10.19—10.25','动态试算'],['菲菲','营销组','权重列为空 · 本期未填报（表内最后一行 10.18）· 上期权重 1.0 / 12 条 · 记 null 不按 0','业主汇总表权重 · 本周 10.19—10.25','待补']]
-
+      /* ⭐ 2026-11-02：医生组本周汇报表未滚动 → 排名改按《出院结帐明细表》结算收入降序，
+         只给条数与金额、不算占比；上一期无同源对照，故不写环比。 */
+      doctor:[['王建','医生组','结算 8.30 万 · 出院 3 · 床日 24.0 · 在管 5 · 床日收入 1,152 元','出院结账 · 本周 10.26—11.01（7 天）','动态试算'],['王建宁','医生组','结算 3.86 万 · 出院 1 · 床日 25.0 · 床日收入 1,543 元（组内最高）','出院结账 · 本周 10.26—11.01（7 天）','动态试算'],['曾凯','医生组','结算 3.10 万 · 出院 2 · 床日 14.5 · 在院 7','出院结账 · 本周 10.26—11.01（7 天）','动态试算'],['杜宁','医生组','结算 2.95 万 · 出院 2 · 床日 12.5 · 在院 6','出院结账 · 本周 10.26—11.01（7 天）','动态试算'],['康言','医生组','结算 1.91 万 · 出院 1 · 床日 15.0','出院结账 · 本周 10.26—11.01（7 天）','动态试算'],['邓霏','医生组','结算 1.33 万 · 出院 1 · 床日 9.0 · 床日收入 1,478 元（组内第 2）','出院结账 · 本周 10.26—11.01（7 天）','动态试算'],['傅睿文','医生组','结算 0 万 · 本周无出院 · 在管 3 人（新入 3）','出院结账 · 本周 10.26—11.01（7 天）','在管未出']],
+      /* ⛔ 护理部周报本周未提交 → 不生成排名，不用上周 16 人榜单顶替 */
+      nursing:[['—','护理组','本期周报未提交，16 人排名与综合分不生成','源表未交（最新 10.18—10.24 存档）','待补']],
+      /* 心理：综合分 = 0.667×(咨询÷组内最大) + 0.333×(接触÷组内最大)，百分制；组长陈鹏不参与排名 */
+      psychology:[['蔡宜蓉','心理咨询组','综合 100 · 咨询 14 / 接触 18 · 填报 5 天','V4 简报逐条 · 归一化综合分（咨询 2 : 接触 1）','动态试算'],['赵芳','心理咨询组','综合 30 · 咨询 4 / 接触 6 · 填报 3 天','V4 简报逐条 · 归一化综合分（咨询 2 : 接触 1）','动态试算'],['冯浩鹏','心理咨询组','综合 29 · 咨询 3 / 接触 8 · 填报 3 天','V4 简报逐条 · 归一化综合分（咨询 2 : 接触 1）','动态试算'],['李凌钰','心理咨询组','综合 13 · 咨询 2 / 接触 2 · 填报 2 天','V4 简报逐条 · 归一化综合分（咨询 2 : 接触 1）','动态试算'],['苏欣然','心理咨询组','综合 8 · 咨询 1 / 接触 2 · 填报 1 天','V4 简报逐条 · 归一化综合分（咨询 2 : 接触 1）','动态试算'],['史允之','心理咨询组','综合 0 · 咨询 0 / 接触 0 · 填报 2 天','V4 简报逐条 · 归一化综合分（咨询 2 : 接触 1）','无业务量'],['王沛然','心理咨询组','综合 0 · 咨询 0 / 接触 0 · 填报 1 天（1 条日期误录 2027）','V4 简报逐条 · 归一化综合分（咨询 2 : 接触 1）','无业务量']],
+      /* 客服：本周只有两人在回访台账有记录，按条数排；日工作量逐人明细本周未取到 → 不排名 */
+      service:[['蒋雨','客服服务部','回访 36 条（第 1）· 到院 11 人（全组到院率 22.4%）','标准化回访台账 · 本周 10.26—11.01（7 天）','动态试算'],['温诗怡','客服服务部','回访 13 条 · 到院 0','标准化回访台账 · 本周 10.26—11.01（7 天）','动态试算'],['其他人','客服服务部','本周回访台账无记录 · 日工作量逐人明细待补','标准化回访台账 · 本周 10.26—11.01','待补']],
+      /* ⭐ 2026-11-02：管家组 5 张分表逐条，转住院按「住院」列非空且非否/斜杠计。
+         权重列本周只填 12 格「1」，与 12 人转住院一一对应（每人均 3），属住院标记而非权重打分
+         → 只按条数排、不算权重分，不拿上期 14.0 / 16.0 顶替。 */
+      marketing:[['朱婧','营销组','有效对接 33 条（第 1）· 转住院 3 人（9.1%）','管家分表逐条 · 本周 10.26—11.01（7 天）','动态试算'],['国威','营销组','有效对接 25 条 · 转住院 3 人（12.0%）','管家分表逐条 · 本周 10.26—11.01（7 天）','动态试算'],['金林','营销组','有效对接 17 条（与利娟并列）· 转住院 3 人（17.6%）','管家分表逐条 · 本周 10.26—11.01（7 天）','动态试算'],['利娟','营销组','有效对接 17 条（与金林并列）· 转住院 3 人（17.6%）','管家分表逐条 · 本周 10.26—11.01（7 天）','动态试算'],['菲菲','营销组','本期未填报（分表最后一行 10.18）· 权重列为空 · 记 null 不按 0','管家分表逐条 · 本周 10.26—11.01','待补']]
 
     }
   };
@@ -283,9 +280,10 @@ baseData.kpis=[
       {label:MD_LABEL+'门诊人次',value:String(m.visits),unit:'人次',note:'初诊 '+m.first+'＋复诊 '+m.repeat}
     ];
     var _closed=(x.remainingDays===0);
-    baseData.target={closed:_closed,actual:Number(fmt(m.total)),goal:260,amountRate:Number(x.amountRate.toFixed(1)),timeRate:Number(x.timeRate.toFixed(1)),gap:Number((x.timeRate-x.amountRate).toFixed(1)),days:x.remainingDays,remaining:Number(fmt(x.remaining)),requiredDaily:Number(fmt(x.requiredDaily)),currentDaily:Number(fmt(w.average)),dailyGap:Number(fmt(x.requiredDaily-w.average))};
+    var _tActual=m.total/10000, _tGoal=(window.SEPTEMBER_REVENUE_DATA&&window.SEPTEMBER_REVENUE_DATA.goal)?window.SEPTEMBER_REVENUE_DATA.goal/10000:260;
+    baseData.target={closed:_closed,actual:Number(fmt(m.total)),goal:Number(_tGoal.toFixed(2)),amountRate:Number(x.amountRate.toFixed(1)),timeRate:Number(x.timeRate.toFixed(1)),gap:Number((x.timeRate-x.amountRate).toFixed(1)),days:x.remainingDays,remaining:Number(fmt(Math.max(0,_tGoal-_tActual))),over:Number(Math.max(0,_tActual-_tGoal).toFixed(2)),requiredDaily:Number(fmt(x.requiredDaily)),currentDaily:Number(fmt(w.average)),dailyGap:Number(fmt(x.requiredDaily-w.average))};
     baseData.alerts=[
-      mdPaceAlert({date:last.date,amt:x.amountRate.toFixed(1),gap:x.timeRate-x.amountRate,closed:x.remainingDays===0,remainWan:fmt(x.remaining),days:x.remainingDays,need:fmt(x.requiredDaily)}),
+      mdPaceAlert({date:last.date,amt:x.amountRate.toFixed(1),gap:x.timeRate-x.amountRate,closed:x.remainingDays===0,remainWan:fmt(Math.max(0,x.remaining)),total:m.total/10000,goal:(window.SEPTEMBER_REVENUE_DATA&&window.SEPTEMBER_REVENUE_DATA.goal)?window.SEPTEMBER_REVENUE_DATA.goal/10000:260,days:x.remainingDays,need:fmt(x.requiredDaily)}),
       {tone:'orange',icon:'◆',tag:'结构风险',title:'收入集中在少数高峰日',copy:(function(){var _t=(x.topDays||[]).slice(0,3).map(function(r){return (+r.date.slice(5,7))+'月'+(+r.date.slice(8))+'日'+fmt(r.total)+'万';});return (_t.length?(_t[0]+'为'+MD_LABEL+'内单日最高'+(_t.length>1?('（'+_t.slice(1).join('、')+'次之）'):'')):('（'+MD_LABEL+'内数据不足）'))+'，周末日均'+fmt(x.weekend.average)+'万元，平日日均'+fmt(x.weekday.average)+'万元。';})()},
       {tone:'purple',icon:'＋',tag:'患者池变化',title:'本期患者池'+(w.admissions-dis>=0?'净增':'净减')+Math.abs(w.admissions-dis)+'人',copy:'入院'+w.admissions+'人、出院'+dis+'人，'+(lw.date?md(lw.date):'')+'日终在院'+lw.value+'人。'},
       {tone:'blue',icon:'✓',tag:'已核验',title:m.days+'天累计连续勾稽',copy:MD_LABEL+'1日—'+md(last.date)+'每日合计与累计连续一致；'+MD_LABEL+'内 '+m.days+' 天无缺日。'}
@@ -480,7 +478,7 @@ baseData.kpis=[
     return '<div class="md-dashboard" id="monthCommandCenter">'+
       '<section class="md-hero-grid" aria-label="月累计经营总览">'+
         '<article class="md-card md-summary"><header class="md-card-title"><div><h2>'+MD_LABEL+'经营总览</h2><p>月累计与 '+WEEK+' 关键指标</p></div><span class="md-live"><i></i>每日 09:00 更新</span></header><div class="md-kpis">'+kpis()+'</div></article>'+
-        '<article class="md-card md-target md-click" tabindex="0" role="button" data-md-panel="target"><header class="md-card-title"><div><h2>'+MD_LABEL+'营收目标与预测</h2><p>金额进度与时间进度双轨监测</p></div><span class="md-period-pill">'+MD_PILL+'</span></header><div class="md-amount"><strong>'+esc(data.target.actual)+'</strong><span>／'+esc(data.target.goal)+' 万</span></div><div class="md-progress" aria-label="金额完成 '+esc(data.target.amountRate)+'%，时间进度 '+esc(data.target.timeRate)+'%"><i style="width:'+esc(data.target.amountRate)+'%"></i><u style="left:'+esc(data.target.timeRate)+'%"></u></div><div class="md-progress-label"><div><span>金额完成</span><b>'+esc(data.target.amountRate)+'%</b></div><div><span>时间进度</span><b>'+esc(data.target.timeRate)+'%</b></div><div><span>进度差</span><b class="'+((Number(data.target.gap)>=0)?'warn':'')+'">'+(Number(data.target.gap)>=0?'落后 ':'领先 ')+Math.abs(Number(data.target.gap))+'pt</b></div></div><p class="md-target-copy">'+(data.target.closed?((MD_LABEL_SP+'已收官（'+MD_MDAYS+' 天）：累计 '+esc(data.target.actual)+' 万元，完成目标 '+esc(data.target.amountRate)+'%，<b>缺口 '+esc(data.target.remaining)+' 万元</b>；'+WEEK+'实际日均 '+esc(data.target.currentDaily)+' 万元。')):('剩余 '+esc(data.target.days)+' 天需 '+esc(data.target.remaining)+' 万元，日均需 '+esc(data.target.requiredDaily)+' 万元；'+WEEK+'实际日均 '+esc(data.target.currentDaily)+' 万元，'+((Number(data.target.dailyGap)>0)?('真实缺口 '+esc(data.target.dailyGap)+' 万元。'):('已高于达标日均 '+Math.abs(Number(data.target.dailyGap)).toFixed(2)+' 万元。'))))+'</p>'+(src?'<img class="md-mascot" src="'+esc(src)+'" alt="医院吉祥物">':'')+'</article>'+
+        '<article class="md-card md-target md-click" tabindex="0" role="button" data-md-panel="target"><header class="md-card-title"><div><h2>'+MD_LABEL+'营收目标与预测</h2><p>金额进度与时间进度双轨监测</p></div><span class="md-period-pill">'+MD_PILL+'</span></header><div class="md-amount"><strong>'+esc(data.target.actual)+'</strong><span>／'+esc(data.target.goal)+' 万</span></div><div class="md-progress" aria-label="金额完成 '+esc(data.target.amountRate)+'%，时间进度 '+esc(data.target.timeRate)+'%"><i style="width:'+esc(data.target.amountRate)+'%"></i><u style="left:'+esc(data.target.timeRate)+'%"></u></div><div class="md-progress-label"><div><span>金额完成</span><b>'+esc(data.target.amountRate)+'%</b></div><div><span>时间进度</span><b>'+esc(data.target.timeRate)+'%</b></div><div><span>进度差</span><b class="'+((Number(data.target.gap)>=0)?'warn':'')+'">'+(Number(data.target.gap)>=0?'落后 ':'领先 ')+Math.abs(Number(data.target.gap))+'pt</b></div></div><p class="md-target-copy">'+(data.target.closed?((MD_LABEL_SP+'已收官（'+MD_MDAYS+' 天）：累计 '+esc(data.target.actual)+' 万元，完成目标 '+esc(data.target.amountRate)+'%，<b>'+(Number(data.target.over)>0?('超额 '+esc(data.target.over)+' 万元，月度目标已达成'):('缺口 '+esc(data.target.remaining)+' 万元'))+'</b>；'+WEEK+'实际日均 '+esc(data.target.currentDaily)+' 万元。')):('剩余 '+esc(data.target.days)+' 天需 '+esc(data.target.remaining)+' 万元，日均需 '+esc(data.target.requiredDaily)+' 万元；'+WEEK+'实际日均 '+esc(data.target.currentDaily)+' 万元，'+((Number(data.target.dailyGap)>0)?('真实缺口 '+esc(data.target.dailyGap)+' 万元。'):('已高于达标日均 '+Math.abs(Number(data.target.dailyGap)).toFixed(2)+' 万元。'))))+'</p>'+(src?'<img class="md-mascot" src="'+esc(src)+'" alt="医院吉祥物">':'')+'</article>'+
       '</section>'+
       '<section class="md-alerts" aria-label="重点经营问题">'+alerts()+'</section>'+
       /* 业主 2026-10-18 指示：「部门经营」上提到「10 月经营」正下方（原在营业与转化分析之后，
