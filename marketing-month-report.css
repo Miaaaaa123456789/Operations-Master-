@@ -156,3 +156,133 @@
   .mkt-v2 .mmr-flow-grid{grid-template-columns:1fr 1fr}
   .mkt-v2 .mmr-chan{grid-template-columns:64px 1fr 46px 44px;font-size:10px}
 }
+
+/* ===== 抽屉视图（#octMkt）自动派生：同一套 .mmr 样式，作用域 = .mmr-scope ===== */
+.mkt-v2 .mmr-wrap, .mmr-scope .mmr-wrap{margin:0 0 16px}
+.mkt-v2 .mmr, .mmr-scope .mmr{border:1px solid #dbe7f6;border-radius:20px;background:#fff;box-shadow:0 14px 34px rgba(24,69,126,.08);overflow:hidden}
+.mkt-v2 .mmr-head, .mmr-scope .mmr-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:22px 24px;color:#fff;background:linear-gradient(120deg,#0f2d5c,#1656b4 58%,#2a8fe8)}
+.mkt-v2 .mmr-head-main, .mmr-scope .mmr-head-main{flex:1;min-width:0}
+.mkt-v2 .mmr-kicker, .mmr-scope .mmr-kicker{display:inline-block;padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.16);color:#bfe0ff;font-size:10px;letter-spacing:.1em}
+.mkt-v2 .mmr-head h1, .mmr-scope .mmr-head h1{margin:9px 0 5px;font-size:26px;letter-spacing:-.02em}
+.mkt-v2 .mmr-head p, .mmr-scope .mmr-head p{margin:0;color:rgba(255,255,255,.76);font-size:11.5px;line-height:1.5}
+.mkt-v2 .mmr-stamp, .mmr-scope .mmr-stamp{flex:none;min-width:132px;padding:12px 14px;border-radius:14px;text-align:center;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2)}
+.mkt-v2 .mmr-stamp b, .mmr-scope .mmr-stamp b{display:block;font-size:26px;letter-spacing:-.03em}
+.mkt-v2 .mmr-stamp span, .mmr-scope .mmr-stamp span{display:block;margin-top:3px;font-size:10px;color:rgba(255,255,255,.8)}
+.mkt-v2 .mmr-stamp.ok, .mmr-scope .mmr-stamp.ok{background:rgba(36,181,130,.22);border-color:rgba(120,240,199,.42)}
+.mkt-v2 .mmr-stamp.bad, .mmr-scope .mmr-stamp.bad{background:rgba(216,76,100,.22);border-color:rgba(255,170,186,.42)}
+.mkt-v2 .mmr-kpis, .mmr-scope .mmr-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;padding:18px 24px 0}
+.mkt-v2 .mmr-kpi, .mmr-scope .mmr-kpi{padding:13px;border:1px solid #e2ebf7;border-radius:14px;background:#f8fbff}
+.mkt-v2 .mmr-kpi.main, .mmr-scope .mmr-kpi.main{grid-column:span 1;background:linear-gradient(150deg,#eef6ff,#e3f1ff);border-color:#cfe4ff}
+.mkt-v2 .mmr-kpi label, .mmr-scope .mmr-kpi label{display:block;color:#72809a;font-size:10.5px}
+.mkt-v2 .mmr-kpi strong, .mmr-scope .mmr-kpi strong{display:block;margin-top:7px;color:#172b4d;font-size:22px;letter-spacing:-.02em;white-space:nowrap}
+.mkt-v2 .mmr-kpi strong i, .mmr-scope .mmr-kpi strong i{margin-left:2px;font-size:11px;font-style:normal;font-weight:600;color:#72809a}
+.mkt-v2 .mmr-kpi strong.up, .mmr-scope .mmr-kpi strong.up{color:#0f8a6a}
+.mkt-v2 .mmr-kpi strong.down, .mmr-scope .mmr-kpi strong.down{color:#d84c64}
+.mkt-v2 .mmr-kpi small, .mmr-scope .mmr-kpi small{display:block;margin-top:5px;color:#7b889d;font-size:10px;line-height:1.4}
+.mkt-v2 .mmr-progress, .mmr-scope .mmr-progress{padding:16px 24px 4px}
+.mkt-v2 .mmr-progress-head, .mmr-scope .mmr-progress-head{display:flex;justify-content:space-between;gap:10px;color:#5c6c85;font-size:11px}
+.mkt-v2 .mmr-progress-head b, .mmr-scope .mmr-progress-head b{color:#1a3559;font-size:12px}
+.mkt-v2 .mmr-track, .mmr-scope .mmr-track{position:relative;height:10px;margin-top:9px;border-radius:99px;background:#e8eef7}
+.mkt-v2 .mmr-track i, .mmr-scope .mmr-track i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#1769e8,#24b582)}
+.mkt-v2 .mmr-track u, .mmr-scope .mmr-track u{position:absolute;top:-4px;width:3px;height:18px;margin-left:-3px;border-radius:3px;background:#1a3559}
+.mkt-v2 .mmr-sec, .mmr-scope .mmr-sec{display:flex;align-items:center;gap:9px;margin:20px 24px 10px;color:#1b3459;font-size:14px;font-weight:800}
+.mkt-v2 .mmr-sec i, .mmr-scope .mmr-sec i{width:26px;height:26px;display:grid;place-items:center;border-radius:9px;background:#e8f2ff;color:#1769e8;font-style:normal;font-size:10.5px;font-weight:900}
+.mkt-v2 .mmr-struct, .mmr-scope .mmr-struct{display:grid;grid-template-columns:132px 1fr 1fr;gap:18px;align-items:center;padding:0 24px 4px}
+.mkt-v2 .mmr-ring, .mmr-scope .mmr-ring{width:124px;height:124px;display:grid;place-items:center;border-radius:50%;background:conic-gradient(#24b582 0 var(--o),#2e8ee9 var(--o) 100%)}
+.mkt-v2 .mmr-ring span, .mmr-scope .mmr-ring span{display:grid;place-items:center;width:88px;height:88px;border-radius:50%;background:#fff;color:#1b3459;text-align:center}
+.mkt-v2 .mmr-ring b, .mmr-scope .mmr-ring b{font-size:17px;letter-spacing:-.02em}
+.mkt-v2 .mmr-ring small, .mmr-scope .mmr-ring small{margin-top:2px;color:#7b889d;font-size:9px}
+.mkt-v2 .mmr-legend, .mmr-scope .mmr-legend{display:grid;gap:12px}
+.mkt-v2 .mmr-legend div, .mmr-scope .mmr-legend div{display:grid;grid-template-columns:10px 1fr;gap:9px;align-items:start}
+.mkt-v2 .mmr-legend i, .mmr-scope .mmr-legend i{grid-column:1;grid-row:1/3;width:10px;height:10px;margin-top:3px;border-radius:4px}
+.mkt-v2 .mmr-legend b, .mmr-scope .mmr-legend b{grid-column:2;grid-row:1}
+.mkt-v2 .mmr-legend span, .mmr-scope .mmr-legend span{grid-column:2;grid-row:2}
+.mkt-v2 .mmr-legend i.c1, .mmr-scope .mmr-legend i.c1{background:#24b582}
+.mkt-v2 .mmr-legend i.c2, .mmr-scope .mmr-legend i.c2{background:#2e8ee9}
+.mkt-v2 .mmr-legend b, .mmr-scope .mmr-legend b{color:#203858;font-size:14px}
+.mkt-v2 .mmr-legend span, .mmr-scope .mmr-legend span{margin-top:3px;color:#7b889d;font-size:10px;min-width:0}
+.mkt-v2 .mmr-split, .mmr-scope .mmr-split{padding:12px;border-radius:13px;background:#f7fafd}
+.mkt-v2 .mmr-split>span, .mmr-scope .mmr-split>span{display:block;color:#72809a;font-size:10px}
+.mkt-v2 .mmr-split-row, .mmr-scope .mmr-split-row{display:flex;align-items:baseline;justify-content:space-between;margin-top:8px;color:#203858;font-size:12px}
+.mkt-v2 .mmr-split-row em, .mmr-scope .mmr-split-row em{color:#5c6c85;font-size:11px;font-style:normal}
+.mkt-v2 .mmr-split-bar, .mmr-scope .mmr-split-bar{height:7px;margin:6px 0 2px;border-radius:99px;background:#e2ecf9;overflow:hidden}
+.mkt-v2 .mmr-split-bar i, .mmr-scope .mmr-split-bar i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#f4a32b,#24b582)}
+.mkt-v2 .mmr-split small, .mmr-scope .mmr-split small{display:block;margin-top:8px;color:#7b889d;font-size:9.5px;line-height:1.45}
+.mkt-v2 .mmr-week-wrap, .mmr-scope .mmr-week-wrap{padding:0 24px;overflow-x:auto}
+.mkt-v2 .mmr-table, .mmr-scope .mmr-table{width:100%;min-width:560px;border-collapse:collapse;font-size:11.5px}
+.mkt-v2 .mmr-table th, .mmr-scope .mmr-table th{padding:8px 10px;border-bottom:1px solid #e2ebf7;color:#6f7e95;font-weight:600;text-align:right}
+.mkt-v2 .mmr-table th:first-child, .mmr-scope .mmr-table th:first-child{text-align:left}
+.mkt-v2 .mmr-table td, .mmr-scope .mmr-table td{padding:9px 10px;border-bottom:1px solid #eef3fa;color:#3d506d}
+.mkt-v2 .mmr-table td:first-child b, .mmr-scope .mmr-table td:first-child b{display:block;color:#203858;font-size:11.5px}
+.mkt-v2 .mmr-table td:first-child span, .mmr-scope .mmr-table td:first-child span{display:block;margin-top:2px;color:#8a97ab;font-size:9.5px}
+.mkt-v2 .mmr-table .num, .mmr-scope .mmr-table .num{text-align:right;font-variant-numeric:tabular-nums}
+.mkt-v2 .mmr-table .up, .mmr-scope .mmr-table .up{color:#0f8a6a}
+.mkt-v2 .mmr-table .down, .mmr-scope .mmr-table .down{color:#d84c64}
+.mkt-v2 .mmr-table tr.cur td, .mmr-scope .mmr-table tr.cur td{background:#f3f9ff}
+.mkt-v2 .mmr-table tfoot td, .mmr-scope .mmr-table tfoot td{padding:10px;background:#f3f8ff;color:#1d385e;font-weight:800;border-bottom:0}
+.mkt-v2 .mmr-table tfoot span, .mmr-scope .mmr-table tfoot span{display:block;margin-top:2px;color:#7b889d;font-size:9.5px;font-weight:600}
+.mkt-v2 .mmr-tip, .mmr-scope .mmr-tip{margin:8px 24px 0;color:#8492a7;font-size:10px;line-height:1.6}
+.mkt-v2 .mmr-tip b, .mmr-scope .mmr-tip b{color:#d84c64}
+.mkt-v2 .mmr-flow-grid, .mmr-scope .mmr-flow-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 24px}
+.mkt-v2 .mmr-flow-grid article, .mmr-scope .mmr-flow-grid article{padding:13px;border:1px solid #e2ebf7;border-radius:14px;background:#f8fbff}
+.mkt-v2 .mmr-flow-grid span, .mmr-scope .mmr-flow-grid span{display:block;color:#72809a;font-size:10px}
+.mkt-v2 .mmr-flow-grid strong, .mmr-scope .mmr-flow-grid strong{display:block;margin:7px 0 5px;color:#172b4d;font-size:22px;letter-spacing:-.02em}
+.mkt-v2 .mmr-flow-grid strong i, .mmr-scope .mmr-flow-grid strong i{margin-left:2px;font-size:11px;font-style:normal;color:#72809a}
+.mkt-v2 .mmr-flow-grid small, .mmr-scope .mmr-flow-grid small{display:block;color:#7b889d;font-size:10px;line-height:1.45}
+.mkt-v2 .mmr-flow-grid small b, .mmr-scope .mmr-flow-grid small b{color:#0f8a6a}
+.mkt-v2 .mmr-channels, .mmr-scope .mmr-channels{padding:12px 24px 0}
+.mkt-v2 .mmr-chan, .mmr-scope .mmr-chan{display:grid;grid-template-columns:74px 1fr 54px 52px;gap:10px;align-items:center;margin-bottom:7px;font-size:11px;color:#5c6c85}
+.mkt-v2 .mmr-chan i, .mmr-scope .mmr-chan i{height:8px;border-radius:99px;background:#eef3fa;overflow:hidden}
+.mkt-v2 .mmr-chan u, .mmr-scope .mmr-chan u{display:block;height:100%;border-radius:inherit}
+.mkt-v2 .mmr-chan u.c1, .mmr-scope .mmr-chan u.c1{background:#2e8ee9}
+.mkt-v2 .mmr-chan u.c2, .mmr-scope .mmr-chan u.c2{background:#24b582}
+.mkt-v2 .mmr-chan u.c3, .mmr-scope .mmr-chan u.c3{background:#f4a32b}
+.mkt-v2 .mmr-chan u.c4, .mmr-scope .mmr-chan u.c4{background:#9aa7bb}
+.mkt-v2 .mmr-chan b, .mmr-scope .mmr-chan b{text-align:right;color:#203858}
+.mkt-v2 .mmr-chan em, .mmr-scope .mmr-chan em{text-align:right;color:#7b889d;font-style:normal}
+.mkt-v2 .mmr-bars, .mmr-scope .mmr-bars{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(26px,1fr);align-items:end;gap:5px;height:150px;margin:0 24px;padding-top:8px;border-bottom:1px solid #e2ebf7;overflow-x:auto}
+.mkt-v2 .mmr-bar, .mmr-scope .mmr-bar{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;min-width:0}
+.mkt-v2 .mmr-bar em, .mmr-scope .mmr-bar em{margin-bottom:4px;color:#5c6c85;font-size:8px;font-style:normal;white-space:nowrap}
+.mkt-v2 .mmr-bar i, .mmr-scope .mmr-bar i{width:min(70%,20px);border-radius:5px 5px 1px 1px;background:linear-gradient(#6bbcff,#247bf0)}
+.mkt-v2 .mmr-bar.peak i, .mmr-scope .mmr-bar.peak i{background:linear-gradient(#ffd766,#f4a32b)}
+.mkt-v2 .mmr-bar span, .mmr-scope .mmr-bar span{margin-top:5px;color:#7b889d;font-size:9px}
+.mkt-v2 .mmr-extremes, .mmr-scope .mmr-extremes{display:flex;flex-wrap:wrap;gap:18px;padding:10px 24px 0;font-size:10.5px;color:#7b889d}
+.mkt-v2 .mmr-extremes div, .mmr-scope .mmr-extremes div{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.mkt-v2 .mmr-extremes span, .mmr-scope .mmr-extremes span{padding:2px 8px;border-radius:99px;background:#eef3fa;color:#5c6c85;font-size:9.5px}
+.mkt-v2 .mmr-extremes .hi b, .mmr-scope .mmr-extremes .hi b{color:#c8443f}
+.mkt-v2 .mmr-extremes .lo b, .mmr-scope .mmr-extremes .lo b{color:#0f8a6a}
+.mkt-v2 .mmr-ai, .mmr-scope .mmr-ai{display:grid;gap:9px;padding:0 24px}
+.mkt-v2 .mmr-ai-item, .mmr-scope .mmr-ai-item{display:grid;grid-template-columns:26px 1fr;gap:10px;padding:12px 13px;border-radius:13px;background:#f6f9fd}
+.mkt-v2 .mmr-ai-item>i, .mmr-scope .mmr-ai-item>i{width:26px;height:26px;display:grid;place-items:center;border-radius:8px;background:#e3efff;color:#1769e8;font-style:normal;font-size:11px;font-weight:900}
+.mkt-v2 .mmr-ai-item b, .mmr-scope .mmr-ai-item b{display:block;margin-bottom:3px;color:#1b3459;font-size:11.5px}
+.mkt-v2 .mmr-ai-item p, .mmr-scope .mmr-ai-item p{margin:0;color:#56657c;font-size:11.5px;line-height:1.65}
+.mkt-v2 .mmr-ai-item p b, .mmr-scope .mmr-ai-item p b{display:inline;color:#17365f;font-size:11.5px}
+.mkt-v2 .mmr-actions, .mmr-scope .mmr-actions{display:grid;gap:8px;margin:0;padding:0 24px;list-style:none;counter-reset:mmrA}
+.mkt-v2 .mmr-actions li, .mmr-scope .mmr-actions li{display:grid;grid-template-columns:1fr;gap:3px;padding:11px 13px;border-left:3px solid #2e8ee9;border-radius:0 12px 12px 0;background:#f7fafd}
+.mkt-v2 .mmr-actions b, .mmr-scope .mmr-actions b{color:#1b3459;font-size:11.5px}
+.mkt-v2 .mmr-actions span, .mmr-scope .mmr-actions span{color:#5c6c85;font-size:11px;line-height:1.6}
+.mkt-v2 .mmr-actions span b, .mmr-scope .mmr-actions span b{display:inline;color:#17365f;font-size:11px}
+.mkt-v2 .mmr-note, .mmr-scope .mmr-note{margin:16px 24px 20px;padding:11px 13px;border-radius:11px;background:#f3f7fc;color:#617089;font-size:10px;line-height:1.7}
+.mkt-v2 .mmr-note b, .mmr-scope .mmr-note b{color:#c8443f}
+@media(max-width:1050px){
+  .mkt-v2 .mmr-kpis, .mmr-scope .mmr-kpis{grid-template-columns:repeat(3,1fr)}
+  .mkt-v2 .mmr-struct, .mmr-scope .mmr-struct{grid-template-columns:118px 1fr}
+  .mkt-v2 .mmr-split, .mmr-scope .mmr-split{grid-column:1/-1}
+  .mkt-v2 .mmr-flow-grid, .mmr-scope .mmr-flow-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:720px){
+  .mkt-v2 .mmr-head, .mmr-scope .mmr-head{flex-direction:column;padding:16px}
+  .mkt-v2 .mmr-head h1, .mmr-scope .mmr-head h1{font-size:21px}
+  .mkt-v2 .mmr-stamp, .mmr-scope .mmr-stamp{width:100%;min-width:0;text-align:left;display:flex;align-items:baseline;gap:10px}
+  .mkt-v2 .mmr-stamp span, .mmr-scope .mmr-stamp span{margin-top:0}
+  .mkt-v2 .mmr-kpis, .mmr-scope .mmr-kpis{grid-template-columns:repeat(2,1fr);padding:14px 16px 0}
+  .mkt-v2 .mmr-kpi strong, .mmr-scope .mmr-kpi strong{font-size:19px}
+  .mkt-v2 .mmr-progress, .mkt-v2 .mmr-bars, .mkt-v2 .mmr-week-wrap, .mkt-v2 .mmr-flow-grid, .mkt-v2 .mmr-channels, .mkt-v2 .mmr-ai, .mkt-v2 .mmr-actions, .mmr-scope .mmr-progress, .mmr-scope .mmr-bars, .mmr-scope .mmr-week-wrap, .mmr-scope .mmr-flow-grid, .mmr-scope .mmr-channels, .mmr-scope .mmr-ai, .mmr-scope .mmr-actions{padding-left:16px;padding-right:16px}
+  .mkt-v2 .mmr-bars, .mmr-scope .mmr-bars{margin:0 16px}
+  .mkt-v2 .mmr-sec, .mmr-scope .mmr-sec{margin-left:16px;margin-right:16px;font-size:13px}
+  .mkt-v2 .mmr-tip, .mkt-v2 .mmr-note, .mkt-v2 .mmr-extremes, .mmr-scope .mmr-tip, .mmr-scope .mmr-note, .mmr-scope .mmr-extremes{margin-left:16px;margin-right:16px;padding-left:0;padding-right:0}
+  .mkt-v2 .mmr-struct, .mmr-scope .mmr-struct{grid-template-columns:1fr;padding:0 16px}
+  .mkt-v2 .mmr-ring, .mmr-scope .mmr-ring{margin:0 auto}
+  .mkt-v2 .mmr-flow-grid, .mmr-scope .mmr-flow-grid{grid-template-columns:1fr 1fr}
+  .mkt-v2 .mmr-chan, .mmr-scope .mmr-chan{grid-template-columns:64px 1fr 46px 44px;font-size:10px}
+}

@@ -315,16 +315,23 @@
   }
 
   /* ---------------------------------------------------------------- 抽屉 */
-  function setDrawer(open) {
-    if (open) {
-      document.body.classList.add('srd-open');
-      var btn = el('sepReportBtn');
-      if (btn) btn.setAttribute('aria-expanded', 'true');
-    } else {
-      document.body.classList.remove('srd-open');
-      var b2 = el('sepReportBtn');
-      if (b2) b2.setAttribute('aria-expanded', 'false');
-    }
+  /* ⭐ 2026-11-02：抽屉有两个视图
+       · mkt = 10 月营销月报（默认，业主指定「折叠到右上角绿色抽屉」）
+       · sep = 9 月整月经营报告（原内容，保留入口）
+     两者同一个右滑面板，互斥由 body.mkt-view 控制，切换在左下角 #srSwitch。 */
+  var DRAWER_VIEW = 'mkt';
+  function setDrawer(open, view) {
+    if (view) DRAWER_VIEW = view;
+    document.body.classList.toggle('srd-open', !!open);
+    document.body.classList.toggle('mkt-view', !!open && DRAWER_VIEW === 'mkt');
+    var btn = el('sepReportBtn');
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    var sw = el('srSwitch');
+    if (sw) Array.prototype.forEach.call(sw.querySelectorAll('[data-view]'), function (b) {
+      var on = b.getAttribute('data-view') === DRAWER_VIEW;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
   }
 
   function initDrawer() {
@@ -334,7 +341,17 @@
 
     if (btn) {
       btn.addEventListener('click', function () {
-        setDrawer(!document.body.classList.contains('srd-open'));
+        var open = document.body.classList.contains('srd-open');
+        /* 关闭后再打开，回到默认的「10 月营销月报」 */
+        setDrawer(!open, open ? DRAWER_VIEW : 'mkt');
+      });
+    }
+    var sw = el('srSwitch');
+    if (sw) {
+      sw.addEventListener('click', function (e) {
+        var b = e.target.closest ? e.target.closest('[data-view]') : null;
+        if (!b) return;
+        setDrawer(true, b.getAttribute('data-view'));
       });
     }
     if (backdrop) backdrop.addEventListener('click', function () { setDrawer(false); });

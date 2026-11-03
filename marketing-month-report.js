@@ -17,8 +17,11 @@
 (function () {
   'use strict';
 
-  var host = document.querySelector('.mkt-v2');
-  if (!host) return;
+  /* ⭐ 2026-11-02 业主：「10 月营销数据折叠到右上角绿色抽屉」。
+     本模块原先挂在营销面板 .mkt-content 顶部（一进营销看板先看到一屏月报），
+     现改挂主页右上角绿色抽屉里的 #octMkt；营销面板回到「本周」视图。
+     ⚠ 不再依赖 .mkt-v2 —— 该节点要打开营销面板才生成，早期 if(!host)return 会让
+       抽屉永远空着。 */
   var D = window.SEPTEMBER_REVENUE_DATA;
   if (!D || typeof D.derive !== 'function' || !D.rows) return;
 
@@ -207,7 +210,7 @@
         '<tbody>' + weekRows(a) + '</tbody>' +
         '<tfoot><tr><td><b>全月</b><span>' + m.days + ' 天</span></td><td class="num">' + wan(m.total) + '</td><td class="num">' + wan(m.average) + '</td><td class="num">100%</td><td class="num">—</td><td class="num">' + m.admissions + ' / ' + m.discharges + '</td></tr></tfoot>' +
       '</table></div>' +
-      '<p class="mmr-tip">天数不同的周只比<b>日均</b>，不比总额；10.26—10.31 为 6 天（缺 11.01），未并入达标判断。</p>' +
+      '<p class="mmr-tip">天数不同的周只比<b>日均</b>，不比总额；10.26—10.31 为月内裁剪 6 天（11.01 属 11 月，不并入 10 月）。</p>' +
 
       '<h3 class="mmr-sec"><i>03</i>获客与转化（当月累计）</h3>' +
       '<div class="mmr-flow-grid">' +
@@ -256,26 +259,21 @@
   }
 
   function mount() {
-    var content = host.querySelector('.mkt-content');
-    if (!content) return;
-    var old = content.querySelector('.mmr-wrap');
-    if (old) old.parentNode.removeChild(old);
-    var box = document.createElement('div');
-    box.className = 'mmr-wrap';
-    box.innerHTML = html();
-    content.insertBefore(box, content.firstChild);
+    var box = document.getElementById('octMkt');
+    if (!box) return;
+    box.innerHTML = '<div class="mmr-scope"><div class="mmr-wrap">' + html() + '</div></div>';
   }
 
   mount();
-  /* .mkt-content 由 marketing-redesign.js 生成：若本脚本先于它执行，轮询补挂（最多约 8s） */
+  /* #octMkt 由 index.html 静态声明，正常已存在；若脚本先于 DOM 就绪则轮询补齐（最多约 8s） */
   var tries = 0;
   var timer = setInterval(function () {
-    var c = host.querySelector('.mkt-content');
-    if (c && !c.querySelector('.mmr-wrap')) mount();
-    if ((c && c.querySelector('.mmr-wrap')) || ++tries > 40) clearInterval(timer);
+    var box = document.getElementById('octMkt');
+    if (box && !box.querySelector('.mmr-wrap')) mount();
+    if ((box && box.querySelector('.mmr-wrap')) || ++tries > 40) clearInterval(timer);
   }, 200);
-  /* 主报告每次重绘都会整体替换 .mkt-content → 必须跟着重挂 */
+  /* 营收数据更新 → 重算（月报每个数都从数据层派生） */
   window.addEventListener('september-revenue-updated', function () { setTimeout(mount, 0); });
   window.addEventListener('ops:revenue-updated', function () { setTimeout(mount, 0); });
-  window.MARKETING_MONTH_REPORT = { mount: mount, build: build };
+  window.MARKETING_MONTH_REPORT = { mount: mount, build: build, html: html };
 })();

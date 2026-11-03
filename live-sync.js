@@ -239,8 +239,8 @@
          物理治疗仍取汇报表正文 16.7 万（该科目台账没有拆分）。 */
       doctor: [['本周总收入', m.weekRevenue ? m.weekRevenue.value : null, '万'],
                ['物理治疗', (d.doctor || {}).physioWan, '万']],
-      nursing: [['物理治疗人数', d.nursing ? d.nursing.physioPeople : null, '人次'],
-                ['工娱（场/人次）', d.nursing ? d.nursing.recreationSessions + '/' + d.nursing.recreationPeople : null, '']],
+      nursing: [['六项完成率', d.nursing && d.nursing.treatSummary ? d.nursing.treatSummary.rate : null, '%'],
+                ['实做人次', d.nursing && d.nursing.treatSummary ? d.nursing.treatSummary.done : null, '人次']],
       psychology: [['咨询工作量', p.week ? p.week.consult : null, '人次'],
                    ['患者接触', p.week ? p.week.contact : null, '人次']],
       service: [['回访台账', sv.week ? sv.week.followup : null, '条'],
@@ -304,13 +304,16 @@
               + (dpPsy.groupPeople != null ? dpPsy.groupPeople + ' 人' : '')
       },
       nursing: {
-        /* 2026-11-02：10.25—10.31 考核表未提交（weeklySubmitted=false），
-           本周一律记 null、不拿 10.18—10.24 存档顶替。补交后快照置 true 自动切回数值。 */
-        metric: dpNur.weeklySubmitted ? (dpNur.workFill != null ? dpNur.workFill + '%' : '—') : '未交',
-        note: dpNur.weeklySubmitted ? '本期 ' + lab + ' · 工作量填报'
+        /* 2026-11-02：本期考核表已交（10.26—11.01，7 天 / 17 行），
+           五卡主指标改取六项治疗完成率；未交时仍退回「未交」。 */
+        metric: dpNur.weeklySubmitted
+          ? ((dpNur.treatSummary && dpNur.treatSummary.rate != null) ? dpNur.treatSummary.rate + '%' : '已交')
+          : '未交',
+        note: dpNur.weeklySubmitted ? '本期 ' + lab + ' · 六项治疗完成率'
                 : '本期 ' + lab + ' · 考核表未提交',
-        foot: dpNur.weeklySubmitted ? '综合首名 ' + (dpNur.topScore != null ? dpNur.topScore : '—')
-                : '本周记 null · 存档值仅作留档'
+        foot: dpNur.weeklySubmitted
+          ? '630 / 699 · 未做 ' + ((dpNur.treatSummary && dpNur.treatSummary.missed != null) ? dpNur.treatSummary.missed : '—')
+          : '本周记 null · 存档值仅作留档'
       },
       service: {
         /* 2026-10-26：客服改用「三张台账」口径（原来读 departments.service.arrived，
@@ -362,11 +365,11 @@
       doctor: (dp.doctorWeek && dp.doctorWeek.totals)
         ? [[dp.doctorWeek.totals.revenueWan, '万'], [dp.doctorWeek.totals.physioWan, '万']]
         : [[dD.revenueWan, '万'], [dD.physioWan, '万']],
-      /* ⚠ 2026-10-26：护理卡 m1/m2 已改为「工作量填报率 / 综合首名」，数据来自
-         《护士工作量及质量统计》考核表，快照里没有这两项 → 这里保持 null 不覆盖。
-         教训：标签改了、这里还在写旧字段，会出现「标签说完成率、数字是场次」（2026-10-22 踩过）。
-         等快照补上 nursing.workFill / nursing.compTop 再把值接回来。 */
-      nursing: [[null, '%'], [null, '分']],
+      /* 2026-11-02：护理卡 m1/m2 已改为「六项完成率 / 实做人次」，
+         数据取本期考核表 treatSummary（weeklySubmitted=true 时有效）。 */
+      nursing: (dN.weeklySubmitted && dN.treatSummary)
+        ? [[dN.treatSummary.rate, '%'], [dN.treatSummary.done, '人次']]
+        : [[null, '%'], [null, '分']],
       psychology: [[dP.consult, '人次'], [dP.contact, '人次']],
       /* 2026-11-02：DEPT_CARD 的 m1/m2 已是「回访条数 / 标注到院率」，
          必须读 service.week，不能再用 departments.service（那是汇报表表头、本周全空） */

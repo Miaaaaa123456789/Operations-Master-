@@ -493,3 +493,66 @@ body.nsd-open .nsd-close { display: flex; }
   .npr-scrollhint { display: block; margin: 0 0 8px; font-size: 11px; color: var(--muted); }
   .npr-card .rk-table { min-width: 520px; }
 }
+
+/* ---------- 1c. 抽屉第二视图：10 月营销月报（#octMkt） ----------
+   业主 2026-11-02：「10 月营销数据折叠到右上角绿色抽屉」。
+   与 #sepReport 同一套右滑动画，两个视图互斥（body.mkt-view 决定显示哪个）。 */
+#octMkt {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(1020px, 95vw);
+  margin: 0;
+  padding: 0 26px 72px;
+  z-index: 301;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #F4F7FB;
+  transform: translateX(103%);
+  visibility: hidden;
+  transition: transform .32s cubic-bezier(.4, 0, .2, 1), visibility 0s .32s;
+  box-shadow: -24px 0 64px rgba(6, 40, 96, .22);
+}
+body.srd-open.mkt-view #octMkt {
+  transform: none;
+  visibility: visible;
+  transition: transform .32s cubic-bezier(.4, 0, .2, 1), visibility 0s 0s;
+}
+/* 营销视图打开时，把九月报告推到屏幕外（两者的 transform/visibility 都要压住） */
+body.srd-open.mkt-view #sepReport {
+  transform: translateX(103%);
+  visibility: hidden;
+  transition: transform .32s cubic-bezier(.4, 0, .2, 1), visibility 0s .32s;
+}
+#octMkt .mmr-wrap { margin: 20px 0 16px; }
+
+/* 抽屉内容切换（左下角） */
+.srd-switch {
+  position: fixed;
+  left: 26px;
+  bottom: 18px;
+  z-index: 302;
+  display: none;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--line, #dfe6f0);
+  box-shadow: 0 3px 12px rgba(6, 40, 96, .16);
+}
+body.srd-open .srd-switch { display: flex; }
+.srd-switch button {
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font: 700 12px/1.2 inherit;
+  color: #5A6478;
+  cursor: pointer;
+}
+.srd-switch button.on { background: #12A150; color: #fff; }
+@media (max-width: 720px) {
+  #octMkt { padding: 0 12px 72px; }
+  .srd-switch { left: 12px; bottom: 12px; }
+}
