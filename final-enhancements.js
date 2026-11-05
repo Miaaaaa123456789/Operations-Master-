@@ -148,6 +148,9 @@
        汇报表同项 167.70 万只滚到 10.18，仍并存标注、不互相覆盖。
        ⚠ 旧注释「日报只到 10.17、比汇报表少一天」已失效，别再据此改回汇报表口径。 */
     var _mr=((window.OPS_LIVE_SNAPSHOT||{}).metrics||{}).monthRevenue||null;
+    /* ⚠ 2026-11-04：monthRevenue 已切 11 月，而本侧栏标签是 FE_LAB（10 月）；
+       月份不符时退回 s.derive()，否则会出现「10月营收目标进度（至 11月2日）8.5%」。 */
+    if(_mr&&_mr.periodStart&&_mr.periodStart.slice(0,7)!==FE_MONTH)_mr=null;
     var _auth=!!(_mr&&_mr.amountProgress!=null&&(_mr.authority==='action_report'||_mr.authority==='revenue_daily_report'));
     var _dt=((window.OPS_LIVE_SNAPSHOT||{}).watermarks||{}).dept||null;
     var rate=_auth?_mr.amountProgress:s.derive().amountRate;
@@ -155,7 +158,8 @@
     var b=box.querySelector('.side-goal-track b');
     if(b)b.style.width=Math.min(100,Math.max(0,rate)).toFixed(1)+'%';
     var sm=box.querySelector('small');
-    if(sm)sm.textContent=FE_LAB+'营收目标进度（至 '+((_auth&&_mr.dataThrough)?mdOf(_mr.dataThrough):(mdOf(s.updatedThrough)||'—'))+'）';
+    var _mCut=(function(){var rr=(s.rows||[]).filter(function(r){return String(r.date).indexOf(FE_MONTH)===0;});return rr.length?rr[rr.length-1].date:(s.updatedThrough||'');})();
+    if(sm)sm.textContent=FE_LAB+'营收目标进度（至 '+((_auth&&_mr.dataThrough)?mdOf(_mr.dataThrough):(mdOf(_mCut)||'—'))+'）';
     /* ⚠⚠ 2026-10-07 修：「目标风险 高」原先是**写死**的字符串，不随数据滚动。
        实测 10.6 口径下完成率 22.0% 已**高于**时间进度 19.4%（领先 2.6pt），
        侧栏却仍报「高」，与经营问题总览的「领先 2.6pt」自相矛盾。

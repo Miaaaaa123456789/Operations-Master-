@@ -8,6 +8,17 @@
 
   var STATE = { snap: null, rev: null, autoScroll: localStorage.getItem('ops.autoscroll') !== 'off' };
   var WEEK_LABEL = '10.26–11.01';
+  /* 2026-11-04：切到 11 月后，原先写死的「31 天」「10 月累计」会全错（11 月 30 天）。
+     统一由 snapshot.month / monthRevenue.label 派生，换月不再满页找常量。 */
+  function monthDays(s) {
+    var p = String((s && s.month) || '').split('-');
+    return p.length === 2 ? new Date(Date.UTC(+p[0], +p[1], 0)).getUTCDate() : 31;
+  }
+  function shortD(d) { return (+d.slice(5, 7)) + '.' + (+d.slice(8, 10)); }
+  function monthCumLabel(m) {
+    var t = (m && m.label) || '';
+    return t.replace(/营收$/, '') || '当月累计';
+  }
 
   function $(s, root) { return (root || document).querySelector(s); }
   function $$(s, root) { return Array.prototype.slice.call((root || document).querySelectorAll(s)); }
@@ -78,7 +89,7 @@
       ['出院', m.weekDischarge.value + ' 人'],
       ['在院人数', m.wardCount.value + ' 人'],
       ['门诊人次', m.weekVisits.value + ' 人次'],
-      ['10月累计', f2(m.monthRevenue.value) + ' 万'],
+      [monthCumLabel(m.monthRevenue), f2(m.monthRevenue.value) + ' 万'],
       ['目标完成', m.monthRevenue.amountProgress + '%'],
       ['时间进度', m.monthRevenue.timeProgress + '%'],
       ['剩余缺口', f2(m.monthRevenue.gap) + ' 万']
@@ -167,7 +178,15 @@
 
     var target = $('.ov-target');
     if (target) {
-      setText(target.querySelector('.ov-chip'), '10月1日—' + (s.period.dataThrough ? ('10月' + Number(s.period.dataThrough.slice(8, 10)) + '日') : '10月20日') + ' · 营收日报');
+      /* ⚠ 2026-11-04：原先标题写死「10月」、区间也拼「10月」，切到 11 月后变成
+         「10月营收目标进度 / 10月1日—10月2日」却显示 21.97 万 —— 月份一律跟 monthRevenue 走。 */
+      var _ms = m.monthRevenue.periodStart || (s.month + '-01');
+      var _me = m.monthRevenue.periodEnd || s.period.dataThrough || _ms;
+      var _mL = (+_ms.slice(5, 7)) + '月';
+      var _h2 = target.querySelector('.ov-t-head h2');
+      if (_h2) setText(_h2, _mL + '营收目标进度');
+      setText(target.querySelector('.ov-chip'),
+        _mL + (+_ms.slice(8, 10)) + '日—' + _mL + (+_me.slice(8, 10)) + '日 · 营收日报');
       var amt = target.querySelector('.ov-amount strong');
       setText(amt, fmt(m.monthRevenue.value, 2));
       var em = target.querySelector('.ov-amount em');
@@ -186,25 +205,38 @@
       }
       var gapEl = target.querySelector('.ov-gap');
       if (gapEl) {
-        var remainDays = 31 - Number((s.period.dataThrough || '').slice(8, 10) || 0);
+        var remainDays = monthDays(s) - Number((s.period.dataThrough || '').slice(8, 10) || 0);
         var needDaily = remainDays > 0 ? m.monthRevenue.gap / remainDays : null;
         var weekAvg = m.weekRevenue.valueYuan / 10000 / s.period.daysRecorded;
         var overAvg = (needDaily === null) ? null : weekAvg - needDaily;
         /* ⚠ 2026-10-29：营收日报已跨周（数据至 10.28，本期窗口仍 10.26—11.01）。
            原写法只说本期 7 天日均，读者看不出新 3 天掉速 → 补「本周进行中」一段。 */
-        var _wk = [], _wkPrev = [];
+        var _wk = [], _byDate = {};
         (s.daily || []).forEach(function (r) {
+          _byDate[r.date] = r;
           if (r.date > (s.period.end || '')) _wk.push(r);
-          else if (r.date >= (s.period.start || '') && r.date <= (s.period.end || '')) _wkPrev.push(r);
         });
-        _wkPrev = _wkPrev.slice(0, _wk.length);
-        var _wkSum = 0, _pSum = 0;
-        _wk.forEach(function (r) { _wkSum += Number(r.total || 0); });
-        _wkPrev.forEach(function (r) { _pSum += Number(r.total || 0); });
+        /* 上期对照只取「同一星期几的前 7 天」，且该日必须在快照 daily 里看得到。
+           快照 daily 只保留当月 —— 跨月时 10.26 取不到，就置空、不做环比：
+           新一周没满 7 天，本来也不该下增减结论（口径铁律）。 */
+        var _wkSum = 0, _pSum = 0, _pN = 0;
+        _wk.forEach(function (r) {
+          _wkSum += Number(r.total || 0);
+          var t = new Date(r.date + 'T00:00:00Z');
+          t.setUTCDate(t.getUTCDate() - 7);
+          var q = _byDate[t.toISOString().slice(0, 10)];
+          if (q) { _pSum += Number(q.total || 0); _pN++; }
+        });
         var _wkAvg = _wk.length ? _wkSum / _wk.length / 10000 : null;
+        var _wkLab = !_wk.length ? '' : (_wk.length === 1
+          ? shortD(_wk[0].date) : shortD(_wk[0].date) + '—' + shortD(_wk[_wk.length - 1].date));
         gapEl.innerHTML = '剩余 <b>' + remainDays + '</b> 天需 <b>' + fmt(m.monthRevenue.gap, 2) + ' 万</b>，日均需 <b>' + (needDaily === null ? '—' : fmt(needDaily, 2) + ' 万') + '</b>；本期（' + s.period.label + '，7 天，营收日报口径）日均 <b>' + fmt(weekAvg, 2) + ' 万</b>'
           + (overAvg === null ? '' : (overAvg >= 0 ? '，已高于达标日均 <b>' + fmt(overAvg, 2) + ' 万</b>' : '，低于达标日均 <b>' + fmt(-overAvg, 2) + ' 万</b>'))
-          + (_wkAvg === null ? '' : '；新一周（' + _wk[0].date.slice(5).replace('-', '.') + '—' + _wk[_wk.length - 1].date.slice(5).replace('-', '.') + '，' + _wk.length + ' 天）日均仅 <b>' + fmt(_wkAvg, 2) + ' 万</b>')
+          + (_wkAvg === null ? '' : '；新一周（' + _wkLab + '，已录 ' + _wk.length + ' 天）合计 <b>' + fmt(_wkSum / 10000, 2) + ' 万</b>'
+            + (_wk.length > 1 ? '、日均 <b>' + fmt(_wkAvg, 2) + ' 万</b>' : '')
+            + (_pN === _wk.length && _pN
+                ? '，较上周同星期 ' + fmt(_pSum / 10000, 2) + ' 万 ' + signed(Math.round((_wkSum - _pSum) / Math.max(1, _pSum) * 1000) / 10) + '%'
+                : '；周内未满，不做环比'))
           + '。';
       }
     }
@@ -222,9 +254,11 @@
     if (summary) {
       var avg = m.weekRevenue.valueYuan / 10000 / s.period.daysRecorded;
       /* 月末推演用元值算（value 已舍入到两位小数，会把 257.77 推成 257.78） */
-      var _proj = (m.monthRevenue.valueYuan || (m.monthRevenue.value * 10000)) / 10000 / m.monthRevenue.coverage.recordedDays * 31;
+      var _proj = (m.monthRevenue.valueYuan || (m.monthRevenue.value * 10000)) / 10000 / m.monthRevenue.coverage.recordedDays * monthDays(s);
       summary.innerHTML =
-        '<b>本期 ' + s.period.label + '（' + s.period.daysRecorded + ' 天，数据至 ' + s.period.dataThrough + '）· 营收日报（台账）</b>：营收 <b>' + fmt(m.weekRevenue.value, 2) + ' 万</b>（门诊 ' + fmt(m.weekOutpatient.value, 2) + ' ＋ 在院 ' + fmt(m.weekInpatient.value, 2) + '）；' + (dpDoc.revenueWan == null   ? '<b>《特别行动小组汇报表》医生组表头判为混合态（表头总收入 52.6 / 正文 72.5 / 页面此前 50.5 三处对不上，门诊 210 与上一期完全相同），本表本期不引用、只并列</b>；'   : '<b>《特别行动小组汇报表》医生组 10.26—11.01：总收入 ' + dpDoc.revenueWan + ' 万、物理治疗 ' + dpDoc.physioWan + ' 万（占收入 ' + Math.round(dpDoc.physioWan / dpDoc.revenueWan * 1000) / 10 + '%，是收入的科目、不可相加）、入院 ' + dpDoc.admit + ' 人、出院 ' + dpDoc.discharge + ' 人、门诊 ' + dpDoc.outpatient + ' 人次</b>；') + '台账口径入院 <b>' + m.weekAdmit.value + '</b> 人、出院 <b>' + m.weekDischarge.value + '</b> 人、门诊 <b>' + m.weekVisits.value + '</b> 人次；上期同 ' + s.period.daysRecorded + ' 天（' + s.previousPeriod.start + '—' + s.previousPeriod.compareSameDaysEnd + '）<b>' + fmt(m.weekRevenue.valueYuan / (1 + (m.weekRevenue.deltaPct || 0) / 100) / 10000, 2) + ' 万</b>，总量 <b>' + signed(m.weekRevenue.deltaPct) + '%</b>。10 月累计 <b>' + fmt(m.monthRevenue.value, 2) + ' 万</b> / 目标 ' + m.monthRevenue.targetWan + ' 万 = <b>' + m.monthRevenue.amountProgress + '%</b>，时间进度 ' + m.monthRevenue.timeProgress + '%，差 <b>' + signed(Math.round((m.monthRevenue.amountProgress - m.monthRevenue.timeProgress) * 10) / 10) + 'pt</b>，剩余缺口 <b>' + fmt(m.monthRevenue.gap, 2) + ' 万</b>。' + ((_wk && _wk.length && _wkAvg != null) ? ('<b>新一周进行中 ' + _wk[0].date.slice(5).replace('-', '.') + '—' + _wk[_wk.length - 1].date.slice(5).replace('-', '.') + '（' + _wk.length + ' 天）：' + fmt(_wkSum / 10000, 2) + ' 万</b>，日均 <b>' + fmt(_wkAvg, 2) + ' 万</b>'   + (_pSum ? '，较上周同期（' + _wkPrev[0].date.slice(5).replace('-', '.') + '—' + _wkPrev[_wkPrev.length - 1].date.slice(5).replace('-', '.') + '）' + fmt(_pSum / 10000, 2) + ' 万 <b>' + signed(Math.round((_wkSum - _pSum) / _pSum * 1000) / 10) + '%</b>' : '')   + '；按全月日均推演月末 <b>' + fmt(_proj, 2) + ' 万</b>，' + ((_proj) >= m.monthRevenue.targetWan ? '超出目标 <b>' + fmt(_proj - m.monthRevenue.targetWan, 2) + ' 万</b>' : '差目标 <b>' + fmt(m.monthRevenue.targetWan - _proj, 2) + ' 万</b>') + '。') : '') + '在院 <b>' + m.wardCount.value + ' 人</b>（' + (m.wardCount.dataThrough || s.period.dataThrough) + ' 时点，营收日报）——<b>营收日报的入出院/门诊数与主表不同源，本页一律以主表为准</b>。';
+        '<b>本期 ' + s.period.label + '（' + s.period.daysRecorded + ' 天，数据至 ' + s.period.dataThrough + '）· 营收日报（台账）</b>：营收 <b>' + fmt(m.weekRevenue.value, 2) + ' 万</b>（门诊 ' + fmt(m.weekOutpatient.value, 2) + ' ＋ 在院 ' + fmt(m.weekInpatient.value, 2) + '）；' + (dpDoc.revenueWan == null   ? '<b>《特别行动小组汇报表》医生组表头判为混合态（表头总收入 52.6 / 正文 72.5 / 页面此前 50.5 三处对不上，门诊 210 与上一期完全相同），本表本期不引用、只并列</b>；'   : '<b>《特别行动小组汇报表》医生组 10.26—11.01：总收入 ' + dpDoc.revenueWan + ' 万、物理治疗 ' + dpDoc.physioWan + ' 万（占收入 ' + Math.round(dpDoc.physioWan / dpDoc.revenueWan * 1000) / 10 + '%，是收入的科目、不可相加）、入院 ' + dpDoc.admit + ' 人、出院 ' + dpDoc.discharge + ' 人、门诊 ' + dpDoc.outpatient + ' 人次</b>；') + '台账口径入院 <b>' + m.weekAdmit.value + '</b> 人、出院 <b>' + m.weekDischarge.value + '</b> 人、门诊 <b>' + m.weekVisits.value + '</b> 人次；上期同 ' + s.period.daysRecorded + ' 天（' + s.previousPeriod.start + '—' + s.previousPeriod.compareSameDaysEnd + '）<b>' + fmt((m.weekRevenue.prevValueYuan != null ? m.weekRevenue.prevValueYuan : m.weekRevenue.valueYuan / (1 + (m.weekRevenue.deltaPct || 0) / 100)) / 10000, 2) + ' 万</b>，总量 <b>' + signed(m.weekRevenue.deltaPct) + '%</b>。' + monthCumLabel(m.monthRevenue) + ' <b>' + fmt(m.monthRevenue.value, 2) + ' 万</b> / 目标 ' + m.monthRevenue.targetWan + ' 万 = <b>' + m.monthRevenue.amountProgress + '%</b>，时间进度 ' + m.monthRevenue.timeProgress + '%，差 <b>' + signed(Math.round((m.monthRevenue.amountProgress - m.monthRevenue.timeProgress) * 10) / 10) + 'pt</b>，剩余缺口 <b>' + fmt(m.monthRevenue.gap, 2) + ' 万</b>。' + ((_wk && _wk.length && _wkAvg != null) ? ('<b>新一周进行中 ' + _wkLab + '（已录 ' + _wk.length + ' 天）：' + fmt(_wkSum / 10000, 2) + ' 万</b>' + (_wk.length > 1 ? '，日均 <b>' + fmt(_wkAvg, 2) + ' 万</b>' : '')   + (_pN === _wk.length && _pN ? '，较上周同星期 ' + fmt(_pSum / 10000, 2) + ' 万 <b>' + signed(Math.round((_wkSum - _pSum) / Math.max(1, _pSum) * 1000) / 10) + '%</b>' : '，周内未满，不做环比')   + ((m.monthRevenue.coverage && m.monthRevenue.coverage.recordedDays >= 7)
+      ? ('；按全月日均推演月末 <b>' + fmt(_proj, 2) + ' 万</b>，' + ((_proj) >= m.monthRevenue.targetWan ? '超出目标 <b>' + fmt(_proj - m.monthRevenue.targetWan, 2) + ' 万</b>' : '差目标 <b>' + fmt(m.monthRevenue.targetWan - _proj, 2) + ' 万</b>'))
+      : '；已录 ' + (m.monthRevenue.coverage ? m.monthRevenue.coverage.recordedDays : '—') + ' 天，样本不足、不做月末推演') + '。') : '') + '在院 <b>' + m.wardCount.value + ' 人</b>（' + (m.wardCount.dataThrough || s.period.dataThrough) + ' 时点，营收日报）——<b>营收日报的入出院/门诊数与主表不同源，本页一律以主表为准</b>。';
     }
   }
 
@@ -490,7 +524,7 @@
     if (meta) meta.innerHTML = '<span>金额完成 <strong>' + m.monthRevenue.amountProgress + '%</strong></span><span>时间进度 ' + m.monthRevenue.timeProgress + '%</span>';
     var gap = shell.querySelector('.mkt-gap');
     if (gap) {
-      var remainDays = 31 - Number((s.period.dataThrough || '').slice(8, 10) || 0);
+      var remainDays = monthDays(s) - Number((s.period.dataThrough || '').slice(8, 10) || 0);
       gap.innerHTML = '<div><span>剩余目标</span><b>' + f2(m.monthRevenue.gap) + '万</b></div><div><span>剩余天数</span><b>' + remainDays + '天</b></div><div><span>日均需完成</span><b>' + (remainDays ? f2(m.monthRevenue.gap / remainDays) : '—') + '万</b></div><div><span>当前日均</span><b>' + f2(avg) + '万</b></div>';
     }
 
@@ -531,12 +565,12 @@
       '<li><i>2</i><span>门诊 ' + f2(m.weekOutpatient.value) + ' 万、在院 ' + f2(m.weekInpatient.value) + ' 万；门诊占 ' + Math.round(m.weekOutpatient.value / m.weekRevenue.value * 1000) / 10 + '%。</span></li>' +
       '<li><i>3</i><span>入院 ' + m.weekAdmit.value + '、出院 ' + m.weekDischarge.value + '，患者池净 ' + (m.weekAdmit.value - m.weekDischarge.value >= 0 ? '+' : '') + (m.weekAdmit.value - m.weekDischarge.value) + ' 人。</span></li>';
     if (lists[1]) lists[1].innerHTML =
-      '<li><i>1</i><span>10 月累计 ' + f2(m.monthRevenue.value) + ' 万 / 目标 ' + m.monthRevenue.targetWan + ' 万 = ' + m.monthRevenue.amountProgress + '%。</span></li>' +
+      '<li><i>1</i><span>' + monthCumLabel(m.monthRevenue) + ' ' + f2(m.monthRevenue.value) + ' 万 / 目标 ' + m.monthRevenue.targetWan + ' 万 = ' + m.monthRevenue.amountProgress + '%。</span></li>' +
       '<li><i>2</i><span>时间进度 ' + m.monthRevenue.timeProgress + '%，差 ' + signed(diff) + 'pt，剩余缺口 ' + f2(m.monthRevenue.gap) + ' 万。</span></li>' +
-      '<li><i>3</i><span>剩余 ' + (31 - Number((s.period.dataThrough || '').slice(8, 10) || 0)) + ' 天，日均需 ' + f2(m.monthRevenue.gap / Math.max(1, 31 - Number((s.period.dataThrough || '').slice(8, 10) || 0))) + ' 万。</span></li>';
+      '<li><i>3</i><span>剩余 ' + (monthDays(s) - Number((s.period.dataThrough || '').slice(8, 10) || 0)) + ' 天，日均需 ' + f2(m.monthRevenue.gap / Math.max(1, monthDays(s) - Number((s.period.dataThrough || '').slice(8, 10) || 0))) + ' 万。</span></li>';
 
     var src = shell.querySelector('.mkt-source');
-    if (src) src.textContent = '口径：本期 ' + s.period.start + '—' + s.period.end + '（已录 ' + s.period.daysRecorded + ' 天，营收数据至 ' + s.period.dataThrough + '）；上一期同 ' + s.previousPeriod.daysRecorded + ' 天 ' + s.previousPeriod.start + '—' + s.previousPeriod.compareSameDaysEnd + '；10 月累计为逐日「当日合计」之和，与源表累计列的 11.00 元差异已登记待核。';
+    if (src) src.textContent = '口径：本期 ' + s.period.start + '—' + s.period.end + '（已录 ' + s.period.daysRecorded + ' 天，营收数据至 ' + s.period.dataThrough + '）；上一期同 ' + s.previousPeriod.daysRecorded + ' 天 ' + s.previousPeriod.start + '—' + s.previousPeriod.compareSameDaysEnd + '；当月累计为逐日「当日合计」之和，与源表累计列的 11.00 元差异已登记待核。';
   }
 
   /* ---------- 自动滚动 ---------- */
@@ -702,7 +736,7 @@
       ['客服', dpSvc.arrived != null ? dpSvc.arrived : (sv.week ? sv.week.followup : null), '人次', null],
       ['管家', bt.week ? bt.week.contact : null, '条', bt.week ? pct(Math.round((bt.week.contact - bt.prevSameDays.contact) / Math.max(1, bt.prevSameDays.contact) * 1000) / 10) : null],
       ['到院登记', ar.week, '人次', (ar.prevSameDays ? pct(Math.round((ar.week - ar.prevSameDays) / Math.max(1, ar.prevSameDays) * 1000) / 10) : null)],
-      ['10 月累计', f2(m.monthRevenue.value), '万 / ' + m.monthRevenue.targetWan + ' 万',
+      [monthCumLabel(m.monthRevenue), f2(m.monthRevenue.value), '万 / ' + m.monthRevenue.targetWan + ' 万',
         m.monthRevenue.amountProgress + '%（时间 ' + m.monthRevenue.timeProgress + '%）']
     ];
     document.querySelectorAll('#kpiGrid .kpi-tile').forEach(function (tile) {

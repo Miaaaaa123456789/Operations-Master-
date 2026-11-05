@@ -116,6 +116,10 @@
        本区其余字段仍是营收日报逐日口径（2026-10-22 已补到 10.20），故两套数必须同时标出。
        汇报表覆盖时：主数＝汇报表，副注＝台账；无快照时退回纯台账。 */
     var _mr = ((window.OPS_LIVE_SNAPSHOT || {}).metrics || {}).monthRevenue || null;
+    /* ⚠ 2026-11-04：快照 monthRevenue 已滚到 11 月，而本板固定是 10 月账
+       （标题 2026.10.01—10.31）。月份不符时绝不能拿它顶替，否则
+       「10 月累计营业额」会显示 11 月的 21.97 万、缺口 238 万。 */
+    if (_mr && _mr.periodStart && _mr.periodStart.slice(0, 7) !== PREFIX) _mr = null;
     var _auth = !!(_mr && _mr.value != null && (_mr.authority === 'action_report' || _mr.authority === 'revenue_daily_report'));
     var _isDaily = !!(_auth && _mr.authority === 'revenue_daily_report');
     var _dt = ((window.OPS_LIVE_SNAPSHOT || {}).watermarks || {}).dept || null;

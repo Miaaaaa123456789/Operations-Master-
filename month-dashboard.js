@@ -257,9 +257,9 @@ return '本期（'+(_from===_to?_md(_from):(_md(_from)+'—'+_md(_to)))+'）';
 
   function applyRevenueSnapshot(){
     var source=window.SEPTEMBER_REVENUE_DATA;if(!source||!source.derive)return;
-    var x=source.derive(),m=x.month,w=x.currentWeek,last=source.rows[source.rows.length-1],fmt=function(v){return (v/10000).toFixed(2);},dis=w.discharges;
+    var x=source.derive(),m=x.month,w=x.currentWeek,last=(function(){/* ⚠ 2026-11-04：营收日报已进 11 月，而本板是 10 月账；last 必须截到结算月内，否则「10月1日—11月2日」、累计卡「截至 11月2日」全错。 */var rr=source.rows.filter(function(r){return String(r.date).indexOf(MD_MONTH)===0;});return rr.length?rr[rr.length-1]:source.rows[source.rows.length-1];})(),fmt=function(v){return (v/10000).toFixed(2);},dis=w.discharges;
     /* 在院人数取「最近一个有填报的日期」，避免最后一天缺该字段时被显示成 0 */
-    var lw=(source.lastWard&&source.lastWard())||{value:last.ward,date:last.date};
+    var lw=(source.lastWard&&source.lastWard())||{value:last.ward,date:last.date};if(lw&&lw.date&&String(lw.date).indexOf(MD_MONTH)!==0)lw={value:last.ward,date:last.date};
     var md=function(d){return d?(+d.slice(5,7))+'月'+(+d.slice(8))+'日':'';};
     var _ing=window.OPS_INGEST_DATE||'';
     var _ingTxt=_ing?(_ing.slice(0,4)+'年'+(+_ing.slice(5,7))+'月'+(+_ing.slice(8))+'日'):'';
