@@ -206,6 +206,12 @@ def main(db_path=None, out=None, write=True):
     svc_end = fam_end("service_followups")
     but_end = fam_end("butler_contacts")
     arr_end = fam_end("arrival_register")
+    # ⛔ 2026-11-08：fam_end 在窗口内 0 行时会回退到「全表最新日」，于是到院表明明停在
+    #   10-31，却被当成「本周有数据、只是 0 人」。这里单独判一次窗口内是否真有行。
+    _arr_last_in_win = q1(c, "SELECT MAX(business_date) FROM fact WHERE source_id='arrival_register' "
+                             "AND business_date BETWEEN ? AND ?", (p_start.isoformat(), p_end.isoformat()))
+    _arr_src_last = q1(c, "SELECT MAX(business_date) FROM fact WHERE source_id='arrival_register'") or arr_end
+    _arr_stale = _arr_last_in_win is None
     psy_n, svc_n, but_n, arr_n = (fam_days(x) for x in (psy_end, svc_end, but_end, arr_end))
 
     # ── 营收口径 ────────────────────────────────────────────────
@@ -235,6 +241,16 @@ def main(db_path=None, out=None, write=True):
     else:
         month_total = d_month * 10000 if d_month is not None else ledger_month
         month_authority = "action_report"
+        # ⛔ 2026-11-08 修：汇报表的「月累计」是库内各周汇报行之和。本月首日若不属本周
+        #   （11-01 属 10.26—11.01 那一周），单用 d_month 会把月累计算成「只有一周」，
+        #   于是月卡与周卡同值、缺口被高估。补法：本月首日→本周前一天取营收台账，
+        #   周内取汇报表，两段不重叠、不相加两次。
+        if p_start > month_start:
+            _pre_to = (p_start - timedelta(days=1)).isoformat()
+            _pre_month = (s(c, "revenue.outpatient", month_start.isoformat(), _pre_to) or 0) + \
+                         (s(c, "revenue.inpatient", month_start.isoformat(), _pre_to) or 0)
+            if _pre_month:
+                month_total = _pre_month + d_month * 10000
     week_total = d_rev * 10000 if d_rev is not None else ledger_week
     prev_total = d_rev_p * 10000 if d_rev_p is not None else ledger_prev
 
@@ -428,8 +444,8 @@ def main(db_path=None, out=None, write=True):
                         ("门诊咨询", _pw_wt["outpatient"], psy_wt_sum["outpatient"]),
                         ("家庭咨询", _pw_wt["family"], psy_wt_sum["family"]),
                         ("家长访谈", _pw_wt["parent"], psy_wt_sum["parent"])]:
-        gap = (dv - wv) if (dv is not None and wv is not None) else None
-        psy_recon.append({"label": lab, "daily": dv, "weekly": wv, "gap": gap})
+        _psy_gap = (dv - wv) if (dv is not None and wv is not None) else None
+        psy_recon.append({"label": lab, "daily": dv, "weekly": wv, "gap": _psy_gap})
 
     # 本周新增对接（行数 / 去重患者数 / 按管床分组）。患者姓名不进快照，只出计数。
     def _pd(s):
@@ -522,8 +538,12 @@ def main(db_path=None, out=None, write=True):
                           "admitSum": sum((r.get("admit") or 0) for r in _rows)}
 
     # ── 到院登记 ──────────────────────────────────────────────
-    arr_w = int(s(c, "arrival.visit", p_start.isoformat(), arr_end) or 0)
-    arr_new = int(s(c, "arrival.new", p_start.isoformat(), arr_end) or 0)
+    # ⛔ 2026-11-08 修：源表可能整周没更新（最新一行停在 10-31）。此时窗口内 0 行，
+    #   `int(... or 0)` 会把「没数据」写成「到院 0 人次」——比空白更容易被误读，
+    #   按契约记 null、页面显示「—」（_arr_stale 见上方计算）。
+    arr_w = None if _arr_stale else int(s(c, "arrival.visit", p_start.isoformat(), arr_end) or 0)
+    arr_new = None if _arr_stale else int(s(c, "arrival.new", p_start.isoformat(), arr_end) or 0)
+    arr_txt = "—" if arr_w is None else str(arr_w)
     arr_prev = int(s(c, "arrival.visit", prev_start.isoformat(), fam_cmp(arr_end).isoformat()) or 0)
     arr_chan = [(k, int(v)) for k, v in s(c, "arrival.visit", p_start.isoformat(), arr_end, "channel")]
     arr_daily = daily_map(c, "arrival.visit", p_start.isoformat(), arr_end)
@@ -773,7 +793,7 @@ def main(db_path=None, out=None, write=True):
         return d
 
     metrics = {
-        "monthRevenue": {"id": "monthRevenue", "label": "10月累计营收", "value": round(month_total / 10000, 2),
+        "monthRevenue": {"id": "monthRevenue", "label": f"{month_start.month}月累计营收", "value": round(month_total / 10000, 2),
                          "unit": "万元", "valueYuan": round(month_total, 2), "targetWan": TARGET_WAN,
                          "amountProgress": amount_progress, "timeProgress": time_progress,
                          "gap": gap, "dataThrough": rev_through, "status": "ok",
@@ -886,7 +906,7 @@ def main(db_path=None, out=None, write=True):
         {"id": "nursing_treat", "metricIds": ["nurseTreatRate"], "numbersOnly": True, "text": _ins_nur},
         {"id": "visit", "metricIds": ["weekVisits"], "numbersOnly": True,
          "text": f"门诊 {int(week_visits)} 人次，较上期 {int(week_visits_p)} 人次 {delta(week_visits, week_visits_p):+.1f}%；"
-                 f"到院登记同日 {arr_w} 人次（含陪同，两者不合并）。"},
+                 f"到院登记同日 {arr_txt} 人次（含陪同，两者不合并）。"},
         {"id": "ward", "metricIds": ["wardCount", "weekAdmit", "weekDischarge"], "numbersOnly": True,
          "text": f"入院 {int(adm)}、出院 {int(dis)}，患者池净 {int(adm-dis):+d} 人；"
                  f"在院 {('—' if ward is None else str(int(ward)))} 人（{rev_through} 时点）。"},
@@ -909,6 +929,13 @@ def main(db_path=None, out=None, write=True):
                      if but_detail else "")
                   + "。⚠ 营销中心表头「本周入院/门诊/总收入」本周整行空白，按契约记 null、不拿旧值顶替。")},
     ]
+
+    # 汇报表表头可能只有部分单元格有值（本周实测：营收/入院/门诊/物理已滚到新一周，出院栏空白）。
+    # int(None) 会崩掉整条管线，故此处统一按「缺项记 null、显示 —」处理，不拿 0 顶替。
+    _hdr_adm_txt = "—（表头未填）" if d_adm is None else f"{int(d_adm)} 人"
+    _hdr_dis_txt = "—（表头未填）" if d_dis is None else f"{int(d_dis)} 人"
+    _gap_adm_txt = "—" if d_adm is None else f"{int(d_adm) - sum_adm:+d}"
+    _gap_dis_txt = "—" if d_dis is None else f"{int(d_dis) - sum_dis:+d}"
 
     # ── 冲突 / 待核 ───────────────────────────────────────────
     # 裁决规则（业主 2026-10-19 定）：凡与《特别行动小组汇报表》冲突，一律取汇报表。
@@ -937,23 +964,27 @@ def main(db_path=None, out=None, write=True):
              )
              + (f"按『缺项不拿旧值顶替』，本周一律不引用该表，改用营收日报逐日台账（{days_recorded} 天 "
                 f"{ledger_week/10000:.2f} 万）；原值存档在 departments.actionReportRaw，不丢、不覆盖。")},
-            {"id": "month_revenue", "label": f"10月累计：台账 {ledger_month/10000:.2f} 万（至 {rev_through}）",
+            {"id": "month_revenue", "label": f"{month_start.month}月累计：台账 {ledger_month/10000:.2f} 万（至 {rev_through}）",
              "severity": "info", "winner": "revenue_daily_report",
              "source_a": "revenue_daily_report", "source_b": "",
              "value_a": round(ledger_month / 10000, 2), "value_b": None,
-             "detail": (f"营收日报 10.1—{rev_through} 逐日合计 {ledger_month/10000:.2f} 万；汇报表 10 月累计一栏"
+             "detail": (f"营收日报 {month_start.month}.1—{rev_through} 逐日合计 {ledger_month/10000:.2f} 万；汇报表同月累计一栏"
                         f"因本周未滚动而不取用，故本期只有一个可核数，不存在两套并列。")},
             {"id": "nursing_missing", "label": "护理部周报本周未提交", "severity": "warn",
              "winner": "", "source_a": "nursing_weekly", "source_b": "",
              "value_a": None, "value_b": None,
              "detail": ("护理部周报（六项治疗应做/实做）与物理治疗逐日表最新只到上一期周末，"
                         "本期完成率、逐日曲线留空，不拿上周 93% 顶替。")},
-            {"id": "arrival_vs_service", "label": "到院人数两个口径并存", "severity": "info",
+            {"id": "arrival_vs_service", "label": ("到院登记表本周未更新（源至 " + _arr_src_last + "）" if _arr_stale
+                                                   else "到院人数两个口径并存"), "severity": "info",
              "winner": "", "source_a": "arrival_register", "source_b": "",
              "value_a": arr_w, "value_b": None,
-             "detail": (f"《10月到院登记表》{p_start.month}.{p_start.day}–"
-                        f"{date.fromisoformat(arr_end).month}.{date.fromisoformat(arr_end).day} 逐条 {arr_w} 人次；"
-                        f"客服汇报表「到院人数」本周未滚动，不再并列，避免把上周 239 当本周接待量。")},
+             "detail": ((f"《到院登记表》最新一行只到 {_arr_src_last}，本期窗口（{p_start.isoformat()}—"
+                         f"{p_end.isoformat()}）内 0 行，到院人次按契约记 null 显示「—」，不记 0、也不拿上周数顶替。")
+                        if _arr_stale else
+                        (f"《10月到院登记表》{p_start.month}.{p_start.day}–"
+                         f"{date.fromisoformat(arr_end).month}.{date.fromisoformat(arr_end).day} 逐条 {arr_txt} 人次；"
+                         f"客服汇报表「到院人数」本周未滚动，不再并列，避免把上周 239 当本周接待量。"))},
         ]
     else:
         conflicts = [
@@ -963,22 +994,27 @@ def main(db_path=None, out=None, write=True):
              "detail": f"汇报表本期（{p_start.month}.{p_start.day}—{p_end.month}.{p_end.day}，7 天）总收入 {d_rev} 万；"
                        f"营收日报同期累计 {ledger_week/10000:.2f} 万。差额不是算错：汇报表是部门自填总收入，"
                        f"日报只统计门诊＋在院两列，口径宽度不同。展示值按指令取汇报表，台账原值保留、逐日图用台账。"},
-            {"id": "month_revenue", "label": f"10月累计：台账 {ledger_month/10000:.2f} 万（至 {rev_through}）vs 汇报表 {d_month} 万（至 {wk_end}）", "severity": "warn",
+            {"id": "month_revenue", "label": f"{month_start.month}月累计：台账 {ledger_month/10000:.2f} 万（至 {rev_through}）vs 汇报表 {d_month} 万（至 {wk_end}）", "severity": "warn",
              "winner": "revenue_daily_report", "source_a": "revenue_daily_report", "source_b": "action_report",
              "value_a": round(ledger_month / 10000, 2), "value_b": d_month,
-             "detail": f"营收日报 10.1—{rev_through} 逐日合计 {ledger_month/10000:.2f} 万，本页月累计取此值；"
-                       f"汇报表 10 月累计 {d_month} 万只滚到 {wk_end}。两者不同源，不相加、不互相覆盖。"},
+             "detail": f"营收日报 {month_start.month}.1—{rev_through} 逐日合计 {ledger_month/10000:.2f} 万，本页月累计取此值；"
+                       f"汇报表同月累计 {d_month} 万只滚到 {wk_end}。两者不同源，不相加、不互相覆盖。"},
             {"id": "doctor_detail", "label": "医生组表头与其个人明细对不上", "severity": "warn",
              "winner": "action_report", "source_a": "action_report", "source_b": "action_report",
              "value_a": d_adm, "value_b": sum_adm,
-             "detail": f"表头入院 {int(d_adm)} 人、出院 {int(d_dis)} 人；6 名医生正文加总入院 {sum_adm}、"
-                       f"出院 {sum_dis}，缺口 {int(d_adm)-sum_adm} 入 / {int(d_dis)-sum_dis} 出。"
+             "detail": f"表头入院 {_hdr_adm_txt}、出院 {_hdr_dis_txt}；{len(staff)} 名医生正文加总入院 {sum_adm}、"
+                       f"出院 {sum_dis}，缺口 {_gap_adm_txt} 入 / {_gap_dis_txt} 出。"
                        f"空白行：{'、'.join(blank) or '无'}（该行未填，按契约记 null 不记 0）。"},
-            {"id": "arrival_vs_service", "label": "到院人数两个口径并存", "severity": "info",
+            {"id": "arrival_vs_service", "label": ("到院登记表本周未更新（源至 " + _arr_src_last + "）" if _arr_stale
+                                                   else "到院人数两个口径并存"), "severity": "info",
              "winner": "action_report", "source_a": "arrival_register", "source_b": "action_report",
              "value_a": arr_w, "value_b": dept_report["service"]["arrived"],
-             "detail": f"《10月到院登记表》逐条 {arr_w} 人次；《客服服务部汇报表》本周「到院人数」"
-                       f"{dept_report['service']['arrived']}（导医接待，含陪同）。含义不同，各自保留、互不加总。"},
+             "detail": ((f"《到院登记表》最新一行只到 {_arr_src_last}，本期窗口内 0 行，到院人次记 null 显示「—」，"
+                         f"不记 0、不拿上周数顶替。客服汇报表本周「到院人数」"
+                         f"{dept_report['service']['arrived']}（导医接待，含陪同），口径不同、各自保留。")
+                        if _arr_stale else
+                        f"《10月到院登记表》逐条 {arr_txt} 人次；《客服服务部汇报表》本周「到院人数」"
+                        f"{dept_report['service']['arrived']}（导医接待，含陪同）。含义不同，各自保留、互不加总。")},
             {"id": "physio_no_daily", "label": "物理治疗费只有周合计", "severity": "info",
              "winner": "action_report", "source_a": "action_report", "source_b": "",
              "value_a": d_phy, "value_b": None,
@@ -1171,7 +1207,7 @@ def main(db_path=None, out=None, write=True):
     print(f"  期间 {snap['period']['label']}（已录 {days_recorded} 天，数据至 {data_through}）")
     print(f"  月累计 {month_total/10000:.2f} 万 / 目标 {TARGET_WAN} 万 = {amount_progress}%（时间进度 {time_progress}%，差 {amount_progress-time_progress:+.1f}pt）")
     print(f"  本期 {week_total/10000:.2f} 万，上期同 {days_recorded} 天 {prev_total/10000:.2f} 万")
-    print(f"  心理 接触 {pw['contact']} / 咨询 {pw['consult']}；客服 回访 {sw['followup']}；管家 {bw['contact']}；到院 {arr_w}")
+    print(f"  心理 接触 {pw['contact']} / 咨询 {pw['consult']}；客服 回访 {sw['followup']}；管家 {bw['contact']}；到院 {arr_txt}")
     return snap
 
 

@@ -172,7 +172,7 @@ var _d=window.SEPTEMBER_REVENUE_DATA||{}, _r=_d.rows||[];
 var _x=(typeof _d.derive==='function')?(function(){try{return _d.derive()||{}}catch(e){return {}}})():{};
 var _p=_x.period||{};
 var _from=_p.from||'2026-09-28', _to=_p.to||'2026-10-11';
-function _md(d){return (+d.slice(5,7))+'.'+(+d.slice(8));}
+function _md(d){return (+d.slice(5,7))+'.'+('0'+(+d.slice(8))).slice(-2);}
 var _last=_r.length?_r[_r.length-1].date:'';
 /* 「本期是否已完整」＝数据末日是否已到本期终点（原 __WEEK_DONE 用「末日＝周日」判断） */
 window.__WEEK_DONE = !!(_last && _last>=_to);
@@ -488,7 +488,7 @@ baseData.kpis=[
       meeting()+
       '<div class="md-section-head"><div><h2>营业与转化分析</h2><p>从逐日收入、周度趋势到跨部门服务兑现</p></div><button class="md-more" data-md-panel="analysis" type="button">查看完整分析</button></div>'+
       '<section class="md-analysis-grid">'+
-        '<article class="md-card md-chart-card md-click" tabindex="0" role="button" data-md-panel="daily"><header class="md-chart-top"><div><h3>'+MD_NUM+'.1—'+(data.daily.length?data.daily[data.daily.length-1].d:MDFt().date)+' 逐日营业额</h3><p>单位：万元 · 截至 '+(lastDateMd()||'—')+((data.target&&data.target.closed)?'，10 月已收官':'，本周剩余天数待更新')+'</p></div><span class="md-chart-badge">日均 '+MDFt().avg+' 万</span></header><div class="md-bars">'+bars()+'</div><p class="md-chart-note">'+MD_LABEL+'累计 '+MDFt().total+' 万元（'+MD_MDAYS+'/'+MD_MDAYS+' 天）；11.1 起计入 11 月，未并入本图。</p></article>'+
+        '<article class="md-card md-chart-card md-click" tabindex="0" role="button" data-md-panel="daily"><header class="md-chart-top"><div><h3>'+MD_NUM+'.1—'+(data.daily.length?data.daily[data.daily.length-1].d:MDFt().date)+' 逐日营业额</h3><p>单位：万元 · '+(data.target&&data.target.closed?('10 月已收官（'+MD_MDAYS+'/'+MD_MDAYS+' 天，截至 '+MD_NUM+'.'+MD_MDAYS+'）'):('截至 '+(lastDateMd()||'—')+'，本周剩余天数待更新'))+'</p></div><span class="md-chart-badge">日均 '+MDFt().avg+' 万</span></header><div class="md-bars">'+bars()+'</div><p class="md-chart-note">'+MD_LABEL+'累计 '+MDFt().total+' 万元（'+MD_MDAYS+'/'+MD_MDAYS+' 天）；11.1 起计入 11 月，未并入本图。</p></article>'+
         '<div class="md-side-stack"><article class="md-card md-week-card md-click" tabindex="0" role="button" data-md-panel="weeks"><header class="md-card-title"><div><h3>'+MD_LABEL+'各周营业对比</h3><p>'+WEEK+((data.target&&data.target.closed)?'已结束':'为进行中')+'（数据至 '+(lastDateMd()||'—')+'）</p></div><b style="color:#15976c">月累计 '+MDFt().total+' 万</b></header><div class="md-week-list">'+weeks()+'</div></article><article class="md-card md-funnel md-click" tabindex="0" role="button" data-md-panel="funnel"><header class="md-card-title"><div><h3>'+WEEK+'经营流量</h3><p>门诊、入院、出院为同期数量，不直接计算转化率</p></div><span class="md-severity" style="color:#d57e1c">截至'+MDFt().date+'</span></header><div class="md-funnel-steps">'+funnel()+'</div><p class="md-funnel-foot">'+WEEK+'入院'+esc(data.funnelAdm)+'人、出院'+esc(data.funnelDis)+'人，患者池'+(data.funnelNet>=0?'净增':'净减')+Math.abs(data.funnelNet)+'人；'+esc(data.funnelWardAt)+'日终在院'+esc(data.funnelWard)+'人。</p></article></div>'+
       '</section>'+
       '<button class="md-card md-governance md-click" type="button" data-md-panel="governance"><div class="md-gov-grid"><i class="md-gov-icon">⌘</i><div class="md-gov-copy"><h3>排名数据治理决策</h3><p>当日记录、次日核验、月内动态试算、月末正式锁定；缺失记“待补”，冲突记“待核”，不得静默改榜。</p></div><span class="md-gov-badge">17 项待核验</span></div></button>'+

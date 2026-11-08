@@ -7,7 +7,7 @@
   'use strict';
 
   var STATE = { snap: null, rev: null, autoScroll: localStorage.getItem('ops.autoscroll') !== 'off' };
-  var WEEK_LABEL = '10.26–11.01';
+  var WEEK_LABEL = '11.02–11.08';
   /* 2026-11-04：切到 11 月后，原先写死的「31 天」「10 月累计」会全错（11 月 30 天）。
      统一由 snapshot.month / monthRevenue.label 派生，换月不再满页找常量。 */
   function monthDays(s) {
@@ -15,6 +15,8 @@
     return p.length === 2 ? new Date(Date.UTC(+p[0], +p[1], 0)).getUTCDate() : 31;
   }
   function shortD(d) { return (+d.slice(5, 7)) + '.' + (+d.slice(8, 10)); }
+  /* 两位日号（11.2 → 11.02）：只用于「本期 / 上一期」这类需要与快照 label 对齐的区间，不动周卡的 10.5—10.11 写法 */
+  function shortD2(d) { return (+d.slice(5, 7)) + '.' + ('0' + (+d.slice(8, 10))).slice(-2); }
   function monthCumLabel(m) {
     var t = (m && m.label) || '';
     return t.replace(/营收$/, '') || '当月累计';
@@ -227,15 +229,22 @@
           var q = _byDate[t.toISOString().slice(0, 10)];
           if (q) { _pSum += Number(q.total || 0); _pN++; }
         });
-        var _wkAvg = _wk.length ? _wkSum / _wk.length / 10000 : null;
-        var _wkLab = !_wk.length ? '' : (_wk.length === 1
-          ? shortD(_wk[0].date) : shortD(_wk[0].date) + '—' + shortD(_wk[_wk.length - 1].date));
-        gapEl.innerHTML = '剩余 <b>' + remainDays + '</b> 天需 <b>' + fmt(m.monthRevenue.gap, 2) + ' 万</b>，日均需 <b>' + (needDaily === null ? '—' : fmt(needDaily, 2) + ' 万') + '</b>；本期（' + s.period.label + '，7 天，营收日报口径）日均 <b>' + fmt(weekAvg, 2) + ' 万</b>'
+        var _wkN = _wk.length;
+        /* ⭐ 2026-11-05：快照 daily 只保留当月逐日，跨月后上周同星期（10.26—10.28）取不到，
+           「同星期对照」恒为 0 天、永远只能说「未满不做环比」。
+           快照已显式给出 newWeek（同 3 天口径、同星期一—三），优先消费它。 */
+        var _NW = s.newWeek || null;
+        if (_NW) { _wkSum = _NW.revenueYuan; _pSum = _NW.prevRevenueYuan; _pN = _NW.prevDays; _wkN = _NW.daysRecorded; }
+        var _wkAvg = _wkN ? _wkSum / _wkN / 10000 : null;
+        var _wkLab = _NW ? (shortD2(_NW.start) + '—' + shortD2(_NW.through))
+          : (!_wk.length ? '' : (_wk.length === 1
+            ? shortD2(_wk[0].date) : shortD2(_wk[0].date) + '—' + shortD2(_wk[_wk.length - 1].date)));
+        gapEl.innerHTML = '剩余 <b>' + remainDays + '</b> 天需 <b>' + fmt(m.monthRevenue.gap, 2) + ' 万</b>，日均需 <b>' + (needDaily === null ? '—' : fmt(needDaily, 2) + ' 万') + '</b>；本期（' + s.period.label + '，' + s.period.daysRecorded + ' 天，营收日报口径）日均 <b>' + fmt(weekAvg, 2) + ' 万</b>'
           + (overAvg === null ? '' : (overAvg >= 0 ? '，已高于达标日均 <b>' + fmt(overAvg, 2) + ' 万</b>' : '，低于达标日均 <b>' + fmt(-overAvg, 2) + ' 万</b>'))
-          + (_wkAvg === null ? '' : '；新一周（' + _wkLab + '，已录 ' + _wk.length + ' 天）合计 <b>' + fmt(_wkSum / 10000, 2) + ' 万</b>'
-            + (_wk.length > 1 ? '、日均 <b>' + fmt(_wkAvg, 2) + ' 万</b>' : '')
-            + (_pN === _wk.length && _pN
-                ? '，较上周同星期 ' + fmt(_pSum / 10000, 2) + ' 万 ' + signed(Math.round((_wkSum - _pSum) / Math.max(1, _pSum) * 1000) / 10) + '%'
+          + (_wkAvg === null ? '' : '；新一周（' + _wkLab + '，已录 ' + _wkN + ' 天）合计 <b>' + fmt(_wkSum / 10000, 2) + ' 万</b>'
+            + (_wkN > 1 ? '、日均 <b>' + fmt(_wkAvg, 2) + ' 万</b>' : '')
+            + (_pN === _wkN && _pN
+                ? '，较上周同 ' + _pN + ' 天（' + (_NW ? shortD2(_NW.prevStart) + '—' + shortD2(_NW.prevEnd) : '') + '） ' + fmt(_pSum / 10000, 2) + ' 万 ' + signed(Math.round((_wkSum - _pSum) / Math.max(1, _pSum) * 1000) / 10) + '%'
                 : '；周内未满，不做环比'))
           + '。';
       }
@@ -256,9 +265,9 @@
       /* 月末推演用元值算（value 已舍入到两位小数，会把 257.77 推成 257.78） */
       var _proj = (m.monthRevenue.valueYuan || (m.monthRevenue.value * 10000)) / 10000 / m.monthRevenue.coverage.recordedDays * monthDays(s);
       summary.innerHTML =
-        '<b>本期 ' + s.period.label + '（' + s.period.daysRecorded + ' 天，数据至 ' + s.period.dataThrough + '）· 营收日报（台账）</b>：营收 <b>' + fmt(m.weekRevenue.value, 2) + ' 万</b>（门诊 ' + fmt(m.weekOutpatient.value, 2) + ' ＋ 在院 ' + fmt(m.weekInpatient.value, 2) + '）；' + (dpDoc.revenueWan == null   ? '<b>《特别行动小组汇报表》医生组表头判为混合态（表头总收入 52.6 / 正文 72.5 / 页面此前 50.5 三处对不上，门诊 210 与上一期完全相同），本表本期不引用、只并列</b>；'   : '<b>《特别行动小组汇报表》医生组 10.26—11.01：总收入 ' + dpDoc.revenueWan + ' 万、物理治疗 ' + dpDoc.physioWan + ' 万（占收入 ' + Math.round(dpDoc.physioWan / dpDoc.revenueWan * 1000) / 10 + '%，是收入的科目、不可相加）、入院 ' + dpDoc.admit + ' 人、出院 ' + dpDoc.discharge + ' 人、门诊 ' + dpDoc.outpatient + ' 人次</b>；') + '台账口径入院 <b>' + m.weekAdmit.value + '</b> 人、出院 <b>' + m.weekDischarge.value + '</b> 人、门诊 <b>' + m.weekVisits.value + '</b> 人次；上期同 ' + s.period.daysRecorded + ' 天（' + s.previousPeriod.start + '—' + s.previousPeriod.compareSameDaysEnd + '）<b>' + fmt((m.weekRevenue.prevValueYuan != null ? m.weekRevenue.prevValueYuan : m.weekRevenue.valueYuan / (1 + (m.weekRevenue.deltaPct || 0) / 100)) / 10000, 2) + ' 万</b>，总量 <b>' + signed(m.weekRevenue.deltaPct) + '%</b>。' + monthCumLabel(m.monthRevenue) + ' <b>' + fmt(m.monthRevenue.value, 2) + ' 万</b> / 目标 ' + m.monthRevenue.targetWan + ' 万 = <b>' + m.monthRevenue.amountProgress + '%</b>，时间进度 ' + m.monthRevenue.timeProgress + '%，差 <b>' + signed(Math.round((m.monthRevenue.amountProgress - m.monthRevenue.timeProgress) * 10) / 10) + 'pt</b>，剩余缺口 <b>' + fmt(m.monthRevenue.gap, 2) + ' 万</b>。' + ((_wk && _wk.length && _wkAvg != null) ? ('<b>新一周进行中 ' + _wkLab + '（已录 ' + _wk.length + ' 天）：' + fmt(_wkSum / 10000, 2) + ' 万</b>' + (_wk.length > 1 ? '，日均 <b>' + fmt(_wkAvg, 2) + ' 万</b>' : '')   + (_pN === _wk.length && _pN ? '，较上周同星期 ' + fmt(_pSum / 10000, 2) + ' 万 <b>' + signed(Math.round((_wkSum - _pSum) / Math.max(1, _pSum) * 1000) / 10) + '%</b>' : '，周内未满，不做环比')   + ((m.monthRevenue.coverage && m.monthRevenue.coverage.recordedDays >= 7)
+        '<b>本期 ' + s.period.label + '（' + s.period.daysRecorded + ' 天，数据至 ' + s.period.dataThrough + '）· 营收日报（台账）</b>：营收 <b>' + fmt(m.weekRevenue.value, 2) + ' 万</b>（门诊 ' + fmt(m.weekOutpatient.value, 2) + ' ＋ 在院 ' + fmt(m.weekInpatient.value, 2) + '）；' + (dpDoc.revenueWan == null   ? '<b>《特别行动小组汇报表》医生组表头判为混合态（表头总收入 52.6 / 正文 72.5 / 页面此前 50.5 三处对不上，门诊 210 与上一期完全相同），本表本期不引用、只并列</b>；'   : '<b>《特别行动小组汇报表》医生组 ' + s.period.label + '：总收入 ' + dpDoc.revenueWan + ' 万、物理治疗 ' + dpDoc.physioWan + ' 万（占收入 ' + Math.round(dpDoc.physioWan / dpDoc.revenueWan * 1000) / 10 + '%，是收入的科目、不可相加）、入院 ' + dpDoc.admit + ' 人、出院 ' + dpDoc.discharge + ' 人、门诊 ' + dpDoc.outpatient + ' 人次</b>；') + '台账口径入院 <b>' + m.weekAdmit.value + '</b> 人、出院 <b>' + m.weekDischarge.value + '</b> 人、门诊 <b>' + m.weekVisits.value + '</b> 人次；上期同 ' + s.period.daysRecorded + ' 天（' + s.previousPeriod.start + '—' + s.previousPeriod.compareSameDaysEnd + '）<b>' + fmt((m.weekRevenue.prevValueYuan != null ? m.weekRevenue.prevValueYuan : m.weekRevenue.valueYuan / (1 + (m.weekRevenue.deltaPct || 0) / 100)) / 10000, 2) + ' 万</b>，总量 <b>' + signed(m.weekRevenue.deltaPct) + '%</b>。' + monthCumLabel(m.monthRevenue) + ' <b>' + fmt(m.monthRevenue.value, 2) + ' 万</b> / 目标 ' + m.monthRevenue.targetWan + ' 万 = <b>' + m.monthRevenue.amountProgress + '%</b>，时间进度 ' + m.monthRevenue.timeProgress + '%，差 <b>' + signed(Math.round((m.monthRevenue.amountProgress - m.monthRevenue.timeProgress) * 10) / 10) + 'pt</b>，剩余缺口 <b>' + fmt(m.monthRevenue.gap, 2) + ' 万</b>。' + ((_wkAvg != null) ? ('<b>新一周进行中 ' + _wkLab + '（已录 ' + _wkN + ' 天）：' + fmt(_wkSum / 10000, 2) + ' 万</b>' + (_wkN > 1 ? '，日均 <b>' + fmt(_wkAvg, 2) + ' 万</b>' : '')   + (_pN === _wkN && _pN ? '，较上周同 ' + _pN + ' 天（' + (_NW ? shortD2(_NW.prevStart) + '—' + shortD2(_NW.prevEnd) : '') + '） ' + fmt(_pSum / 10000, 2) + ' 万 <b>' + signed(Math.round((_wkSum - _pSum) / Math.max(1, _pSum) * 1000) / 10) + '%</b>' : '，周内未满，不做环比')   + ((m.monthRevenue.coverage && m.monthRevenue.coverage.recordedDays >= 7)
       ? ('；按全月日均推演月末 <b>' + fmt(_proj, 2) + ' 万</b>，' + ((_proj) >= m.monthRevenue.targetWan ? '超出目标 <b>' + fmt(_proj - m.monthRevenue.targetWan, 2) + ' 万</b>' : '差目标 <b>' + fmt(m.monthRevenue.targetWan - _proj, 2) + ' 万</b>'))
-      : '；已录 ' + (m.monthRevenue.coverage ? m.monthRevenue.coverage.recordedDays : '—') + ' 天，样本不足、不做月末推演') + '。') : '') + '在院 <b>' + m.wardCount.value + ' 人</b>（' + (m.wardCount.dataThrough || s.period.dataThrough) + ' 时点，营收日报）——<b>营收日报的入出院/门诊数与主表不同源，本页一律以主表为准</b>。';
+      : '；11 月已录 ' + (m.monthRevenue.coverage ? m.monthRevenue.coverage.recordedDays : '—') + ' 天，样本不足、不做月末推演') + '。') : '') + '在院 <b>' + m.wardCount.value + ' 人</b>（' + (m.wardCount.dataThrough || s.period.dataThrough) + ' 时点，营收日报）——<b>营收日报的入出院/门诊数与主表不同源，本页一律以主表为准</b>。';
     }
   }
 
