@@ -1057,14 +1057,20 @@
     var revTxt = s.revCut ? fmtCN(s.revCut) : '—';
     var cutTxt = fmtCN(s.globalCut);
     var _p = window.__OPS_PERIOD;
-    var stamp = (_p && _p.dataThrough) ? _p.dataThrough : ((s.revCut && s.revCut > TODAY) ? s.revCut : TODAY);
+    /* 2026-11-09：水位以《特别行动小组汇报表》为准（至 11.08 / 7 天），
+       营收日报台账只到 11.06（5 天）。此前取 dataThrough 会把顶部写成 11.06。 */
+    var stamp = (_p && (_p.reportDataThrough || _p.dataThrough)) ? (_p.reportDataThrough || _p.dataThrough)
+      : ((s.revCut && s.revCut > TODAY) ? s.revCut : TODAY);
     setText('#periodBtn', '数据更新至 ' + stamp.split('-')[0] + '年' + (+stamp.slice(5, 7)) + '月' + (+stamp.slice(8)) + '日');
     $$('.ov-live').forEach(function (e) {
       var _q = window.__OPS_PERIOD;
       if (_q && _q.reportDataThrough) {
-        e.textContent = '每日 09:00 抓取 · 主表至 ' + (+_q.reportDataThrough.slice(5, 7)) + '.' + (+_q.reportDataThrough.slice(8)) + ' · 营收日报至 ' + (+_q.revenueDataThrough.slice(5, 7)) + '.' + (+_q.revenueDataThrough.slice(8));
+        var _rv = _q.revenueDataThrough || _q.dataThrough || _q.reportDataThrough;
+        var _rd = (_q.daysRecorded != null) ? _q.daysRecorded : '—';
+        e.innerHTML = '<i></i>每日 09:00 抓取 · 汇报表至 ' + (+_q.reportDataThrough.slice(5, 7)) + '.' + ('0' + (+_q.reportDataThrough.slice(8))).slice(-2)
+          + '（' + _rd + ' 天）· 营收台账至 ' + (+_rv.slice(5, 7)) + '.' + ('0' + (+_rv.slice(8))).slice(-2);
       } else {
-        e.textContent = '每日 09:00 抓取 · 数据更新至 ' + (+s.globalCut.slice(5, 7)) + '.' + (+s.globalCut.slice(8));
+        e.innerHTML = '<i></i>每日 09:00 抓取 · 数据更新至 ' + (+s.globalCut.slice(5, 7)) + '.' + ('0' + (+s.globalCut.slice(8))).slice(-2);
       }
     });
     setText('.mkt-filter small', ''); // 由下方重建（含 ● 图标）

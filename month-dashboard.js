@@ -230,7 +230,7 @@ return '本期（'+(_from===_to?_md(_from):(_md(_from)+'—'+_md(_to)))+'）';
       /* ⚠ 2026-10-18：五张卡的默认值统一到 snapshot rev5（10.26–11.01），
          只作「快照没取到」时的兜底；线上真实刷新由 live-sync.js 的 patchMdDepartments 完成。 */
       {key:'doctor',cls:'doctor',icon:'医',name:'医生组',desc:'住院规模与管床贡献',metric:'21.45 万',note:'本期 10.26–11.01 · 出院结账（7 天）',foot:'物理 12.89 万 · 出院 10 · 在院 36'},
-      {key:'nursing',cls:'nursing',icon:'护',name:'护理组',desc:'治疗执行与服务兑现',metric:'90.1%',note:'本期 10.26–11.01 · 六项治疗完成率（7 天）',foot:'630 / 699 · 未做 69'},
+      {key:'nursing',cls:'nursing',icon:'护',name:'护理组',desc:'治疗执行与服务兑现',metric:'94.4%',note:'本期 11.02–11.08 · 六项治疗完成率（7 天）',foot:'652 / 691 · 未做 39'},
       {key:'psychology',cls:'psychology',icon:'心',name:'心理咨询组',desc:'咨询承接与收入结构',metric:'36 人次',note:'本期 10.26–11.01 · 患者接触（V4 · 7 天 17 条）',foot:'咨询 24 人次 · 团体 2 场 12 人'},
       {key:'service',cls:'service',icon:'客',name:'客服服务部',desc:'随访、到院及付费跟踪',metric:'49 条',note:'本期 10.26–11.01 · 回访（7 天）',foot:'到院 11 · 22.4% · 日均 +69.0%'},
       /* ⚠ 营销组不再挂「营业额」：营业额属全院口径，挂到营销组名下会被读成营销贡献。 */

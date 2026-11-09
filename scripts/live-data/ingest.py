@@ -143,6 +143,15 @@ def norm_date(s):
         mo, d = int(m.group(1)), int(m.group(2))
         if 1 <= mo <= 12 and 1 <= d <= 31:
             return f"2026-{mo:02d}-{d:02d}"
+    # ⚠ 2026-11-09 补：团体治疗登记把 11 月 6 日两条写成「1106」（省略小数点），
+    #   上面三个正则都不吃 4 位纯数字 → 两场团辅（9 人 + 8 人）整行被丢弃，
+    #   团辅由真值 6 场 46 人算成 3 场 23 人。按 MMDD / MDD 补一层兜底。
+    m = re.match(r"^(\d{3,4})$", s)
+    if m:
+        t = m.group(1)
+        mo, d = (int(t[:2]), int(t[2:])) if len(t) == 4 else (int(t[:1]), int(t[1:]))
+        if 1 <= mo <= 12 and 1 <= d <= 31:
+            return f"2026-{mo:02d}-{d:02d}"
     return None
 
 
@@ -581,7 +590,10 @@ def ingest_sheet(c, source, sheet_name, rows, pulled_at):
                 continue
             if PSYCH_KEEP_FROM and d < PSYCH_KEEP_FROM:
                 continue          # 2024 年那批年份笔误一并清掉
-            ref = hkey(d, cell(i, 2)[:20], cell(i, 3))
+            # ⚠ 2026-11-09 修：原键＝(日期, 主题, 带领者)。11.02 同一天两场团辅都记成
+            #   「团体 / 蔡宜蓉」，第二场被 INSERT OR REPLACE 覆盖 → 少 1 场 6 人。
+            #   两场参与者名单完全不重合（杜雨涵… vs 王梓璇…），确为两场，行号须入键。
+            ref = hkey(d, str(i), cell(i, 2)[:20], cell(i, 3))
             add_fact(c, "psych.group_session", d, 1, source, sheet_name, ref, "topic", cell(i, 2)[:20])
             add_fact(c, "psych.group_attendee", d, num(cell(i, 5)) or 0, source, sheet_name, ref, "topic", cell(i, 2)[:20])
 

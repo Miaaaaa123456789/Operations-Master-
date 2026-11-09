@@ -713,7 +713,7 @@ def main(db_path=None, out=None, write=True):
                   f"{p_start.isoformat()} 不符，本次不挂载")
 
     dept_report["week"] = {"start": p_start.isoformat(), "end": wk_end,
-                           "label": f"{p_start.month}.{p_start.day}—{p_end.month}.{p_end.day}",
+                           "label": f"{p_start.month:02d}.{p_start.day:02d}—{p_end.month:02d}.{p_end.day:02d}",
                            "authority": "revenue_daily_report" if stale_ar else "action_report",
                            "sourceName": "营收日报（逐日台账）" if stale_ar else "特别行动小组汇报表",
                            "stale": bool(stale_ar),
@@ -751,7 +751,7 @@ def main(db_path=None, out=None, write=True):
 
     filling = {
         "checkedAt": as_of,
-        "periodLabel": f"{p_start.month}.{p_start.day}—{p_end.month}.{p_end.day}",
+        "periodLabel": f"{p_start.month:02d}.{p_start.day:02d}—{p_end.month:02d}.{p_end.day:02d}",
         "actionReport": {"rolled": not stale_ar, "through": wk_end,
                          "filledAt": q1(c, "SELECT MAX(last_pull_at) FROM source WHERE id='action_report'"),
                          "note": ("汇报表本周表头与上周逐项同值，判定未滚动；本周一律不引用它"
@@ -1093,7 +1093,7 @@ def main(db_path=None, out=None, write=True):
         "asOf": as_of, "month": dt.strftime("%Y-%m"), "timezone": "Asia/Shanghai",
         "generatedAt": datetime.now(CN).isoformat(timespec="seconds"),
         "period": {"start": p_start.isoformat(), "end": p_end.isoformat(),
-                   "label": f"{p_start.month}.{p_start.day}–{p_end.month}.{p_end.day}",
+                   "label": f"{p_start.month:02d}.{p_start.day:02d}–{p_end.month:02d}.{p_end.day:02d}",
                    "daysRecorded": days_recorded,
                    # dataThrough = 全表最新水位（页面顶部「数据至」用它）；
                    # reportDataThrough = 汇报表周口径截止；revenueDataThrough = 营收日报截止。
