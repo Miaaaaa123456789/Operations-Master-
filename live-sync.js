@@ -293,12 +293,12 @@
       /* ⛔ 2026-11-09：本周权威口径＝《特别行动小组汇报表》（7 天 / 58.00 万），
          营收日报台账只到 11.06（5 天 / 40.38 万）。旧模板写成
          「营收日报：58 万（门诊 16.08 ＋ 在院 24.30）」——两个来源相加并不相等，
-         还把主表的入院 16 / 门诊 181 标成「台账口径」，属口径错误。
+         还把主表的入院数 / 门诊 181 标成「台账口径」，属口径错误。
          汇报表为主时单独走一支，两套并列陈述、绝不相加。 */
       var _isReport = (s.period.authority === 'action_report') ||
                       (m.weekRevenue.authority === 'action_report');
       var _revDays = (s.watermarks && s.watermarks.revenue) ? s.watermarks.revenue.days : null;
-      if (_isReport && m.weekRevenue.ledgerValue != null && _revDays != null && _revDays < s.period.daysRecorded) {
+      if (_isReport && m.weekRevenue.ledgerValue != null && _revDays != null) {
         var _ledgerWan = m.weekRevenue.ledgerValue;
         var _diffWan = Math.round((m.weekRevenue.value - _ledgerWan) * 100) / 100;
         var _revThru = s.period.revenueDataThrough || m.weekRevenue.ledgerThrough || s.period.dataThrough;
@@ -315,13 +315,13 @@
         var _doc = ((s.departments || {}).doctor) || {};
         var _nur = ((s.departments || {}).nursing) || {};
         summary.innerHTML =
-          '<b>本期 ' + s.period.label + '（自然周 ' + s.period.daysRecorded + ' 天）·《特别行动小组汇报表》</b>：总收入 <b>' + f2(m.weekRevenue.value) + ' 万</b>；门诊 <b>' + m.weekVisits.value + '</b> 人次、入院 <b>' + m.weekAdmit.value + '</b> 人、物理治疗 <b>' + (Math.round(m.weekPhysio.value * 10) / 10).toFixed(1) + ' 万</b>（占收入 <b>' + (Math.round(m.weekPhysio.value / m.weekRevenue.value * 1000) / 10) + '%</b>，是收入的科目、<b>不可相加</b>）；出院栏整格空白，汇报表记 <b>null</b>、不按 0 计，出院只能取营收台账 <b>' + m.weekDischarge.value + '</b> 人（5 天）。'
-        + '<b>营收日报逐日台账只到 ' + _revThru + '（' + _revDays + ' 天）</b>：合计 <b>' + f2(_ledgerWan) + ' 万</b>＝门诊 ' + f2(m.weekOutpatient.value) + ' ＋ 在院 ' + f2(m.weekInpatient.value) + '；门诊 <b>' + (m.weekVisits.ledgerValue != null ? m.weekVisits.ledgerValue : '—') + '</b> 人次、在院 <b>' + m.wardCount.value + '</b> 人（' + (m.wardCount.dataThrough || _revThru) + ' 时点）；与汇报表七天 <b>' + f2(m.weekRevenue.value) + ' 万</b> 差 <b>' + f2(_diffWan) + ' 万</b>，正好是 ' + _miss + ' 未出台账，<b>两套并列、不相加</b>。'
+          '<b>本期 ' + s.period.label + '（自然周 ' + s.period.daysRecorded + ' 天）·《特别行动小组汇报表》</b>：总收入 <b>' + f2(m.weekRevenue.value) + ' 万</b>；门诊 <b>' + m.weekVisits.value + '</b> 人次、入院 <b>' + m.weekAdmit.value + '</b> 人、物理治疗 <b>' + (Math.round(m.weekPhysio.value * 10) / 10).toFixed(1) + ' 万</b>（占收入 <b>' + (Math.round(m.weekPhysio.value / m.weekRevenue.value * 1000) / 10) + '%</b>，是收入的科目、<b>不可相加</b>）；出院栏整格空白，汇报表记 <b>null</b>、不按 0 计，出院只能取营收台账 <b>' + m.weekDischarge.value + '</b> 人（7 天，与结帐表一致）。'
+        + '<b>营收日报逐日台账至 ' + _revThru + '（' + _revDays + ' 天）</b>：合计 <b>' + f2(_ledgerWan) + ' 万</b>＝门诊 ' + f2(m.weekOutpatient.value) + ' ＋ 在院 ' + f2(m.weekInpatient.value) + '；门诊 <b>' + (m.weekVisits.ledgerValue != null ? m.weekVisits.ledgerValue : '—') + '</b> 人次、在院 <b>' + m.wardCount.value + '</b> 人（' + (m.wardCount.dataThrough || _revThru) + ' 时点）；与汇报表七天 <b>' + f2(m.weekRevenue.value) + ' 万</b> 差 <b>' + f2(_diffWan) + ' 万</b>' + (_revDays < s.period.daysRecorded ? ('，正好是 ' + _miss + ' 未出台账') : '，系两表口径差（汇报表为部门自填总收入）') + '，<b>两套并列、不相加</b>。'
         + '<b>部门口径：</b>'
         + (_psy.contact != null ? ('心理 接触 <b>' + _psy.contact + '</b> 人次 / 咨询 <b>' + (_psy.consult != null ? _psy.consult : '—') + '</b> 人次（V4，7 天）；') : '')
         + (_sv.week ? ('客服 回访 <b>' + _sv.week.followup + '</b> 条、标注到院 <b>' + _sv.week.arrived + '</b> 人次（<b>' + _sv.week.rate + '%</b>，只有 3 人登记）；') : '')
         + (_bt.week ? ('营销中心 管家有效对接 <b>' + _bt.week.contact + '</b> 条、转住院 <b>' + _bt.week.admit + '</b> 人（<b>' + _bt.week.rate + '%</b>' + (_bt.missingStaff && _bt.missingStaff.length ? '，' + _bt.missingStaff.join('、') + ' 0 条' : '') + '）；') : '')
-        + '护理周报<b>已交</b>：六项完成率 <b>' + (_nur.treatSummary ? _nur.treatSummary.rate + '%' : '—') + '</b>（' + (_nur.treatSummary ? _nur.treatSummary.done + '/' + _nur.treatSummary.due + '，未做 ' + _nur.treatSummary.missed : '—') + '），上期 90.1%、<b>+4.3pt</b>；医生组<b>个人周排名已交</b>：出院 <b>19</b> 人（7 天；11.02—11.06 五天 13 人与营收台账逐日吻合）、在院 <b>26</b> 人（11.08 时点）、业绩 <b>35.66 万</b>，排名指数首名康言 89.9。⚠ 结帐表标<b>「自费」</b>，入院 <b>9</b> 人与汇报表 <b>' + m.weekAdmit.value + '</b> 人差 ' + (m.weekAdmit.value - 9) + ' 人，<b>不同源、只并列、不互相校验</b>。'
+        + '护理周报<b>已交</b>：六项完成率 <b>' + (_nur.treatSummary ? _nur.treatSummary.rate + '%' : '—') + '</b>（' + (_nur.treatSummary ? _nur.treatSummary.done + '/' + _nur.treatSummary.due + '，未做 ' + _nur.treatSummary.missed : '—') + '），上期 90.1%、<b>+4.3pt</b>；医生组<b>个人周排名已交</b>：出院 <b>19</b> 人（7 天，与营收台账 0/4/0/1/8/3/3 逐日吻合）、在院 <b>26</b> 人（11.08 时点）、业绩 <b>35.66 万</b>，排名指数首名康言 89.9。⚠ 结帐表标<b>「自费」</b>，入院 <b>9</b> 人与汇报表 <b>' + m.weekAdmit.value + '</b> 人' + (m.weekAdmit.value === 9 ? '<b>已一致</b>' : '差 ' + (m.weekAdmit.value - 9) + ' 人') + '，<b>不同源、只并列、不互相校验</b>。'
         + '<b>' + monthCumLabel(m.monthRevenue) + ' ' + f2(m.monthRevenue.value) + ' 万</b>／目标 ' + m.monthRevenue.targetWan + ' 万＝<b>' + m.monthRevenue.amountProgress + '%</b>，时间进度 <b>' + m.monthRevenue.timeProgress + '%</b>，<b>' + (_pctPt >= 0 ? '领先 ' : '落后 ') + Math.abs(_pctPt) + 'pt</b>，剩余缺口 <b>' + f2(m.monthRevenue.gap) + ' 万</b>。上期 <b>' + s.previousPeriod.start + '—' + s.previousPeriod.end + '</b> 同 ' + s.period.daysRecorded + ' 天，总量 <b>' + signed(m.weekRevenue.deltaPct) + '%</b>。';
       } else {
         var avg = m.weekRevenue.valueYuan / 10000 / s.period.daysRecorded;
